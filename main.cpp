@@ -2,12 +2,8 @@
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 
-#include "Pipeline.h"
-#define STB_IMAGE_IMPLEMENTATION
-#include "stb_image.h"
 #include "Chessboard.h"
 #include "vulkanFrame.h"
-
 VulkanPool g_VulkanPool;
 VulkanQueue g_VulkanQueue;
 VulkanDevice g_VulkanDevice;
@@ -20,11 +16,12 @@ const uint32_t g_WindowWidth = CHESSBOARD_GRID_SIZE_BIG * 2 + 10 * CHESSBOARD_GR
 std::vector<VkCommandBuffer>g_CommandBuffers;
 
 Chessboard g_Chessboard;
-// VkSampler g_TextureSampler;
+VkSampler g_TextureSampler;
 
 // void createSurface(VkInstance instance, VkSurfaceKHR&surface, void* userData){
 //     glfwCreateWindowSurface(instance, (GLFWwindow *)userData, nullptr, &surface);
 // }
+
 VkBool32 VKAPI_PTR debugUtilsMessenger(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageTypes, const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData, void* pUserData){
     const char* strMessageSeverity = nullptr;//, *strMessageTypes = nullptr;
     if (messageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT) {
@@ -120,16 +117,6 @@ void cleanupVulkan(){
     vkDestroyDevice(g_VulkanDevice.device, nullptr);
     vkDestroyInstance(g_VulkanDevice.instance, nullptr);
 }
-void CreateTextureImage(VkDevice device, const char *name, VulkanImage&image){
-    int nrComponents;
-    stbi_uc* data = stbi_load(name, (int *)&image.size.width, (int *)&image.size.height, &nrComponents, STBI_rgb_alpha);
-    if(data == nullptr){
-        printf("load picture error:%s\n", name);
-        return;
-    }       
-    vkf::CreateTextureImage(device, data, image.size.width, image.size.height, image, g_VulkanPool.commandPool, g_VulkanQueue.graphics);
-    stbi_image_free(data);
-}
 void recodeCommand(uint32_t currentFrame){
     std::vector<VkClearValue> clearValues(1);
     clearValues[0].color = { 0.1f , 0.1f , 0.1f , 1.0f };
@@ -153,18 +140,18 @@ void recodeCommand(uint32_t currentFrame){
     vkCmdEndRenderPass(g_CommandBuffers[currentFrame]);
     vkEndCommandBuffer(g_CommandBuffers[currentFrame]);
 }
+void mousebutton(GLFWwindow *windows, int button, int action, int mods){
+    
+}
 void setup(GLFWwindow *windows){
+    glfwSetMouseButtonCallback(windows, mousebutton);
+    vkf::CreateTextureSampler(g_VulkanDevice.device, g_TextureSampler);
 
     g_Chessboard.CreatePipeline(g_VulkanDevice.device, g_VulkanWindows.renderpass, g_WindowWidth);
     g_Chessboard.CreateVulkanResource(g_VulkanDevice.physicalDevice, g_VulkanDevice.device, g_WindowWidth, g_VulkanQueue.graphics, g_VulkanPool);
 
     g_Chessboard.UpdateSet(g_VulkanDevice.device);
-    // glfwSetMouseButtonCallback(window, mousebutton);
-    // createTextureSampler(g_VulkanBasic.device, g_TextureSampler);
 
-    // vkf::CreateTextureSampler(g_VulkanDevice.device, g_TextureSampler);
-    // g_GraphicsPipeline.AllocateDescriptorSets(g_VulkanDevice.device, g_VulkanPool.descriptorPool, 1, &g_Set);
-    // g_GraphicsPipeline.UpdateDescriptorSets(g_VulkanDevice.device, { g_Position }, { g_Texture }, g_Set, g_TextureSampler);
     g_CommandBuffers.resize(g_VulkanWindows.framebuffers.size());
     vkf::tool::AllocateCommandBuffers(g_VulkanDevice.device, g_VulkanPool.commandPool, g_CommandBuffers.size(), g_CommandBuffers.data());
     for (size_t i = 0; i < g_VulkanWindows.framebuffers.size(); ++i){
@@ -175,7 +162,7 @@ void cleanup(){
     vkDeviceWaitIdle(g_VulkanDevice.device);
 
     g_Chessboard.Cleanup(g_VulkanDevice.device);
-    // vkDestroySampler(g_VulkanDevice.device, g_TextureSampler, nullptr);
+    vkDestroySampler(g_VulkanDevice.device, g_TextureSampler, nullptr);
 }
 void display(GLFWwindow* window){
     static size_t currentFrame;

@@ -70,9 +70,9 @@ void VulkanImage::AllocateAndBindMemory(VkDevice device, VkMemoryPropertyFlags p
 	vkBindImageMemory(device, image, memory, 0);
 }
 void VulkanImage::Destroy(VkDevice device){
-    vkDestroyImage(device, image, nullptr);
-    vkDestroyImageView(device, view, nullptr);
-    vkFreeMemory(device, memory, nullptr);
+    if(image != VK_NULL_HANDLE)vkDestroyImage(device, image, nullptr);
+    if(view != VK_NULL_HANDLE)vkDestroyImageView(device, view, nullptr);
+    if(memory != VK_NULL_HANDLE)vkFreeMemory(device, memory, nullptr);
 }
 VkResult VulkanBuffer::CreateBuffer(VkDevice device, VkDeviceSize size, VkBufferUsageFlags usage){
     this->size = size;
@@ -101,8 +101,8 @@ void VulkanBuffer::UpdateData(VkDevice device, VkDeviceSize size, const void * p
 	vkUnmapMemory(device, memory);
 }
 void VulkanBuffer::Destroy(VkDevice device){
-    vkDestroyBuffer(device, buffer, nullptr);
-    vkFreeMemory(device, memory, nullptr);
+    if(buffer != VK_NULL_HANDLE)vkDestroyBuffer(device, buffer, nullptr);
+    if(memory != VK_NULL_HANDLE)vkFreeMemory(device, memory, nullptr);
 }
 VkPhysicalDevice vkf::GetPhysicalDevices(VkInstance instance, VkPhysicalDeviceType deviceType){
     uint32_t count;
