@@ -260,6 +260,8 @@ VkResult Pipeline::AllocateDescriptorSets(VkDevice device, VkDescriptorPool pool
     info.descriptorPool = pool;
     info.descriptorSetCount = setCount;
     info.pSetLayouts = &mSetLayouts[setLayoutIndex];
+    // static uint32_t count = 0;
+    // printf("setlayoutindex:%u, allocate count:%u, count:%u\n", setLayoutIndex, setCount, count++);
     return vkAllocateDescriptorSets(device, &info, pDescriptorSet);
 }
 void Pipeline::UpdateDescriptorSets(VkDevice device, const std::vector<VulkanBuffer>&descriptorBuffer, const std::vector<VulkanImage>&descriptorImage, VkDescriptorSet&destSet, const VkSampler&textureSampler){

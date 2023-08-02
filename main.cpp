@@ -68,7 +68,7 @@ void setupVulkan(GLFWwindow *window){
     vkf::CreateFrameBufferForSwapchain(g_VulkanDevice.device, { g_WindowWidth, g_WindowHeight }, g_VulkanWindows, g_VulkanPool.commandPool, g_VulkanQueue.graphics);
 #endif
     vkf::CreateSemaphoreAndFenceForSwapchain(g_VulkanDevice.device, 3, g_VulkanSynchronize);
-    vkf::CreateDescriptorPool(g_VulkanDevice.device, 3, g_VulkanPool.descriptorPool);
+    vkf::CreateDescriptorPool(g_VulkanDevice.device, 131, g_VulkanPool.descriptorPool);
     //显示设备信息
     const char *deviceType;
     VkPhysicalDeviceProperties physicalDeviceProperties;
@@ -149,6 +149,7 @@ void setup(GLFWwindow *windows){
 
     g_Chessboard.CreatePipeline(g_VulkanDevice.device, g_VulkanWindows.renderpass, g_WindowWidth);
     g_Chessboard.CreateVulkanResource(g_VulkanDevice.physicalDevice, g_VulkanDevice.device, g_WindowWidth, g_VulkanQueue.graphics, g_VulkanPool);
+    g_Chessboard.InitChessboard(g_VulkanDevice.device, g_WindowWidth, g_VulkanWindows.renderpass, g_VulkanPool, g_VulkanQueue.graphics, g_TextureSampler);
 
     g_Chessboard.UpdateSet(g_VulkanDevice.device);
 
@@ -188,11 +189,11 @@ int main(){
     while (!glfwWindowShouldClose(window)) {
         display(window);
 
-        glfwSwapBuffers(window);
         glfwPollEvents();
     }
 	glfwTerminate();
 
+    vkDeviceWaitIdle(g_VulkanDevice.device);
     cleanup();
     cleanupVulkan();
     return 0;

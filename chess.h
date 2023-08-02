@@ -4,11 +4,23 @@
 #include "vulkanFrame.h"
 #include "glm/glm.hpp"
 #include "glm/gtc/matrix_transform.hpp"
-#define CHESS_WIDTH 30
+#define CHESSBOARD_LINE_WIDTH 1
+#define CHESSBOARD_GRID_SIZE 40
+#define ROW_TO_Y(ROW, GRIDSIZE, LINE_WIDTH)((GRIDSIZE) + (ROW) * (GRIDSIZE) + ((ROW) + 1) * LINE_WIDTH)
+#define COLUMN_TO_X(COLUMN, GRIDSIZE, LINE_WIDTH)(ROW_TO_Y(COLUMN, GRIDSIZE, LINE_WIDTH))
+#define CHESSBOARD_ROW_TO_Y(ROW)(ROW_TO_Y(ROW, CHESSBOARD_GRID_SIZE, CHESSBOARD_LINE_WIDTH))
+// #define CHESSBOARD_ROW_TO_Y(ROW)(ROW_TO_Y(ROW, CHESSBOARD_GRID_SIZE, CHESSBOARD_LINE_WIDTH) - (CHESSBOARD_GRID_SIZE * .5 + CHESSBOARD_LINE_WIDTH))
+#define CHESSBOARD_COLUMN_TO_X(COLUMN)(CHESSBOARD_ROW_TO_Y(COLUMN))
+
+#define CHESS_WIDTH (CHESSBOARD_GRID_SIZE * .45)
 #define CHESS_HEIGHT CHESS_WIDTH
-#define CHESS_FONT_IMAGE_WIDTH 30
+#define CHESS_FONT_IMAGE_WIDTH CHESS_WIDTH
 #define CHESS_FONT_ROOT_PATH "./ChessFont/"
 #define CHESS_FONT_IMAGE_HEIGHT CHESS_FONT_IMAGE_WIDTH
+struct Ranks{
+    uint32_t row;
+    uint32_t column;
+};
 struct ChessVertex {
     glm::vec3 pos;
     glm::vec3 color;
@@ -17,124 +29,131 @@ struct ChessVertex {
         this->color = color;
     }
 };
+struct ChessFontVertex {
+    glm::vec3 pos;
+    glm::vec2 uv;
+    ChessFontVertex(const glm::vec3&pos, const glm::vec2&uv){
+        this->pos = pos;
+        this->uv = uv;
+    }
+};
 class Chess{
     glm::vec2 mPos;
     VulkanBuffer mPosition;
+    VulkanBuffer mFontPosition;
     VulkanBuffer mVertex, mIndex;
     VkDescriptorSet mSet, mFontSet;
-    std::vector<uint16_t> mCircularIndices;
+    uint32_t mCircularIndicesCount;
+    VulkanBuffer mFontVertex, mFontIndex;
+    GraphicsPipeline mPipeline, mFontPipeline;
 protected:
     VulkanImage mFont;
+    uint32_t mRow, mColumn;//棋子目前所在的行列
+    void DrawFont(VkCommandBuffer cmd);
+    void DrawCircular(VkCommandBuffer cmd);
     void GetCircularVertex(const glm::vec3&color, std::vector<ChessVertex>&vertices);
     bool CreateTexture(VkDevice device, const char *file, VkCommandPool pool, VkQueue graphics);
+    void CreateGraphicsPipeline(VkDevice device, uint32_t windowWidth, VkRenderPass renderpass, const std::vector<std::string>&shader, GraphicsPipeline&pipeline, const GraphicsPipelineStateInfo&pipelineState = {});
 public:
     Chess(/* args */);
     ~Chess();
     void Cleanup(VkDevice device);
-    void CreateVertexAndIndex(VkDevice device, const glm::vec3&color, VkCommandPool pool, VkQueue graphics);
-    //提供绘制圆形函数。字则由子类最后绘制
-    void DrawFont(VkCommandBuffer cmd, GraphicsPipeline font);
-    void DrawCircular(VkCommandBuffer cmd, GraphicsPipeline circular);
+    void DestroyGraphicsPipeline(VkDevice device);
+    void RecodeCommand(VkCommandBuffer cmd, uint32_t windowWidth);
+    void CreatePipeline(VkDevice device, VkRenderPass renderpass, uint32_t windowWidth);
+    void CreateVulkanResource(VkDevice device, const glm::vec3&color, const VulkanPool&pool, VkQueue graphics);
 
+    void UpdateSet(VkDevice device, VkSampler fontSampler);
     virtual void UpdateUniform(VkDevice device, const glm::vec2&pos);
-    void UpdateSet(VkDevice device, VkDescriptorPool pool, GraphicsPipeline font, GraphicsPipeline circular, VkSampler textureSampler);
+    virtual void UpdateUniform(VkDevice device, uint32_t row, uint32_t column);
     
     bool isSelect(const glm::vec2&pos);
 
     //能下的位置从参数返回
-    virtual void Selected(std::vector<glm::vec2>&pos) = 0;
+    virtual void Selected(const Ranks&palace, std::vector<Ranks>&canPlay) = 0;
     virtual void CreateFontTexture(VkDevice device, VkCommandPool pool, VkQueue graphics) = 0;
 };
 
 class Wei:public Chess{
-    glm::vec2 mFirstPos;
+    //每个九格宫的位置似乎应该记录在棋盘
+    //否则好像其他棋子也需要记录, 其他棋子也有进入九格宫的可能
+    // uint32_t mFirstRow, mFirstColumn;//因为需要知道九格宫的位置。以供选中棋子时，判断斜向是否能下
 public:
     Wei();
     ~Wei();
-    virtual void Selected(std::vector<glm::vec2>&pos);
-    //一般情况下其他棋子不需要该函数。
-    virtual void UpdateUniform(VkDevice device, const glm::vec2&pos);
+    virtual void Selected(const Ranks&palace, std::vector<Ranks>&canPlay);
+    // //一般情况下其他棋子不需要该函数。//重写是因为需要记录一次mFirstRow, mFirstColumn
+    // virtual void UpdateUniform(VkDevice device, uint32_t row, uint32_t column);
     virtual void CreateFontTexture(VkDevice device, VkCommandPool pool, VkQueue graphics);
 };
 
 class Shu:public Chess{
-    glm::vec2 mFirstPos;
 public:
     Shu();
     ~Shu();
-    virtual void Selected(std::vector<glm::vec2>&pos);
-    //一般情况下其他棋子不需要该函数。
-    virtual void UpdateUniform(VkDevice device, const glm::vec2&pos);
+    virtual void Selected(const Ranks&palace, std::vector<Ranks>&canPlay);
+    // //一般情况下其他棋子不需要该函数。
+    // virtual void UpdateUniform(VkDevice device, uint32_t row, uint32_t column);
     virtual void CreateFontTexture(VkDevice device, VkCommandPool pool, VkQueue graphics);
 };
 
 class Wu:public Chess{
-    glm::vec2 mFirstPos;
 public:
     Wu();
     ~Wu();
-    virtual void Selected(std::vector<glm::vec2>&pos);
-    //一般情况下其他棋子不需要该函数。
-    virtual void UpdateUniform(VkDevice device, const glm::vec2&pos);
+    virtual void Selected(const Ranks&palace, std::vector<Ranks>&canPlay);
+    // //一般情况下其他棋子不需要该函数。
+    // virtual void UpdateUniform(VkDevice device, uint32_t row, uint32_t column);
     virtual void CreateFontTexture(VkDevice device, VkCommandPool pool, VkQueue graphics);
 };
 
 class Han:public Chess{
-    glm::vec2 mFirstPos;
 public:
     Han();
     ~Han();
-    virtual void Selected(std::vector<glm::vec2>&pos);
-    //一般情况下其他棋子不需要该函数。
-    virtual void UpdateUniform(VkDevice device, const glm::vec2&pos);
+    virtual void Selected(const Ranks&palace, std::vector<Ranks>&canPlay);
     virtual void CreateFontTexture(VkDevice device, VkCommandPool pool, VkQueue graphics);
 };
 class Bing:public Chess{
-    glm::vec2 mFirstPos;
 public:
     Bing();
     ~Bing();
-    virtual void Selected(std::vector<glm::vec2>&pos);
+    virtual void Selected(const Ranks&palace, std::vector<Ranks>&canPlay);
     virtual void CreateFontTexture(VkDevice device, VkCommandPool pool, VkQueue graphics);
 };
 class Pao:public Chess{
-    glm::vec2 mFirstPos;
 public:
     Pao();
     ~Pao();
-    virtual void Selected(std::vector<glm::vec2>&pos);
+    virtual void Selected(const Ranks&palace, std::vector<Ranks>&canPlay);
     virtual void CreateFontTexture(VkDevice device, VkCommandPool pool, VkQueue graphics);
 };
 class Che:public Chess{
-    glm::vec2 mFirstPos;
 public:
     Che();
     ~Che();
-    virtual void Selected(std::vector<glm::vec2>&pos);
+    virtual void Selected(const Ranks&palace, std::vector<Ranks>&canPlay);
     virtual void CreateFontTexture(VkDevice device, VkCommandPool pool, VkQueue graphics);
 };
 class Ma:public Chess{
-    glm::vec2 mFirstPos;
 public:
     Ma();
     ~Ma();
-    virtual void Selected(std::vector<glm::vec2>&pos);
+    virtual void Selected(const Ranks&palace, std::vector<Ranks>&canPlay);
     virtual void CreateFontTexture(VkDevice device, VkCommandPool pool, VkQueue graphics);
 };
 class Xiang:public Chess{
-    glm::vec2 mFirstPos;
 public:
     Xiang();
     ~Xiang();
-    virtual void Selected(std::vector<glm::vec2>&pos);
+    virtual void Selected(const Ranks&palace, std::vector<Ranks>&canPlay);
     virtual void CreateFontTexture(VkDevice device, VkCommandPool pool, VkQueue graphics);
 };
 class Shi:public Chess{
-    glm::vec2 mFirstPos;
 public:
     Shi();
     ~Shi();
-    virtual void Selected(std::vector<glm::vec2>&pos);
+    virtual void Selected(const Ranks&palace, std::vector<Ranks>&canPlay);
     virtual void CreateFontTexture(VkDevice device, VkCommandPool pool, VkQueue graphics);
 };
 

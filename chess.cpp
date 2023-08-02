@@ -5,7 +5,7 @@
 #include "stb_image.h"
 #include "stb_truetype.h"
 #include "stb_image_write.h"
-bool GenerateFontImage(int bitmap_w, int bitmap_h, const wchar_t *word, uint32_t wordCount, const char *outImageName, const unsigned char *fontData, float pixels = 30){
+bool GenerateFontImage(int bitmap_w, int bitmap_h, const wchar_t *word, uint32_t wordCount, const char *outImageName, const unsigned char *fontData, float pixels = 20){
 	stbtt_fontinfo info;
 	if(!stbtt_InitFont(&info, fontData, 0)){
 		printf("in function:%s, stbtt_InitFont error\n", __FUNCTION__);
@@ -40,7 +40,7 @@ bool GenerateFontImage(int bitmap_w, int bitmap_h, const wchar_t *word, uint32_t
 	free(bitmap);
     return true;
 }
-bool GenerateFontImage(int bitmap_w, int bitmap_h, wchar_t word, const char *outImageName, const unsigned char *fontData, float pixels = 30){
+bool GenerateFontImage(int bitmap_w, int bitmap_h, wchar_t word, const char *outImageName, const unsigned char *fontData, float pixels = 20){
 	stbtt_fontinfo info;
 	if(!stbtt_InitFont(&info, fontData, 0)){
 		printf("in function:%s, stbtt_InitFont error\n", __FUNCTION__);
@@ -125,6 +125,30 @@ void CreateFontImage(const std::string&fontfile, const std::string&outPath = CHE
 		printf("file name is %s\n", fontfile.c_str());
 	}
 }
+
+void Chess::DrawFont(VkCommandBuffer cmd){
+    VkDeviceSize offset = 0;
+    vkCmdBindVertexBuffers(cmd, 0, 1, &mFontVertex.buffer, &offset);
+    vkCmdBindIndexBuffer(cmd, mFontIndex.buffer, 0, VK_INDEX_TYPE_UINT16);
+    mFontPipeline.BindDescriptorSet(cmd, mFontSet);
+    vkCmdDrawIndexed(cmd, 6, 1, 0, 0, 0);
+}
+void Chess::DrawCircular(VkCommandBuffer cmd){
+    VkDeviceSize offset = 0;
+    vkCmdBindVertexBuffers(cmd, 0, 1, &mVertex.buffer, &offset);
+    vkCmdBindIndexBuffer(cmd, mIndex.buffer, 0, VK_INDEX_TYPE_UINT16);
+    mPipeline.BindDescriptorSet(cmd, mSet);
+    vkCmdDrawIndexed(cmd, mCircularIndicesCount, 1, 0, 0, 0);
+}
+void Chess::GetCircularVertex(const glm::vec3&color, std::vector<ChessVertex>&vertices){
+    ChessVertex v = ChessVertex(glm::vec3(.0f), color);
+    vertices.push_back(v);
+    for (float i = 1; i < 360.0f; ++i){
+        float r = i * M_PI / 180.0f;
+        v.pos = glm::vec3(sin(r), cos(r), .0f);
+        vertices.push_back(v);
+    }
+}
 bool Chess::CreateTexture(VkDevice device, const char *file, VkCommandPool pool, VkQueue graphics){
     int nrComponents;
     stbi_uc* data = stbi_load(file, (int *)&mFont.size.width, (int *)&mFont.size.height, &nrComponents, STBI_rgb_alpha);
@@ -135,6 +159,27 @@ bool Chess::CreateTexture(VkDevice device, const char *file, VkCommandPool pool,
     vkf::CreateTextureImage(device, data, mFont.size.width, mFont.size.height, mFont, pool, graphics);
     stbi_image_free(data);
     return true;
+}
+void Chess::CreateGraphicsPipeline(VkDevice device, uint32_t windowWidth, VkRenderPass renderpass, const std::vector<std::string>&shader, GraphicsPipeline&pipeline, const GraphicsPipelineStateInfo&pipelineState){
+    std::vector<VkShaderStageFlagBits> stage = { VK_SHADER_STAGE_VERTEX_BIT, VK_SHADER_STAGE_FRAGMENT_BIT };
+    std::vector<uint32_t>cacheData;
+    vkf::tool::GetFileContent("ChessGraphicsPipelineCache", cacheData);
+    for (size_t i = 0; i < shader.size(); ++i){
+        pipeline.PushShader(device, stage[i], shader[i]);
+    }
+    pipeline.SetStateInfo(pipelineState);
+    pipeline.PushScissor(windowWidth, windowWidth);
+    pipeline.PushViewport(windowWidth, windowWidth);
+    // pipeline.SetVertexInputBindingDescription(sizeof(ChessVertex));
+    pipeline.PushPushConstant(sizeof(glm::mat4), VK_SHADER_STAGE_VERTEX_BIT);
+    // pipeline.PushVertexInputAttributeDescription(0, 0, VK_FORMAT_R32G32B32_SFLOAT);
+    // pipeline.PushVertexInputAttributeDescription(1, 3 * sizeof(float), VK_FORMAT_R32G32B32_SFLOAT);
+    pipeline.CreateCache(device, cacheData);
+    pipeline.CreateDescriptorSetLayout(device);
+    pipeline.CreateLayout(device);
+    pipeline.CreatePipeline(device, renderpass);
+    pipeline.GetCacheData(device, cacheData);
+    vkf::tool::WriteFileContent("ChessGraphicsPipelineCache", cacheData.data(), cacheData.size() * sizeof(uint32_t)); 
 }
 Chess::Chess(/* args */){
     
@@ -148,58 +193,97 @@ void Chess::Cleanup(VkDevice device){
     mIndex.Destroy(device);
     mVertex.Destroy(device);
     mPosition.Destroy(device);
+    mFontIndex.Destroy(device);
+    mFontVertex.Destroy(device);
+    mFontPosition.Destroy(device);
+    DestroyGraphicsPipeline(device);
 }
-void Chess::GetCircularVertex(const glm::vec3&color, std::vector<ChessVertex>&vertices){
-    ChessVertex v = ChessVertex(glm::vec3(.0f), color);
-    vertices.push_back(v);
-    for (float i = 1; i < 362.0f; ++i){
-        float r = i * M_PI / 180.0f;
-        v.pos = glm::vec3(sin(r), cos(r), .0f);
-        vertices.push_back(v);
-    }
-}
+void Chess::DestroyGraphicsPipeline(VkDevice device){
+    std::vector<uint32_t>cacheData;
+    mPipeline.DestroyCache(device, cacheData);
+    vkf::tool::WriteFileContent("ChessGraphicsPipelineCache", cacheData.data(), cacheData.size() * sizeof(uint32_t)); 
+    mPipeline.DestroySetLayout(device);
+    mPipeline.DestroyLayout(device);
+    mPipeline.DestroyPipeline(device);
 
-void Chess::CreateVertexAndIndex(VkDevice device, const glm::vec3&color, VkCommandPool pool, VkQueue graphics){
+    mFontPipeline.DestroyCache(device, cacheData);
+    mFontPipeline.DestroySetLayout(device);
+    mFontPipeline.DestroyLayout(device);
+    mFontPipeline.DestroyPipeline(device);
+}
+void Chess::RecodeCommand(VkCommandBuffer cmd, uint32_t windowWidth){
+    const glm::mat4 projection = glm::ortho(0.0f, (float)windowWidth, 0.0f, (float)windowWidth, -1.0f, 1.0f);
+    mPipeline.BindPipeline(cmd);
+    mPipeline.PushPushConstant(cmd, VK_SHADER_STAGE_VERTEX_BIT, sizeof(glm::mat4), &projection);
+    DrawCircular(cmd);
+    mFontPipeline.BindPipeline(cmd);
+    mFontPipeline.PushPushConstant(cmd, VK_SHADER_STAGE_VERTEX_BIT, sizeof(glm::mat4), &projection);
+    DrawFont(cmd);
+}
+void Chess::CreatePipeline(VkDevice device, VkRenderPass renderpass, uint32_t windowWidth){
+    mPipeline.SetVertexInputBindingDescription(sizeof(ChessVertex));
+    mPipeline.PushVertexInputAttributeDescription(0, 0, VK_FORMAT_R32G32B32_SFLOAT);
+    mPipeline.PushVertexInputAttributeDescription(1, 3 * sizeof(float), VK_FORMAT_R32G32B32_SFLOAT);
+    mPipeline.PushDescriptorSetLayoutBinding(0, VK_SHADER_STAGE_VERTEX_BIT, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+    CreateGraphicsPipeline(device, windowWidth, renderpass, { "shaders/baseVert.spv", "shaders/baseFrag.spv" }, mPipeline);
+
+    mFontPipeline.SetVertexInputBindingDescription(sizeof(ChessFontVertex));
+    mFontPipeline.PushVertexInputAttributeDescription(0, 0, VK_FORMAT_R32G32B32_SFLOAT);
+    mFontPipeline.PushVertexInputAttributeDescription(1, 3 * sizeof(float), VK_FORMAT_R32G32_SFLOAT);
+    mFontPipeline.PushDescriptorSetLayoutBinding(0, VK_SHADER_STAGE_VERTEX_BIT, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+    mFontPipeline.PushDescriptorSetLayoutBinding(1, VK_SHADER_STAGE_FRAGMENT_BIT, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+    CreateGraphicsPipeline(device, windowWidth, renderpass, { "shaders/baseFontVert.spv", "shaders/baseFontFrag.spv" }, mFontPipeline);
+}
+void Chess::CreateVulkanResource(VkDevice device, const glm::vec3&color, const VulkanPool&pool, VkQueue graphics){
     std::vector<ChessVertex> circularVertices;
     GetCircularVertex(color, circularVertices);
-    for (size_t i = 1; i <= circularVertices.size() * .5f; ++i){
-        mCircularIndices.push_back(0);
-        mCircularIndices.push_back(i);
-        mCircularIndices.push_back(i + 1);
+    std::vector<uint16_t> circularIndices;
+    for (size_t i = 1; i <= circularVertices.size(); ++i){
+        circularIndices.push_back(0);
+        circularIndices.push_back(i);
+        circularIndices.push_back(i + 1);
     }
-    mIndex.CreateBuffer(device, sizeof(uint16_t) * mCircularIndices.size(), VK_BUFFER_USAGE_INDEX_BUFFER_BIT|VK_BUFFER_USAGE_TRANSFER_DST_BIT);
+    mCircularIndicesCount = circularIndices.size();
+    const ChessFontVertex vertices[] = {
+        ChessFontVertex(glm::vec3(.0f, 1.0f, .0f), glm::vec2(0.0f, 1.0f)),//左下
+        ChessFontVertex(glm::vec3(1.0f, .0f, .0f), glm::vec2(1.0f, 0.0f)),//右上
+        ChessFontVertex(glm::vec3(.0f, .0f, .0f), glm::vec2(0.0f, 0.0f)), //左上
+        ChessFontVertex(glm::vec3(1.0f, 1.0f, .0f), glm::vec2(1.0f, 1.0f))//右下
+    };
+    const uint16_t indices[] = { 0, 1, 2, 0, 3, 1 };
+    mFontIndex.CreateBuffer(device, sizeof(indices), VK_BUFFER_USAGE_INDEX_BUFFER_BIT|VK_BUFFER_USAGE_TRANSFER_DST_BIT);
+    mIndex.CreateBuffer(device, sizeof(uint16_t) * circularIndices.size(), VK_BUFFER_USAGE_INDEX_BUFFER_BIT|VK_BUFFER_USAGE_TRANSFER_DST_BIT);
+    mFontVertex.CreateBuffer(device, sizeof(vertices), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT|VK_BUFFER_USAGE_TRANSFER_DST_BIT);
     mVertex.CreateBuffer(device, sizeof(ChessVertex) * circularVertices.size(), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT|VK_BUFFER_USAGE_TRANSFER_DST_BIT);
     mIndex.AllocateAndBindMemory(device, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    mFontIndex.AllocateAndBindMemory(device, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
     mVertex.AllocateAndBindMemory(device, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-    vkf::tool::CopyBuffer(device, sizeof(uint16_t) * mCircularIndices.size(), mCircularIndices.data(), graphics, pool, mIndex);
-    vkf::tool::CopyBuffer(device, sizeof(ChessVertex) * circularVertices.size(), mCircularIndices.data(), graphics, pool, mVertex);
+    mFontVertex.AllocateAndBindMemory(device, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    vkf::tool::CopyBuffer(device, sizeof(indices), indices, graphics, pool.commandPool, mFontIndex);
+    vkf::tool::CopyBuffer(device, sizeof(uint16_t) * circularIndices.size(), circularIndices.data(), graphics, pool.commandPool, mIndex);
+    vkf::tool::CopyBuffer(device, sizeof(vertices), vertices, graphics, pool.commandPool, mFontVertex);
+    vkf::tool::CopyBuffer(device, sizeof(ChessVertex) * circularVertices.size(), circularVertices.data(), graphics, pool.commandPool, mVertex);
 
     mPosition.CreateBuffer(device, sizeof(glm::mat4), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT);
+    mFontPosition.CreateBuffer(device, sizeof(glm::mat4), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT);
     mPosition.AllocateAndBindMemory(device, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-    UpdateUniform(device, mPos);
+    mFontPosition.AllocateAndBindMemory(device, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+    mPipeline.AllocateDescriptorSets(device, pool.descriptorPool, 1, &mSet);
+    mFontPipeline.AllocateDescriptorSets(device, pool.descriptorPool, 1, &mFontSet);
 }
-void Chess::DrawFont(VkCommandBuffer cmd, GraphicsPipeline font){
-    // font.BindDescriptorSet(cmd);
-}
-void Chess::DrawCircular(VkCommandBuffer cmd, GraphicsPipeline circular){
-    // circular.BindDescriptorSet(cmd);
-    VkDeviceSize offset = 0;
-    vkCmdBindVertexBuffers(cmd, 0, 1, &mVertex.buffer, &offset);
-    // vkCmdDrawIndexed()
-    circular.BindDescriptorSet(cmd, mSet);
+void Chess::UpdateSet(VkDevice device, VkSampler fontSampler){
+    mPipeline.UpdateDescriptorSets(device, { mPosition }, {}, mSet);
+    mFontPipeline.UpdateDescriptorSets(device, { mFontPosition }, { mFont }, mFontSet, fontSampler);
 }
 void Chess::UpdateUniform(VkDevice device, const glm::vec2&pos){
     mPos = pos;
-    const glm::mat4 model = glm::scale(glm::translate(glm::mat4(1), glm::vec3(mPos, 0)), glm::vec3(CHESS_WIDTH, CHESS_HEIGHT,1));
-    mPosition.UpdateData(device, &model);    
+    glm::mat4 model = glm::scale(glm::translate(glm::mat4(1), glm::vec3(mPos, 0)), glm::vec3(CHESS_WIDTH, CHESS_HEIGHT,1));
+    mPosition.UpdateData(device, &model);
+    model = glm::scale(glm::translate(glm::mat4(1), glm::vec3(mPos.x - CHESS_WIDTH + 4, mPos.y - CHESS_HEIGHT - 2, 0)), glm::vec3(CHESS_WIDTH * 2, CHESS_HEIGHT * 2,1));
+    mFontPosition.UpdateData(device, &model);
 }
-void Chess::UpdateSet(VkDevice device, VkDescriptorPool pool, GraphicsPipeline font, GraphicsPipeline circular, VkSampler textureSampler){
-    //一般都不会更新多次,所以可以在这里分配
-    circular.AllocateDescriptorSets(device, pool, 1, &mSet);
-    font.AllocateDescriptorSets(device, pool, 1, &mFontSet);
-
-    circular.UpdateDescriptorSets(device, { mPosition }, {}, mSet);
-    font.UpdateDescriptorSets(device, { mPosition }, { mFont }, mFontSet, textureSampler);
+void Chess::UpdateUniform(VkDevice device, uint32_t row, uint32_t column){
+    UpdateUniform(device, glm::vec2(CHESSBOARD_COLUMN_TO_X(column), CHESSBOARD_ROW_TO_Y(row)));
 }
 bool Chess::isSelect(const glm::vec2&pos){
     
@@ -210,16 +294,20 @@ Wei::Wei(){
 Wei::~Wei(){
 
 }
-void Wei::Selected(std::vector<glm::vec2>&pos){
+void Wei::Selected(const Ranks&palace, std::vector<Ranks>&canPlay){
 
 }
-void Wei::UpdateUniform(VkDevice device, const glm::vec2&pos){
-    mFirstPos = pos;
-    Chess::UpdateUniform(device, pos);
-}
+// void Wei::UpdateUniform(VkDevice device, uint32_t row, uint32_t column){
+//     if(!mRow && mColumn){
+//         mRow = row;
+//         mColumn = column;
+//     }
+//     Chess::UpdateUniform(device, row, column);
+// }
 void Wei::CreateFontTexture(VkDevice device, VkCommandPool pool, VkQueue graphics){
     if(!CreateTexture(device, CHESS_FONT_ROOT_PATH"魏.png", pool, graphics)){
         CreateFontImage("fonts/SourceHanSerifCN-Bold.otf");
+        CreateTexture(device, CHESS_FONT_ROOT_PATH"魏.png", pool, graphics);
     }
 }
 
@@ -229,16 +317,20 @@ Shu::Shu(){
 Shu::~Shu(){
 
 }
-void Shu::Selected(std::vector<glm::vec2>&pos){
+void Shu::Selected(const Ranks&palace, std::vector<Ranks>&canPlay){
 
 }
-void Shu::UpdateUniform(VkDevice device, const glm::vec2&pos){
-    mFirstPos = pos;
-    Chess::UpdateUniform(device, pos);
-}
+// void Shu::UpdateUniform(VkDevice device, uint32_t row, uint32_t column){
+//     if(!mRow && mColumn){
+//         mRow = row;
+//         mColumn = column;
+//     }
+//     Chess::UpdateUniform(device, row, column);
+// }
 void Shu::CreateFontTexture(VkDevice device, VkCommandPool pool, VkQueue graphics){
     if(!CreateTexture(device, CHESS_FONT_ROOT_PATH"蜀.png", pool, graphics)){
         CreateFontImage("fonts/SourceHanSerifCN-Bold.otf");
+        CreateTexture(device, CHESS_FONT_ROOT_PATH"蜀.png", pool, graphics);
     }
 }
 
@@ -248,16 +340,20 @@ Wu::Wu(){
 Wu::~Wu(){
 
 }
-void Wu::Selected(std::vector<glm::vec2>&pos){
+void Wu::Selected(const Ranks&palace, std::vector<Ranks>&canPlay){
 
 }
-void Wu::UpdateUniform(VkDevice device, const glm::vec2&pos){
-    mFirstPos = pos;
-    Chess::UpdateUniform(device, pos);
-}
+// void Wu::UpdateUniform(VkDevice device, uint32_t row, uint32_t column){
+//     if(!mRow && mColumn){
+//         mRow = row;
+//         mColumn = column;
+//     }
+//     Chess::UpdateUniform(device, row, column);
+// }
 void Wu::CreateFontTexture(VkDevice device, VkCommandPool pool, VkQueue graphics){
     if(!CreateTexture(device, CHESS_FONT_ROOT_PATH"吴.png", pool, graphics)){
         CreateFontImage("fonts/SourceHanSerifCN-Bold.otf");
+        CreateTexture(device, CHESS_FONT_ROOT_PATH"吴.png", pool, graphics);
     }
 }
 
@@ -267,16 +363,13 @@ Han::Han(){
 Han::~Han(){
 
 }
-void Han::Selected(std::vector<glm::vec2>&pos){
+void Han::Selected(const Ranks&palace, std::vector<Ranks>&canPlay){
 
 }
-void Han::UpdateUniform(VkDevice device, const glm::vec2&pos){
-    mFirstPos = pos;
-    Chess::UpdateUniform(device, pos);
-}
 void Han::CreateFontTexture(VkDevice device, VkCommandPool pool, VkQueue graphics){
-    if(!CreateTexture(device, CHESS_FONT_ROOT_PATH"吴.png", pool, graphics)){
+    if(!CreateTexture(device, CHESS_FONT_ROOT_PATH"漢.png", pool, graphics)){
         CreateFontImage("fonts/SourceHanSerifCN-Bold.otf");
+        CreateTexture(device, CHESS_FONT_ROOT_PATH"漢.png", pool, graphics);
     }
 }
 
@@ -286,11 +379,14 @@ Bing::Bing(){
 Bing::~Bing(){
 
 }
-void Bing::Selected(std::vector<glm::vec2>&pos){
+void Bing::Selected(const Ranks&palace, std::vector<Ranks>&canPlay){
 
 }
 void Bing::CreateFontTexture(VkDevice device, VkCommandPool pool, VkQueue graphics){
-
+    if(!CreateTexture(device, CHESS_FONT_ROOT_PATH"兵.png", pool, graphics)){
+        CreateFontImage("fonts/SourceHanSerifCN-Bold.otf");
+        CreateTexture(device, CHESS_FONT_ROOT_PATH"兵.png", pool, graphics);
+    }
 }
 
 Pao::Pao(){
@@ -299,11 +395,14 @@ Pao::Pao(){
 Pao::~Pao(){
     
 }
-void Pao::Selected(std::vector<glm::vec2>&pos){
+void Pao::Selected(const Ranks&palace, std::vector<Ranks>&canPlay){
 
 }
 void Pao::CreateFontTexture(VkDevice device, VkCommandPool pool, VkQueue graphics){
-
+    if(!CreateTexture(device, CHESS_FONT_ROOT_PATH"炮.png", pool, graphics)){
+        CreateFontImage("fonts/SourceHanSerifCN-Bold.otf");
+        CreateTexture(device, CHESS_FONT_ROOT_PATH"炮.png", pool, graphics);
+    }
 }
 
 Che::Che(){
@@ -312,11 +411,14 @@ Che::Che(){
 Che::~Che(){
     
 }
-void Che::Selected(std::vector<glm::vec2>&pos){
+void Che::Selected(const Ranks&palace, std::vector<Ranks>&canPlay){
 
 }
 void Che::CreateFontTexture(VkDevice device, VkCommandPool pool, VkQueue graphics){
-
+    if(!CreateTexture(device, CHESS_FONT_ROOT_PATH"車.png", pool, graphics)){
+        CreateFontImage("fonts/SourceHanSerifCN-Bold.otf");
+        CreateTexture(device, CHESS_FONT_ROOT_PATH"車.png", pool, graphics);
+    }
 }
 
 Ma::Ma(){
@@ -325,11 +427,14 @@ Ma::Ma(){
 Ma::~Ma(){
     
 }
-void Ma::Selected(std::vector<glm::vec2>&pos){
+void Ma::Selected(const Ranks&palace, std::vector<Ranks>&canPlay){
 
 }
 void Ma::CreateFontTexture(VkDevice device, VkCommandPool pool, VkQueue graphics){
-
+    if(!CreateTexture(device, CHESS_FONT_ROOT_PATH"馬.png", pool, graphics)){
+        CreateFontImage("fonts/SourceHanSerifCN-Bold.otf");
+        CreateTexture(device, CHESS_FONT_ROOT_PATH"馬.png", pool, graphics);
+    }
 }
 Xiang::Xiang(){
 
@@ -337,11 +442,14 @@ Xiang::Xiang(){
 Xiang::~Xiang(){
     
 }
-void Xiang::Selected(std::vector<glm::vec2>&pos){
+void Xiang::Selected(const Ranks&palace, std::vector<Ranks>&canPlay){
 
 }
 void Xiang::CreateFontTexture(VkDevice device, VkCommandPool pool, VkQueue graphics){
-
+    if(!CreateTexture(device, CHESS_FONT_ROOT_PATH"相.png", pool, graphics)){
+        CreateFontImage("fonts/SourceHanSerifCN-Bold.otf");
+        CreateTexture(device, CHESS_FONT_ROOT_PATH"相.png", pool, graphics);
+    }
 }
 Shi::Shi(){
 
@@ -349,9 +457,12 @@ Shi::Shi(){
 Shi::~Shi(){
     
 }
-void Shi::Selected(std::vector<glm::vec2>&pos){
+void Shi::Selected(const Ranks&palace, std::vector<Ranks>&canPlay){
 
 }
 void Shi::CreateFontTexture(VkDevice device, VkCommandPool pool, VkQueue graphics){
-
+    if(!CreateTexture(device, CHESS_FONT_ROOT_PATH"士.png", pool, graphics)){
+        CreateFontImage("fonts/SourceHanSerifCN-Bold.otf");
+        CreateTexture(device, CHESS_FONT_ROOT_PATH"士.png", pool, graphics);
+    }
 }

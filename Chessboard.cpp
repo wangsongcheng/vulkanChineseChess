@@ -1,30 +1,43 @@
 #include "Chessboard.h"
-void Chessboard::InitChessboard(VkDevice device, uint32_t country){
-    if(country == WU_CHESS_INDEX)mChess[country].jiang = new Wu;
-    if(country == WEI_CHESS_INDEX)mChess[country].jiang = new Wei;
-    if(country == SHU_CHESS_INDEX)mChess[country].jiang = new Shu;
-    if(country == HAN_CHESS_INDEX)mChess[country].jiang = new Han;
-
-    //ROW_TO_Y
-    // mChess[country].jiang->UpdateUniform(device, );
-    // for (size_t j = 0; j < sizeof(mChess->bing) / sizeof(Chess); ++j){
-    //     mChess[i].bing[j]->;
-    // }
-    // for (size_t j = 0; j < sizeof(mChess->ma) / sizeof(Chess); ++j){
-    //     mChess[i].ma[j]->;
-    // }
-    // for (size_t j = 0; j < sizeof(mChess->che) / sizeof(Chess); ++j){
-    //     mChess[i].che[j]->;
-    // }
-    // for (size_t j = 0; j < sizeof(mChess->pao) / sizeof(Chess); ++j){
-    //     mChess[i].pao[j]->;
-    // }
-    // for (size_t j = 0; j < sizeof(mChess->shi) / sizeof(Chess); ++j){
-    //     mChess[i].shi[j]->;
-    // }
-    // for (size_t j = 0; j < sizeof(mChess->xiang) / sizeof(Chess); ++j){
-    //     mChess[i].xiang[j]->;
-    // }
+void Chessboard::DestroyChess(VkDevice device, uint32_t country){
+    mChess[country].jiang->Cleanup(device);
+    delete mChess[country].jiang;
+    for (size_t j = 0; j < sizeof(mChess->bing) / sizeof(Chess *); ++j){
+        if(mChess[country].bing[j]){
+            mChess[country].bing[j]->Cleanup(device);
+            delete mChess[country].bing[j];
+        }
+    }
+    for (size_t j = 0; j < sizeof(mChess->ma) / sizeof(Chess *); ++j){
+        if(mChess[country].ma[j]){
+            mChess[country].ma[j]->Cleanup(device);
+            delete mChess[country].ma[j];
+        }
+    }
+    for (size_t j = 0; j < sizeof(mChess->che) / sizeof(Chess *); ++j){
+        if(mChess[country].che[j]){
+            mChess[country].che[j]->Cleanup(device);
+            delete mChess[country].che[j];
+        }
+    }
+    for (size_t j = 0; j < sizeof(mChess->pao) / sizeof(Chess *); ++j){
+        if(mChess[country].pao[j]){
+            mChess[country].pao[j]->Cleanup(device);
+            delete mChess[country].pao[j];
+        }
+    }
+    for (size_t j = 0; j < sizeof(mChess->shi) / sizeof(Chess *); ++j){
+        if(mChess[country].shi[j]){
+            mChess[country].shi[j]->Cleanup(device);
+            delete mChess[country].shi[j];
+        }
+    }
+    for (size_t j = 0; j < sizeof(mChess->xiang) / sizeof(Chess *); ++j){
+        if(mChess[country].xiang[j]){
+            mChess[country].xiang[j]->Cleanup(device);
+            delete mChess[country].xiang[j];
+        }
+    }
 }
 void Chessboard::DrawChessboard(VkCommandBuffer cmd, uint32_t windowWidth){
     VkDeviceSize offset = 0;
@@ -102,11 +115,133 @@ void Chessboard::GetRectVertices(const glm::vec3&color, ChessboardVertex vertice
     };
     memcpy(vertices, v, sizeof(v));
 }
+void Chessboard::InitChess(VkDevice device, uint32_t country, uint32_t windowWidth, VkRenderPass renderpass, VulkanPool pool, VkQueue graphics, VkSampler fontSampler){
+    const glm::vec3 color[] = { glm::vec3(0, 0, 1), glm::vec3(1, 0, 0), glm::vec3(0, 1, 0), glm::vec3(1, 1, 0) };
+    if(country == WU_CHESS_INDEX){
+        mChess[country].jiang = new Wu;
+    }
+    else if(country == WEI_CHESS_INDEX){
+        mChess[country].jiang = new Wei;
+    }
+    else if(country == SHU_CHESS_INDEX){
+        mChess[country].jiang = new Shu;
+    }
+    else if(country == HAN_CHESS_INDEX){
+        mChess[country].jiang = new Han;
+    }
+    //魏蜀吴汉
+    const glm::vec2 rc_jiang[] = { glm::vec2(8, 0), glm::vec2(rc_jiang[0].x, 16), glm::vec2(rc_jiang[1].y, 8), glm::vec2(0, 8) };
+    const glm::vec2 rc_bing[][5] = {
+        glm::vec2(4, 3), glm::vec2(rc_bing[0][0].x + 2, rc_bing[0][0].y), glm::vec2(rc_bing[0][1].x + 2, rc_bing[0][0].y), glm::vec2(rc_bing[0][2].x + 2, rc_bing[0][0].y), glm::vec2(rc_bing[0][3].x + 2, rc_bing[0][0].y),//魏
+        glm::vec2(rc_bing[0][0].x, 13), glm::vec2(rc_bing[0][1].x, rc_bing[1][0].y), glm::vec2(rc_bing[0][2].x, rc_bing[1][0].y), glm::vec2(rc_bing[0][3].x, rc_bing[1][0].y), glm::vec2(rc_bing[0][4].x, rc_bing[1][0].y),//蜀
+        glm::vec2(rc_bing[1][0].y, 12), glm::vec2(rc_bing[2][0].x, rc_bing[2][0].y - 2), glm::vec2(rc_bing[2][0].x, rc_bing[2][1].y - 2), glm::vec2(rc_bing[2][0].x, rc_bing[2][2].y - 2), glm::vec2(rc_bing[2][0].x, rc_bing[2][3].y - 2)//吴
+    };
+    const glm::vec2 rc_ma[][2] = {
+        glm::vec2(5, 0), glm::vec2(rc_ma[0][0].x + 6, rc_ma[0][0].y),
+        glm::vec2(rc_ma[0][0].x, 16), glm::vec2(rc_ma[0][1].x, rc_ma[1][0].y),
+        glm::vec2(rc_ma[1][0].y, 11), glm::vec2(rc_ma[2][0].x, rc_ma[2][0].y - 6)
+    };
+    const glm::vec2 rc_che[][3] = {
+        glm::vec2(4, 0), glm::vec2(rc_che[0][0].x + 8, rc_che[0][0].y), glm::vec2(0),
+        glm::vec2(rc_che[0][0].x, rc_ma[1][0].y), glm::vec2(rc_che[0][1].x, rc_che[1][0].y), glm::vec2(0),
+        glm::vec2(rc_ma[2][0].x, rc_ma[2][0].y + 1), glm::vec2(rc_che[2][0].x, rc_che[2][0].y - 8), glm::vec2(0),
+        glm::vec2(3, rc_bing[2][1].y), glm::vec2(rc_che[3][0].x, rc_bing[2][2].y), glm::vec2(rc_che[3][0].x, rc_bing[2][3].y)
+    };
+    const glm::vec2 rc_pao[][2] = {
+        glm::vec2(rc_ma[0][0].x, 2), glm::vec2(rc_ma[0][1].x, rc_pao[0][0].y),
+        glm::vec2(rc_pao[0][0].x, 14), glm::vec2(rc_pao[0][1].x, rc_pao[1][0].y),
+        glm::vec2(rc_pao[1][0].y, 11), glm::vec2(rc_pao[2][0].x, rc_pao[2][0].y - 6),
+        glm::vec2(2, rc_bing[2][2].y), glm::vec2(0)
+    };
+    const glm::vec2 rc_shi[][2] = {
+        glm::vec2(7, 0), glm::vec2(rc_shi[0][0].x + 2, rc_shi[0][0].y),
+        glm::vec2(rc_shi[0][0].x, rc_che[1][0].y), glm::vec2(rc_shi[0][1].x, rc_shi[1][0].y),
+        glm::vec2(rc_che[2][0].x, 9), glm::vec2(rc_shi[2][0].x, rc_shi[2][0].y - 2)
+    };
+    const glm::vec2 rc_xiang[][2] = {
+        glm::vec2(6, 0), glm::vec2(rc_xiang[0][0].x + 4, rc_xiang[0][0].y),
+        glm::vec2(rc_xiang[0][0].x, rc_che[1][0].y), glm::vec2(rc_xiang[0][1].x, rc_xiang[1][0].y),
+        glm::vec2(rc_che[2][0].x, 10), glm::vec2(rc_xiang[2][0].x, rc_xiang[2][0].y - 4)
+    };
+    mChess[country].jiang->CreatePipeline(device, renderpass, windowWidth);
+    mChess[country].jiang->CreateFontTexture(device, pool.commandPool, graphics);
+    mChess[country].jiang->CreateVulkanResource(device, color[country], pool, graphics);
+    mChess[country].jiang->UpdateSet(device, fontSampler);
+    mChess[country].jiang->UpdateUniform(device, rc_jiang[country].y, rc_jiang[country].x);
+    if(country != HAN_CHESS_INDEX){
+        for (size_t j = 0; j < sizeof(mChess->bing) / sizeof(Chess *); ++j){
+            mChess[country].bing[j] = new Bing;
+            mChess[country].bing[j]->CreatePipeline(device, renderpass, windowWidth);
+            mChess[country].bing[j]->CreateFontTexture(device, pool.commandPool, graphics);
+            mChess[country].bing[j]->CreateVulkanResource(device, color[country], pool, graphics);
+            mChess[country].bing[j]->UpdateSet(device, fontSampler);
+            mChess[country].bing[j]->UpdateUniform(device, rc_bing[country][j].y, rc_bing[country][j].x);
+        }
+        for (size_t j = 0; j < sizeof(mChess->ma) / sizeof(Chess *); ++j){
+            mChess[country].ma[j] = new Ma;
+            mChess[country].ma[j]->CreatePipeline(device, renderpass, windowWidth);
+            mChess[country].ma[j]->CreateFontTexture(device, pool.commandPool, graphics);
+            mChess[country].ma[j]->CreateVulkanResource(device, color[country], pool, graphics);
+            mChess[country].ma[j]->UpdateSet(device, fontSampler);
+            mChess[country].ma[j]->UpdateUniform(device, rc_ma[country][j].y, rc_ma[country][j].x);
+        }
+        for (size_t j = 0; j < sizeof(mChess->shi) / sizeof(Chess *); ++j){
+            mChess[country].shi[j] = new Shi;
+            mChess[country].shi[j]->CreatePipeline(device, renderpass, windowWidth);
+            mChess[country].shi[j]->CreateFontTexture(device, pool.commandPool, graphics);
+            mChess[country].shi[j]->CreateVulkanResource(device, color[country], pool, graphics);
+            mChess[country].shi[j]->UpdateSet(device, fontSampler);
+            mChess[country].shi[j]->UpdateUniform(device, rc_shi[country][j].y, rc_shi[country][j].x);
+        }
+        for (size_t j = 0; j < sizeof(mChess->xiang) / sizeof(Chess *); ++j){
+            mChess[country].xiang[j] = new Xiang;
+            mChess[country].xiang[j]->CreatePipeline(device, renderpass, windowWidth);
+            mChess[country].xiang[j]->CreateFontTexture(device, pool.commandPool, graphics);
+            mChess[country].xiang[j]->CreateVulkanResource(device, color[country], pool, graphics);
+            mChess[country].xiang[j]->UpdateSet(device, fontSampler);
+            mChess[country].xiang[j]->UpdateUniform(device, rc_xiang[country][j].y, rc_xiang[country][j].x);
+        }
+        for (size_t j = 0; j < sizeof(mChess->che) / sizeof(Chess *); ++j){
+            mChess[country].che[j] = new Che;
+            mChess[country].che[j]->CreatePipeline(device, renderpass, windowWidth);
+            mChess[country].che[j]->CreateFontTexture(device, pool.commandPool, graphics);
+            mChess[country].che[j]->CreateVulkanResource(device, color[country], pool, graphics);
+            mChess[country].che[j]->UpdateSet(device, fontSampler);
+            mChess[country].che[j]->UpdateUniform(device, rc_che[country][j].y, rc_che[country][j].x);
+        }
+        for (size_t j = 0; j < sizeof(mChess->pao) / sizeof(Chess *); ++j){
+            mChess[country].pao[j] = new Pao;
+            mChess[country].pao[j]->CreatePipeline(device, renderpass, windowWidth);
+            mChess[country].pao[j]->CreateFontTexture(device, pool.commandPool, graphics);
+            mChess[country].pao[j]->CreateVulkanResource(device, color[country], pool, graphics);
+            mChess[country].pao[j]->UpdateSet(device, fontSampler);
+            mChess[country].pao[j]->UpdateUniform(device, rc_pao[country][j].y, rc_pao[country][j].x);
+        }
+    }
+    else{
+        for (size_t j = 0; j < 3; ++j){
+            mChess[country].che[j] = new Che;
+            mChess[country].che[j]->CreatePipeline(device, renderpass, windowWidth);
+            mChess[country].che[j]->CreateFontTexture(device, pool.commandPool, graphics);
+            mChess[country].che[j]->CreateVulkanResource(device, color[country], pool, graphics);
+            mChess[country].che[j]->UpdateSet(device, fontSampler);
+            mChess[country].che[j]->UpdateUniform(device, rc_che[country][j].y, rc_che[country][j].x);
+        }
+        for (size_t j = 0; j < 1; ++j){
+            mChess[country].pao[j] = new Pao;
+            mChess[country].pao[j]->CreatePipeline(device, renderpass, windowWidth);
+            mChess[country].pao[j]->CreateFontTexture(device, pool.commandPool, graphics);
+            mChess[country].pao[j]->CreateVulkanResource(device, color[country], pool, graphics);
+            mChess[country].pao[j]->UpdateSet(device, fontSampler);
+            mChess[country].pao[j]->UpdateUniform(device, rc_pao[country][j].y, rc_pao[country][j].x);
+        }
+    }
+}
 void Chessboard::CreateGraphicsPipeline(VkDevice device, uint32_t windowWidth, VkRenderPass renderpass, const std::vector<std::string>&shader, GraphicsPipeline&pipeline, const GraphicsPipelineStateInfo&pipelineState){
     std::vector<VkShaderStageFlagBits> stage = { VK_SHADER_STAGE_VERTEX_BIT, VK_SHADER_STAGE_FRAGMENT_BIT };
     pipeline.PushDescriptorSetLayoutBinding(0, VK_SHADER_STAGE_VERTEX_BIT, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC);
     std::vector<uint32_t>cacheData;
-    vkf::tool::GetFileContent("GraphicsPipelineCache", cacheData);
+    vkf::tool::GetFileContent("ChessboardPipelineCache", cacheData);
     for (size_t i = 0; i < shader.size(); ++i){
         pipeline.PushShader(device, stage[i], shader[i]);
     }
@@ -134,6 +269,7 @@ void Chessboard::Cleanup(VkDevice device){
     // mPointIndex.Destroy(device);
     mPointUniform.Destroy(device);
     mWireframeVert.Destroy(device);
+    mBackground.pos.Destroy(device);
     mWireFrameUniform.Destroy(device);
     for (size_t i = 0; i < sizeof(mBackground.vert) / sizeof(VulkanBuffer); ++i){
         mBackground.vert[i].Destroy(device);
@@ -141,17 +277,15 @@ void Chessboard::Cleanup(VkDevice device){
     for (size_t i = 0; i < sizeof(mWireframeIndex) / sizeof(VulkanBuffer); ++i){
         mWireframeIndex[i].Destroy(device);
     }
+    for (size_t i = 0; i < sizeof(mChess) / sizeof(ChessboardChess); ++i){
+        DestroyChess(device, i);
+    }
     DestroyGraphicsPipeline(device);
 }
 void Chessboard::UpdateSet(VkDevice device){
     mPointPipeline.UpdateDescriptorSets(device, { mPointUniform }, {}, mPointSet);
     mWireframePipeline.UpdateDescriptorSets(device, { mWireFrameUniform }, {}, mSet);
     mBackground.pipeline.UpdateDescriptorSets(device, { mBackground.pos }, {}, mBackground.mSet);
-}
-void Chessboard::InitChessboard(VkDevice device){
-    for (size_t i = 0; i < sizeof(mChess) / sizeof(ChessboardChess); i++){
-        InitChessboard(device, i);
-    }   
 }
 void Chessboard::DestroyGraphicsPipeline(VkDevice device){
     std::vector<uint32_t>cacheData;
@@ -174,54 +308,27 @@ void Chessboard::DestroyGraphicsPipeline(VkDevice device){
 void Chessboard::RecodeCommand(VkCommandBuffer cmd, uint32_t windowWidth){
     DrawChessboardBackground(cmd, windowWidth);
     DrawChessboard(cmd, windowWidth);
-    //没有更好的办法前先这么写
-    // mCircularPipeline.BindPipeline(cmd);
-    // const glm::mat4 projection = glm::ortho(0.0f, (float)windowWidth, 0.0f, (float)windowWidth, -1.0f, 1.0f);
-    // mCircularPipeline.PushPushConstant(cmd, VK_SHADER_STAGE_VERTEX_BIT, sizeof(glm::mat4), &projection);
-    // for (size_t i = 0; i < sizeof(mChess) / sizeof(ChessboardChess); ++i){
-    //     mChess[i].jiang->DrawCircular(cmd, mCircularPipeline);
-    //     for (size_t j = 0; j < sizeof(mChess->bing) / sizeof(Chess); ++j){
-    //         if(mChess[i].bing[j])mChess[i].bing[j]->DrawCircular(cmd, mCircularPipeline);
-    //     }
-    //     for (size_t j = 0; j < sizeof(mChess->ma) / sizeof(Chess); ++j){
-    //         if(mChess[i].ma[j])mChess[i].ma[j]->DrawCircular(cmd, mCircularPipeline);
-    //     }
-    //     for (size_t j = 0; j < sizeof(mChess->che) / sizeof(Chess); ++j){
-    //         if(mChess[i].che[j])mChess[i].che[j]->DrawCircular(cmd, mCircularPipeline);
-    //     }
-    //     for (size_t j = 0; j < sizeof(mChess->pao) / sizeof(Chess); ++j){
-    //         if(mChess[i].pao[j])mChess[i].pao[j]->DrawCircular(cmd, mCircularPipeline);
-    //     }
-    //     for (size_t j = 0; j < sizeof(mChess->shi) / sizeof(Chess); ++j){
-    //         if(mChess[i].shi[j])mChess[i].shi[j]->DrawCircular(cmd, mCircularPipeline);
-    //     }
-    //     for (size_t j = 0; j < sizeof(mChess->xiang) / sizeof(Chess); ++j){
-    //         if(mChess[i].xiang[j])mChess[i].xiang[j]->DrawCircular(cmd, mCircularPipeline);
-    //     }
-    // }
-    // mFontPipeline.BindPipeline(cmd);
-    // mFontPipeline.PushPushConstant(cmd, VK_SHADER_STAGE_VERTEX_BIT, sizeof(glm::mat4), &projection);
-    // for (size_t i = 0; i < sizeof(mChess) / sizeof(ChessboardChess); ++i){
-    //     mChess[i].jiang->DrawFont(cmd, mFontPipeline);
-    //     for (size_t j = 0; j < sizeof(mChess->bing) / sizeof(Chess); ++j){
-    //         if(mChess[j].bing[j])mChess[i].bing[j]->DrawFont(cmd, mFontPipeline);
-    //     }
-    //     for (size_t j = 0; j < sizeof(mChess->ma) / sizeof(Chess); ++j){
-    //         if(mChess[j].ma[j])mChess[i].ma[j]->DrawCircular(cmd, mFontPipeline);
-    //     }
-    //     for (size_t j = 0; j < sizeof(mChess->che) / sizeof(Chess); ++j){
-    //         if(mChess[j].che[j])mChess[i].che[j]->DrawCircular(cmd, mFontPipeline);
-    //     }
-    //     for (size_t j = 0; j < sizeof(mChess->pao) / sizeof(Chess); ++j){
-    //         if(mChess[j].pao[j])mChess[i].pao[j]->DrawCircular(cmd, mFontPipeline);
-    //     }
-    //     for (size_t j = 0; j < sizeof(mChess->shi) / sizeof(Chess); ++j){
-    //         if(mChess[j].shi[j])mChess[i].shi[j]->DrawCircular(cmd, mFontPipeline);
-    //     }
-    //     for (size_t j = 0; j < sizeof(mChess->xiang) / sizeof(Chess); ++j){
-    //         if(mChess[j].xiang[j])mChess[i].xiang[j]->DrawCircular(cmd, mFontPipeline);
-    //     }
-    // }
+    for (size_t i = 0; i < sizeof(mChess) / sizeof(ChessboardChess); ++i){
+        mChess[i].jiang->RecodeCommand(cmd, windowWidth);
+        for (size_t j = 0; j < sizeof(mChess->bing) / sizeof(Chess *); ++j){
+            if(mChess[i].bing[j])mChess[i].bing[j]->RecodeCommand(cmd, windowWidth);
+        }
+        for (size_t j = 0; j < sizeof(mChess->ma) / sizeof(Chess *); ++j){
+            if(mChess[i].ma[j])mChess[i].ma[j]->RecodeCommand(cmd, windowWidth);
+        }
+        for (size_t j = 0; j < sizeof(mChess->che) / sizeof(Chess *); ++j){
+            if(mChess[i].che[j])mChess[i].che[j]->RecodeCommand(cmd, windowWidth);
+        }
+        for (size_t j = 0; j < sizeof(mChess->pao) / sizeof(Chess *); ++j){
+            if(mChess[i].pao[j])mChess[i].pao[j]->RecodeCommand(cmd, windowWidth);
+        }
+        for (size_t j = 0; j < sizeof(mChess->shi) / sizeof(Chess *); ++j){
+            if(mChess[i].shi[j])mChess[i].shi[j]->RecodeCommand(cmd, windowWidth);
+        }
+        for (size_t j = 0; j < sizeof(mChess->xiang) / sizeof(Chess *); ++j){
+            if(mChess[i].xiang[j])mChess[i].xiang[j]->RecodeCommand(cmd, windowWidth);
+        }
+    }
 }
 void Chessboard::CreatePipeline(VkDevice device, VkRenderPass renderpass, uint32_t windowWidth){
     GraphicsPipelineStateInfo state;
@@ -238,8 +345,9 @@ void Chessboard::CreatePipeline(VkDevice device, VkRenderPass renderpass, uint32
 
     // //没有更好的办法前先这么写
     // state.mRasterization.polygonMode = VK_POLYGON_MODE_FILL;
-    // //以下函数内没 图片相关的描述符类型
     // CreateGraphicsPipeline(device, windowWidth, renderpass, { "shaders/baseVert.spv", "shaders/baseFrag.spv" }, mCircularPipeline, state);
+    // //字体管线需要用到图片
+    // mFontPipeline.PushDescriptorSetLayoutBinding(1, VK_SHADER_STAGE_FRAGMENT_BIT, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
     // CreateGraphicsPipeline(device, windowWidth, renderpass, { "shaders/baseFontVert.spv", "shaders/baseFontFrag.spv" }, mFontPipeline, state);
 }
 void Chessboard::CreateVulkanResource(VkPhysicalDevice physicalDevice, VkDevice device, uint32_t windowWidth, VkQueue graphics, VulkanPool pool){
@@ -343,7 +451,7 @@ void Chessboard::CreateVulkanResource(VkPhysicalDevice physicalDevice, VkDevice 
 
     const glm::vec2 rc[] = {
         //线框[0]
-        glm::vec2(8, 0), glm::vec2(rc[0].x - 1, rc[0].y + 1), glm::vec2(15, 8), glm::vec2(rc[2].x - 1, rc[2].y + 1), glm::vec2(rc[0].x, 14), glm::vec2(rc[1].x, rc[4].y + 1),
+        glm::vec2(8, 0), glm::vec2(rc[0].x - 1, rc[0].y + 1), glm::vec2(15, 7), glm::vec2(rc[2].x - 1, rc[2].y + 1), glm::vec2(rc[0].x, 14), glm::vec2(rc[1].x, rc[4].y + 1),
         //线框[1]
         glm::vec2(rc[1].x, rc[0].y), glm::vec2(rc[0].x, rc[1].y), glm::vec2(rc[3].x, rc[2].y), glm::vec2(rc[2].x, rc[3].y), glm::vec2(rc[1].x, rc[4].y), glm::vec2(rc[4].x, rc[5].y)
     };
@@ -357,6 +465,19 @@ void Chessboard::CreateVulkanResource(VkPhysicalDevice physicalDevice, VkDevice 
     mPointPipeline.AllocateDescriptorSets(device, pool.descriptorPool, 1, &mPointSet);
     mBackground.pipeline.AllocateDescriptorSets(device, pool.descriptorPool, 1, &mBackground.mSet);
 }
+void Chessboard::InitChessboard(VkDevice device, uint32_t windowWidth, VkRenderPass renderpass, VulkanPool pool, VkQueue graphics, VkSampler fontSampler){
+    mPalacePos[WEI_CHESS_INDEX].row = 1;
+    mPalacePos[WEI_CHESS_INDEX].column = 8;
+
+    mPalacePos[SHU_CHESS_INDEX].row = 16;
+    mPalacePos[SHU_CHESS_INDEX].column = mPalacePos[WEI_CHESS_INDEX].column;
+
+    mPalacePos[WU_CHESS_INDEX].row = mPalacePos[WEI_CHESS_INDEX].column;
+    mPalacePos[WU_CHESS_INDEX].column = mPalacePos[SHU_CHESS_INDEX].row;
+    for (size_t i = 0; i < sizeof(mChess) / sizeof(ChessboardChess); i++){
+        InitChess(device, i, windowWidth, renderpass, pool, graphics, fontSampler);
+    }   
+}
 void Chessboard::Play(uint32_t row, uint32_t column){
     //通过row和column算出坐标。
     //然后将mSelected指定的棋子下到算出的坐标处
@@ -367,6 +488,7 @@ void Chessboard::Play(uint32_t row, uint32_t column){
 void Chessboard::Select(uint32_t row, uint32_t column){
     //通过row和column算出坐标。
     //然后给mSelected赋值指定的棋子
+    //判断是否在魏蜀吴的某一边, 然后将该势力的九格宫坐标传给棋子的Select函数
 }
 void Chessboard::UnSelect(uint32_t row, uint32_t column){
     
