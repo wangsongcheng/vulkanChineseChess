@@ -141,7 +141,16 @@ void recodeCommand(uint32_t currentFrame){
     vkEndCommandBuffer(g_CommandBuffers[currentFrame]);
 }
 void mousebutton(GLFWwindow *windows, int button, int action, int mods){
-    
+    double xpos, ypos;
+    glfwGetCursorPos(windows, &xpos, &ypos);
+    if(action == GLFW_RELEASE){
+        if(button == GLFW_MOUSE_BUTTON_LEFT){
+            if(g_Chessboard.IsSelected())
+                g_Chessboard.Play(g_VulkanDevice.device, glm::vec2(xpos, ypos));
+            else
+                g_Chessboard.Select(g_VulkanDevice.device, glm::vec2(xpos, ypos));
+        }
+    }
 }
 void setup(GLFWwindow *windows){
     glfwSetMouseButtonCallback(windows, mousebutton);

@@ -5,6 +5,8 @@
 #include "stb_image.h"
 #include "stb_truetype.h"
 #include "stb_image_write.h"
+
+#include "Chessboard.h"
 bool GenerateFontImage(int bitmap_w, int bitmap_h, const wchar_t *word, uint32_t wordCount, const char *outImageName, const unsigned char *fontData, float pixels = 20){
 	stbtt_fontinfo info;
 	if(!stbtt_InitFont(&info, fontData, 0)){
@@ -235,6 +237,7 @@ void Chess::CreatePipeline(VkDevice device, VkRenderPass renderpass, uint32_t wi
     CreateGraphicsPipeline(device, windowWidth, renderpass, { "shaders/baseFontVert.spv", "shaders/baseFontFrag.spv" }, mFontPipeline);
 }
 void Chess::CreateVulkanResource(VkDevice device, const glm::vec3&color, const VulkanPool&pool, VkQueue graphics){
+    mCountryColor = color;
     std::vector<ChessVertex> circularVertices;
     GetCircularVertex(color, circularVertices);
     std::vector<uint16_t> circularIndices;
@@ -279,23 +282,42 @@ void Chess::UpdateUniform(VkDevice device, const glm::vec2&pos){
     mPos = pos;
     glm::mat4 model = glm::scale(glm::translate(glm::mat4(1), glm::vec3(mPos, 0)), glm::vec3(CHESS_WIDTH, CHESS_HEIGHT,1));
     mPosition.UpdateData(device, &model);
-    model = glm::scale(glm::translate(glm::mat4(1), glm::vec3(mPos.x - CHESS_WIDTH + 4, mPos.y - CHESS_HEIGHT - 2, 0)), glm::vec3(CHESS_WIDTH * 2, CHESS_HEIGHT * 2,1));
+    model = glm::scale(glm::translate(glm::mat4(1), glm::vec3(mPos.x - CHESS_WIDTH * .65, mPos.y - CHESS_HEIGHT * .9, 0)), glm::vec3(CHESS_WIDTH * 1.5, CHESS_HEIGHT * 1.5,1));
     mFontPosition.UpdateData(device, &model);
 }
 void Chess::UpdateUniform(VkDevice device, uint32_t row, uint32_t column){
+    mRow = row;
+    mColumn = column;
     UpdateUniform(device, glm::vec2(CHESSBOARD_COLUMN_TO_X(column), CHESSBOARD_ROW_TO_Y(row)));
 }
+// bool Chess::isSelect(uint32_t row, uint32_t column){
+//     const glm::vec2 select = glm::vec2(CHESSBOARD_COLUMN_TO_X(column), CHESSBOARD_ROW_TO_Y(row));
+//     return abs(select.x - mPos.x) < CHESS_WIDTH * .5 && abs(select.y - mPos.y) < CHESS_WIDTH * .5;
+// }
 bool Chess::isSelect(const glm::vec2&pos){
-    
+    return abs(pos.x - mPos.x) < CHESS_WIDTH * .5 && abs(pos.y - mPos.y) < CHESS_WIDTH * .5;
 }
+
 Wei::Wei(){
 
 }
 Wei::~Wei(){
 
 }
-void Wei::Selected(const Ranks&palace, std::vector<Ranks>&canPlay){
-
+void Wei::Selected(const Chessboard *chessboard, std::vector<Ranks>&canplays){
+    const Ranks ranks[] = { Ranks(mRow + 1, mColumn), Ranks(mRow - 1, mColumn), Ranks(mRow, mColumn + 1), Ranks(mRow, mColumn - 1) };
+    //将不能出九宫格
+    for(uint32_t i = 0; i < sizeof(ranks) / sizeof(Ranks); ++i){
+        if(!chessboard->IsBoundary(ranks[i].row, ranks[i].column)){
+            const Chess *chess = chessboard->GetChess(ranks[i].row, ranks[i].column);
+            if(chessboard->IsInPalace(ranks[i].row, ranks[i].column)){
+                if(!chess || chess->GetCountryColor() != GetCountryColor()){
+                    canplays.push_back(Ranks(ranks[i].row, ranks[i].column));
+                }
+            }
+        }
+    }
+    chessboard->SelectChessInPalace(this, canplays);
 }
 // void Wei::UpdateUniform(VkDevice device, uint32_t row, uint32_t column){
 //     if(!mRow && mColumn){
@@ -317,8 +339,19 @@ Shu::Shu(){
 Shu::~Shu(){
 
 }
-void Shu::Selected(const Ranks&palace, std::vector<Ranks>&canPlay){
-
+void Shu::Selected(const Chessboard *chessboard, std::vector<Ranks>&canplays){
+    const Ranks ranks[] = { Ranks(mRow + 1, mColumn), Ranks(mRow - 1, mColumn), Ranks(mRow, mColumn + 1), Ranks(mRow, mColumn - 1) };
+    for(uint32_t i = 0; i < sizeof(ranks) / sizeof(Ranks); ++i){
+        if(!chessboard->IsBoundary(ranks[i].row, ranks[i].column)){
+            const Chess *chess = chessboard->GetChess(ranks[i].row, ranks[i].column);
+            if(chessboard->IsInPalace(ranks[i].row, ranks[i].column)){
+                if(!chess || chess->GetCountryColor() != GetCountryColor()){
+                    canplays.push_back(Ranks(ranks[i].row, ranks[i].column));
+                }
+            }
+        }
+    }
+    chessboard->SelectChessInPalace(this, canplays);
 }
 // void Shu::UpdateUniform(VkDevice device, uint32_t row, uint32_t column){
 //     if(!mRow && mColumn){
@@ -340,8 +373,19 @@ Wu::Wu(){
 Wu::~Wu(){
 
 }
-void Wu::Selected(const Ranks&palace, std::vector<Ranks>&canPlay){
-
+void Wu::Selected(const Chessboard *chessboard, std::vector<Ranks>&canplays){
+    const Ranks ranks[] = { Ranks(mRow, mColumn - 1), Ranks(mRow + 1, mColumn), Ranks(mRow - 1, mColumn), Ranks(mRow, mColumn + 1) };
+    for(uint32_t i = 0; i < sizeof(ranks) / sizeof(Ranks); ++i){
+        if(!chessboard->IsBoundary(ranks[i].row, ranks[i].column)){
+            const Chess *chess = chessboard->GetChess(ranks[i].row, ranks[i].column);
+            if(chessboard->IsInPalace(ranks[i].row, ranks[i].column)){
+                if(!chess || chess->GetCountryColor() != GetCountryColor()){
+                    canplays.push_back(Ranks(ranks[i].row, ranks[i].column));
+                }
+            }
+        }
+    }
+    chessboard->SelectChessInPalace(this, canplays);
 }
 // void Wu::UpdateUniform(VkDevice device, uint32_t row, uint32_t column){
 //     if(!mRow && mColumn){
@@ -363,8 +407,18 @@ Han::Han(){
 Han::~Han(){
 
 }
-void Han::Selected(const Ranks&palace, std::vector<Ranks>&canPlay){
-
+void Han::Selected(const Chessboard *chessboard, std::vector<Ranks>&canplays){
+    //漢不能被选择
+    // const Ranks ranks[] = { Ranks(mRow + 1, mColumn), Ranks(mRow - 1, mColumn), Ranks(mRow, mColumn + 1), Ranks(mRow, mColumn - 1) };
+    // for(uint32_t i = 0; i < sizeof(ranks) / sizeof(Ranks); ++i){
+    //     if(!chessboard->IsBoundary(ranks[i].row, ranks[i].column)){
+    //         const Chess *chess = chessboard->GetChess(ranks[i].row, ranks[i].column);
+    //         if(!chess || chess->GetCountryColor() != GetCountryColor()){
+    //             canplays.push_back(Ranks(ranks[i].row, ranks[i].column));
+    //         }
+    //     }
+    // }
+    // chessboard->SelectChessInPalace(this, canplays);
 }
 void Han::CreateFontTexture(VkDevice device, VkCommandPool pool, VkQueue graphics){
     if(!CreateTexture(device, CHESS_FONT_ROOT_PATH"漢.png", pool, graphics)){
@@ -379,8 +433,22 @@ Bing::Bing(){
 Bing::~Bing(){
 
 }
-void Bing::Selected(const Ranks&palace, std::vector<Ranks>&canPlay){
-
+void Bing::Selected(const Chessboard *chessboard, std::vector<Ranks>&canplays){
+    //兵不能后退
+    const Ranks ranks[] = { Ranks(mRow + 1, mColumn), Ranks(mRow - 1, mColumn), Ranks(mRow, mColumn + 1), Ranks(mRow, mColumn - 1) };
+    for(uint32_t i = 0; i < sizeof(ranks) / sizeof(Ranks); ++i){
+        if(!chessboard->IsBoundary(ranks[i].row, ranks[i].column)){
+            const Chess *chess = chessboard->GetChess(ranks[i].row, ranks[i].column);
+            if(!chess || chess->GetCountryColor() != GetCountryColor()){
+                canplays.push_back(Ranks(ranks[i].row, ranks[i].column));
+            }
+        }
+    }
+    //可以通过排除行或列比当前位置大或者小的ranks[i]
+    // for (size_t i = 0; i < canplays.size(); ++i){
+    //     if(canplays[i].row)
+    // }
+    chessboard->SelectChessInPalace(this, canplays);
 }
 void Bing::CreateFontTexture(VkDevice device, VkCommandPool pool, VkQueue graphics){
     if(!CreateTexture(device, CHESS_FONT_ROOT_PATH"兵.png", pool, graphics)){
@@ -395,8 +463,36 @@ Pao::Pao(){
 Pao::~Pao(){
     
 }
-void Pao::Selected(const Ranks&palace, std::vector<Ranks>&canPlay){
-
+void Pao::Selected(const Chessboard *chessboard, std::vector<Ranks>&canplays){
+    // bool bCapture = false;
+    const glm::vec2 direction[] = { glm::vec2(1, 0), glm::vec2(-1, 0), glm::vec2(0, 1), glm::vec2(0, -1) };
+    for(uint32_t i = 0; i < sizeof(direction) / sizeof(glm::vec2); ++i){
+        const glm::vec2 currentPos = glm::vec2(mColumn, mRow);
+        glm::vec2 pos = currentPos + direction[i];
+        while(!chessboard->IsBoundary(pos.y, pos.x)){
+            const Chess *chess = chessboard->GetChess(pos.y, pos.x);
+            if(chess){
+                pos += direction[i];
+                if(chess->GetCountryColor() != GetCountryColor()){
+                    while(!chessboard->IsBoundary(pos.y, pos.x)){
+                        const Chess *chess = chessboard->GetChess(pos.y, pos.x);
+                        if(chess){
+                            canplays.push_back(Ranks(pos.y, pos.x));
+                            break;
+                        }
+                        pos += direction[i];
+                    }
+                }
+                break;
+            }
+            else{
+                canplays.push_back(Ranks(pos.y, pos.x));
+            }
+            pos += direction[i];
+        }
+    }
+    //如果中间有棋子才可以吃子
+    chessboard->SelectChessInPalace(this, canplays);
 }
 void Pao::CreateFontTexture(VkDevice device, VkCommandPool pool, VkQueue graphics){
     if(!CreateTexture(device, CHESS_FONT_ROOT_PATH"炮.png", pool, graphics)){
@@ -411,8 +507,24 @@ Che::Che(){
 Che::~Che(){
     
 }
-void Che::Selected(const Ranks&palace, std::vector<Ranks>&canPlay){
-
+void Che::Selected(const Chessboard *chessboard, std::vector<Ranks>&canplays){
+    const glm::vec2 direction[] = { glm::vec2(1, 0), glm::vec2(-1, 0), glm::vec2(0, 1), glm::vec2(0, -1) };
+    for(uint32_t i = 0; i < sizeof(direction) / sizeof(glm::vec2); ++i){
+        const glm::vec2 currentPos = glm::vec2(mColumn, mRow);
+        glm::vec2 pos = currentPos + direction[i];
+        while(!chessboard->IsBoundary(pos.y, pos.x)){
+            const Chess *chess = chessboard->GetChess(pos.y, pos.x);
+            if(!chess || chess->GetCountryColor() != GetCountryColor()){
+                canplays.push_back(Ranks(pos.y, pos.x));
+            }
+            if(chess){
+                if(chess->GetCountryColor() != GetCountryColor())canplays.push_back(Ranks(pos.y, pos.x));
+                break;
+            }
+            pos += direction[i];
+        }
+    }
+    chessboard->SelectChessInPalace(this, canplays);
 }
 void Che::CreateFontTexture(VkDevice device, VkCommandPool pool, VkQueue graphics){
     if(!CreateTexture(device, CHESS_FONT_ROOT_PATH"車.png", pool, graphics)){
@@ -427,8 +539,19 @@ Ma::Ma(){
 Ma::~Ma(){
     
 }
-void Ma::Selected(const Ranks&palace, std::vector<Ranks>&canPlay){
-
+void Ma::Selected(const Chessboard *chessboard, std::vector<Ranks>&canplays){
+    const Ranks ranks[] = {
+        Ranks(mRow - 1, mColumn - 2), Ranks(mRow - 2, mColumn - 1), Ranks(mRow - 2, mColumn + 1), Ranks(mRow - 1, mColumn + 2),
+        Ranks(mRow + 1, mColumn + 2), Ranks(mRow + 2, mColumn + 1), Ranks(mRow + 2, mColumn - 1), Ranks(mRow + 1, mColumn - 2)
+    };
+    for(uint32_t i = 0; i < sizeof(ranks) / sizeof(Ranks); ++i){
+        if(!chessboard->IsBoundary(ranks[i].row, ranks[i].column)){//这里的马和相不会被"蹩马腿",所以不需要判断
+            const Chess *chess = chessboard->GetChess(ranks[i].row, ranks[i].column);
+            if(!chess || chess->GetCountryColor() != GetCountryColor()){
+                canplays.push_back(Ranks(ranks[i].row, ranks[i].column));
+            }
+        }
+    }
 }
 void Ma::CreateFontTexture(VkDevice device, VkCommandPool pool, VkQueue graphics){
     if(!CreateTexture(device, CHESS_FONT_ROOT_PATH"馬.png", pool, graphics)){
@@ -442,8 +565,16 @@ Xiang::Xiang(){
 Xiang::~Xiang(){
     
 }
-void Xiang::Selected(const Ranks&palace, std::vector<Ranks>&canPlay){
-
+void Xiang::Selected(const Chessboard *chessboard, std::vector<Ranks>&canplays){
+    const Ranks ranks[] = { Ranks(mRow + 2, mColumn + 2), Ranks(mRow - 2, mColumn - 2), Ranks(mRow - 2, mColumn + 2), Ranks(mRow + 2, mColumn - 2) };
+    for(uint32_t i = 0; i < sizeof(ranks) / sizeof(Ranks); ++i){
+        if(!chessboard->IsBoundary(ranks[i].row, ranks[i].column)){
+            const Chess *chess = chessboard->GetChess(ranks[i].row, ranks[i].column);
+            if(!chess || chess->GetCountryColor() != GetCountryColor()){
+                canplays.push_back(Ranks(ranks[i].row, ranks[i].column));
+            }
+        }
+    }
 }
 void Xiang::CreateFontTexture(VkDevice device, VkCommandPool pool, VkQueue graphics){
     if(!CreateTexture(device, CHESS_FONT_ROOT_PATH"相.png", pool, graphics)){
@@ -457,8 +588,8 @@ Shi::Shi(){
 Shi::~Shi(){
     
 }
-void Shi::Selected(const Ranks&palace, std::vector<Ranks>&canPlay){
-
+void Shi::Selected(const Chessboard *chessboard, std::vector<Ranks>&canplays){
+    chessboard->SelectChessInPalace(this, canplays);
 }
 void Shi::CreateFontTexture(VkDevice device, VkCommandPool pool, VkQueue graphics){
     if(!CreateTexture(device, CHESS_FONT_ROOT_PATH"士.png", pool, graphics)){
