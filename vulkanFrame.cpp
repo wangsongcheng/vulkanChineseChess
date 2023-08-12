@@ -459,11 +459,20 @@ uint32_t vkf::tool::findMemoryTypeIndex(uint32_t typeFilter, VkMemoryPropertyFla
 	}
 	return -1;
 }
-
 void vkf::CreateDepthImage(VkDevice device, const VkExtent2D&swapchainExtent, VulkanImage&image){
     image.CreateImage(device, swapchainExtent, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_FORMAT_D32_SFLOAT_S8_UINT);
     image.AllocateAndBindMemory(device, VK_MEMORY_HEAP_DEVICE_LOCAL_BIT);
     image.CreateImageView(device, VK_FORMAT_D32_SFLOAT_S8_UINT, VK_IMAGE_ASPECT_DEPTH_BIT|VK_IMAGE_ASPECT_STENCIL_BIT);
+}
+void vkf::CreateFontImage(VkDevice device, const void *datas, uint32_t width, uint32_t height, VulkanImage&image, VkCommandPool pool, VkQueue graphics){
+	VulkanBuffer tempStorageBuffer;
+	VkDeviceSize imageSize = width * height;
+	tempStorageBuffer.CreateBuffer(device, imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
+    tempStorageBuffer.AllocateAndBindMemory(device, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+    tempStorageBuffer.UpdateData(device, imageSize, datas);
+	CreateFontImage(device, tempStorageBuffer, width, height, image, pool, graphics);
+	vkFreeMemory(device, tempStorageBuffer.memory, nullptr);
+	vkDestroyBuffer(device, tempStorageBuffer.buffer, nullptr);   
 }
 void vkf::CreateTextureImage(VkDevice device, const void *datas, uint32_t width, uint32_t height, VulkanImage&image, VkCommandPool pool, VkQueue graphics){
 	VulkanBuffer tempStorageBuffer;
@@ -474,6 +483,27 @@ void vkf::CreateTextureImage(VkDevice device, const void *datas, uint32_t width,
 	CreateTextureImage(device, tempStorageBuffer, width, height, image, pool, graphics);
 	vkFreeMemory(device, tempStorageBuffer.memory, nullptr);
 	vkDestroyBuffer(device, tempStorageBuffer.buffer, nullptr);
+}
+void vkf::CreateFontImage(VkDevice device, const VulkanBuffer&dataBuffer, uint32_t width, uint32_t height, VulkanImage&image, VkCommandPool pool, VkQueue graphics){
+    image.size.depth = 1;
+    image.size.width = width;
+    image.size.height = height;
+    image.CreateImage(device, VK_IMAGE_USAGE_TRANSFER_SRC_BIT|VK_IMAGE_USAGE_TRANSFER_DST_BIT|VK_IMAGE_USAGE_SAMPLED_BIT, VK_FORMAT_R8_UNORM);
+    image.AllocateAndBindMemory(device, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+	VkCommandBuffer cmd;
+	tool::BeginSingleTimeCommands(device, pool, cmd);
+    tool::SetImageLayout(cmd, image.image, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT);
+	// pipelineBarrier(cmd, VK_FORMAT_R8_UNORM, , image);
+    VkBufferImageCopy bufferCopyRegions = {};
+    // bufferCopyRegions.bufferOffset = bufferOffset;
+    bufferCopyRegions.imageSubresource.layerCount = 1;
+    bufferCopyRegions.imageExtent = { width, height, 1 };
+    // bufferCopyRegions.imageSubresource.baseArrayLayer = baseArrayLayer;
+    bufferCopyRegions.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	vkCmdCopyBufferToImage(cmd, dataBuffer.buffer, image.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &bufferCopyRegions);
+    tool::SetImageLayout(cmd, image.image, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT);
+	tool::EndSingleTimeCommands(device, pool, graphics, cmd);
+	image.CreateImageView(device, VK_FORMAT_R8_UNORM);
 }
 void vkf::CreateTextureImage(VkDevice device, const VulkanBuffer&dataBuffer, uint32_t width, uint32_t height, VulkanImage&image, VkCommandPool pool, VkQueue graphics){
     image.size.depth = 1;

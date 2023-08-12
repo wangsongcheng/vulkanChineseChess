@@ -11,5 +11,11 @@ void main() {
 	vec4 texColor = texture(inTex, inTexCoord);
 	if(texColor.r == 0 && texColor.g == 0 && texColor.b == 0)
 		discard;
+//	if(texColor.r == 1 && texColor.g == 0 && texColor.b == 0)
+//		discard;
+//	outColor = vec4(.25, .25, .25, 1);
+//	outColor = vec4(.7, .7, .7, 1);
+//	outColor = vec4(texColor.r, .25, .5, 1);
 	outColor = texColor;
+//	outColor = vec4(texColor.r, texColor.g, texColor.b, 1);
 }

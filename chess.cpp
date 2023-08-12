@@ -7,54 +7,54 @@
 #include "stb_image_write.h"
 
 #include "Chessboard.h"
-bool GenerateFontImage(int bitmap_w, int bitmap_h, const wchar_t *word, uint32_t wordCount, const char *outImageName, const unsigned char *fontData, float pixels = 20){
+#define IM_COL32_R_SHIFT    0
+#define IM_COL32_G_SHIFT    8
+#define IM_COL32_B_SHIFT    16
+#define IM_COL32_A_SHIFT    24
+#define IM_COL32(R,G,B,A)    (((unsigned int)(A)<<IM_COL32_A_SHIFT) | ((unsigned int)(B)<<IM_COL32_B_SHIFT) | ((unsigned int)(G)<<IM_COL32_G_SHIFT) | ((unsigned int)(R)<<IM_COL32_R_SHIFT))
+// bool GenerateFontImage(int bitmap_w, int bitmap_h, const wchar_t *word, uint32_t wordCount, const char *outImageName, const unsigned char *fontData, float pixels = 20){
+// 	stbtt_fontinfo info;
+// 	if(!stbtt_InitFont(&info, fontData, 0)){
+// 		printf("in function:%s, stbtt_InitFont error\n", __FUNCTION__);
+// 		return false;
+// 	}
+// 	unsigned char *bitmap = (unsigned char *)malloc(bitmap_w * bitmap_h);
+// 	memset(bitmap, 0, bitmap_w * bitmap_h);
+// 	// const int *word = L"世界你好";
+// 	// printf("%x\n", (unsigned int *)word[0]);
+// 	// printf("strlen(%s) = %d\n", c, strlen(c));
+// 	// int word[20] = { L'你', L'好', L'世', L'界' };//字母的编码
+// 	// int word[20] = { 0x4f60, 0x597d, 0x4e16, 0x754c };//字母的编码
+// 	float scale = stbtt_ScaleForPixelHeight(&info, pixels);
+// 	int ascent = 0, descent = 0, lineGap = 0;
+// 	stbtt_GetFontVMetrics(&info, &ascent, &descent, &lineGap);
+// 	ascent = roundf(ascent * scale);
+// 	descent = roundf(descent * scale);
+// 	int x = 0;
+//     for (int i = 0; i < wordCount; ++i){
+//         int advanceWidth = 0, leftSideBearing = 0, c_x1, c_y1, c_x2, c_y2;
+//         stbtt_GetCodepointHMetrics(&info, word[i], &advanceWidth, &leftSideBearing);
+//         stbtt_GetCodepointBitmapBox(&info, word[i], scale, scale, &c_x1, &c_y1, &c_x2, &c_y2);
+//         int y = ascent +c_y1;
+//         int byteOffset = x + roundf(leftSideBearing * scale) + (y * bitmap_w);
+//         stbtt_MakeCodepointBitmap(&info, bitmap + byteOffset, c_x2 - c_x1, c_y2 - c_y1, bitmap_w, scale, scale, word[i]);
+//         x += roundf(advanceWidth * scale);
+//         int kern;
+//         kern = stbtt_GetCodepointKernAdvance(&info, word[i], word[i + 1]);
+//         x += roundf(kern * scale);
+//     }
+// 	stbi_write_png(outImageName, bitmap_w, bitmap_h, 1, bitmap, 0);
+// 	free(bitmap);
+//     return true;
+// }
+void GetFontImageData(const unsigned char *fontData, int bitmap_w, int bitmap_h, wchar_t word, unsigned char *out){
 	stbtt_fontinfo info;
+    const float pixels = 20;
 	if(!stbtt_InitFont(&info, fontData, 0)){
 		printf("in function:%s, stbtt_InitFont error\n", __FUNCTION__);
-		return false;
+        return;
 	}
-	unsigned char *bitmap = (unsigned char *)malloc(bitmap_w * bitmap_h);
-	memset(bitmap, 0, bitmap_w * bitmap_h);
-	// const int *word = L"世界你好";
-	// printf("%x\n", (unsigned int *)word[0]);
-	// printf("strlen(%s) = %d\n", c, strlen(c));
-	// int word[20] = { L'你', L'好', L'世', L'界' };//字母的编码
-	// int word[20] = { 0x4f60, 0x597d, 0x4e16, 0x754c };//字母的编码
-	float scale = stbtt_ScaleForPixelHeight(&info, pixels);
-	int ascent = 0, descent = 0, lineGap = 0;
-	stbtt_GetFontVMetrics(&info, &ascent, &descent, &lineGap);
-	ascent = roundf(ascent * scale);
-	descent = roundf(descent * scale);
-	int x = 0;
-    for (int i = 0; i < wordCount; ++i){
-        int advanceWidth = 0, leftSideBearing = 0, c_x1, c_y1, c_x2, c_y2;
-        stbtt_GetCodepointHMetrics(&info, word[i], &advanceWidth, &leftSideBearing);
-        stbtt_GetCodepointBitmapBox(&info, word[i], scale, scale, &c_x1, &c_y1, &c_x2, &c_y2);
-        int y = ascent +c_y1;
-        int byteOffset = x + roundf(leftSideBearing * scale) + (y * bitmap_w);
-        stbtt_MakeCodepointBitmap(&info, bitmap + byteOffset, c_x2 - c_x1, c_y2 - c_y1, bitmap_w, scale, scale, word[i]);
-        x += roundf(advanceWidth * scale);
-        int kern;
-        kern = stbtt_GetCodepointKernAdvance(&info, word[i], word[i + 1]);
-        x += roundf(kern * scale);
-    }
-	stbi_write_png(outImageName, bitmap_w, bitmap_h, 1, bitmap, 0);
-	free(bitmap);
-    return true;
-}
-bool GenerateFontImage(int bitmap_w, int bitmap_h, wchar_t word, const char *outImageName, const unsigned char *fontData, float pixels = 20){
-	stbtt_fontinfo info;
-	if(!stbtt_InitFont(&info, fontData, 0)){
-		printf("in function:%s, stbtt_InitFont error\n", __FUNCTION__);
-		return false;
-	}
-	unsigned char *bitmap = (unsigned char *)malloc(bitmap_w * bitmap_h);
-	memset(bitmap, 0, bitmap_w * bitmap_h);
-	// const int *word = L"世界你好";
-	// printf("%x\n", (unsigned int *)word[0]);
-	// printf("strlen(%s) = %d\n", c, strlen(c));
-	// int word[20] = { L'你', L'好', L'世', L'界' };//字母的编码
-	// int word[20] = { 0x4f60, 0x597d, 0x4e16, 0x754c };//字母的编码
+	// unsigned char *bitmap = (unsigned char *)malloc(bitmap_w * bitmap_h);
 	float scale = stbtt_ScaleForPixelHeight(&info, pixels);
 	int ascent = 0, descent = 0, lineGap = 0;
 	stbtt_GetFontVMetrics(&info, &ascent, &descent, &lineGap);
@@ -66,16 +66,54 @@ bool GenerateFontImage(int bitmap_w, int bitmap_h, wchar_t word, const char *out
     stbtt_GetCodepointBitmapBox(&info, word, scale, scale, &c_x1, &c_y1, &c_x2, &c_y2);
     int y = ascent +c_y1;
     int byteOffset = x + roundf(leftSideBearing * scale) + (y * bitmap_w);
-    stbtt_MakeCodepointBitmap(&info, bitmap + byteOffset, c_x2 - c_x1, c_y2 - c_y1, bitmap_w, scale, scale, word);
-    x += roundf(advanceWidth * scale);
-    int kern;
-    kern = stbtt_GetCodepointKernAdvance(&info, word, word);
-    x += roundf(kern * scale);
-	stbi_write_png(outImageName, bitmap_w, bitmap_h, 1, bitmap, 0);
-	free(bitmap);
-    return true;
+    stbtt_MakeCodepointBitmap(&info, out + byteOffset, c_x2 - c_x1, c_y2 - c_y1, bitmap_w, scale, scale, word);
+    // stbtt_MakeCodepointBitmap(&info, bitmap + byteOffset, c_x2 - c_x1, c_y2 - c_y1, bitmap_w, scale, scale, word);
+
+    // // unsigned int *TexPixelsRGBA32 = (unsigned int*)malloc(bitmap_w * bitmap_h * 4);
+    // const unsigned char* src = bitmap;
+    // // unsigned int* dst = TexPixelsRGBA32;
+    // unsigned int* dst = (unsigned int *)*out;
+    // for (int n = bitmap_w * bitmap_h; n > 0; n--)
+    //     *dst++ = IM_COL32(255, 255, 255, (unsigned int)(*src++));
+    // *out = (unsigned char *)TexPixelsRGBA32;
 }
-void CreateFontImage(const std::string&fontfile, const std::string&outPath = CHESS_FONT_ROOT_PATH){
+// bool generateFontImage(const unsigned char *fontData){
+// 	stbtt_fontinfo info;
+// 	if(!stbtt_InitFont(&info, fontData, 0)){
+// 		printf("in function:%s, stbtt_InitFont error\n", __FUNCTION__);
+// 		return false;
+// 	}
+// 	int bitmap_w = 30, bitmap_h = 30;
+// 	unsigned char *bitmap = malloc(bitmap_w * bitmap_h);
+// 	memset(bitmap, 0, bitmap_w * bitmap_h);
+// 	char word = '魏';
+// 	//wchar_t word = L'魏';
+// 	//const int *word = L"世界你好";
+// 	// printf("%x\n", (unsigned int *)word[0]);
+// 	// printf("strlen(%s) = %d\n", c, strlen(c));
+// 	// int word[20] = { L'你', L'好', L'世', L'界' };//字母的编码
+// 	// int word[20] = { 0x4f60, 0x597d, 0x4e16, 0x754c };//字母的编码
+// 	float pixels = 30.0;//字号
+// 	float scale = stbtt_ScaleForPixelHeight(&info, pixels);
+// 	int ascent = 0, descent = 0, lineGap = 0;
+// 	stbtt_GetFontVMetrics(&info, &ascent, &descent, &lineGap);
+// 	ascent = roundf(ascent * scale);
+// 	descent = roundf(descent * scale);
+// 	int x = 0;
+// 	int advanceWidth = 0, leftSideBearing = 0, c_x1, c_y1, c_x2, c_y2;
+// 	stbtt_GetCodepointHMetrics(&info, word, &advanceWidth, &leftSideBearing);
+// 	stbtt_GetCodepointBitmapBox(&info, word, scale, scale, &c_x1, &c_y1, &c_x2, &c_y2);
+// 	int y = ascent +c_y1;
+// 	int byteOffset = x + roundf(leftSideBearing * scale) + (y * bitmap_w);
+// 	stbtt_MakeCodepointBitmap(&info, bitmap + byteOffset, c_x2 - c_x1, c_y2 - c_y1, bitmap_w, scale, scale, word);
+// 	x += roundf(advanceWidth * scale);
+// 	int kern;
+// 	kern = stbtt_GetCodepointKernAdvance(&info, word, word);
+// 	x += roundf(kern * scale);
+// 	stbi_write_png("stb.png", bitmap_w, bitmap_h, 1, bitmap, 0);
+// 	free(bitmap);
+// }
+void GetFontImageData(const std::string&fontfile, wchar_t word, unsigned char *bitmap){
 	long int size = 0;
 	unsigned char *fontBuffer = NULL;
 	FILE *fontFile = fopen(fontfile.c_str(), "rb");
@@ -84,42 +122,7 @@ void CreateFontImage(const std::string&fontfile, const std::string&outPath = CHE
 		fontBuffer = (unsigned char *)malloc(size);
 		fread(fontBuffer, size, 1, fontFile);
 		fclose(fontFile);
-        const wchar_t word[] = { L'魏', L'蜀', L'吴', L'漢', L'兵', L'炮', L'車', L'馬', L'相', L'士' };
-        for (size_t i = 0; i < sizeof(word) / sizeof(int); ++i){
-            std::string path;
-            if(word[i] == L'魏'){
-                path = outPath + "魏";
-            }
-            else if(word[i] == L'蜀'){
-                path = outPath + "蜀";
-            }
-            else if(word[i] == L'吴'){
-                path = outPath + "吴";
-            }
-            else if(word[i] == L'漢'){
-                path = outPath + "漢";
-            }
-            else if(word[i] == L'兵'){
-                path = outPath + "兵";
-            }
-            else if(word[i] == L'炮'){
-                path = outPath + "炮";
-            }
-            else if(word[i] == L'車'){
-                path = outPath + "車";
-            }
-            else if(word[i] == L'馬'){
-                path = outPath + "馬";
-            }
-            else if(word[i] == L'相'){
-                path = outPath + "相";
-            }
-            else if(word[i] == L'士'){
-                path = outPath + "士";
-            }
-            path += ".png";
-		    GenerateFontImage(CHESS_FONT_IMAGE_WIDTH, CHESS_FONT_IMAGE_HEIGHT, word[i], path.c_str(), fontBuffer);
-        }
+        GetFontImageData(fontBuffer, CHESS_FONT_IMAGE_WIDTH, CHESS_FONT_IMAGE_HEIGHT, word, bitmap);
 		free(fontBuffer);
 	}
 	else{
@@ -127,6 +130,91 @@ void CreateFontImage(const std::string&fontfile, const std::string&outPath = CHE
 		printf("file name is %s\n", fontfile.c_str());
 	}
 }
+// void *GenerateFontImage(int bitmap_w, int bitmap_h, wchar_t word, const char *outImageName, const unsigned char *fontData, float pixels = 20){
+// 	stbtt_fontinfo info;
+// 	if(!stbtt_InitFont(&info, fontData, 0)){
+// 		printf("in function:%s, stbtt_InitFont error\n", __FUNCTION__);
+// 		return false;
+// 	}
+// 	unsigned char *bitmap = (unsigned char *)malloc(bitmap_w * bitmap_h);
+// 	memset(bitmap, 0, bitmap_w * bitmap_h);
+// 	// const int *word = L"世界你好";
+// 	// printf("%x\n", (unsigned int *)word[0]);
+// 	// printf("strlen(%s) = %d\n", c, strlen(c));
+// 	// int word[20] = { L'你', L'好', L'世', L'界' };//字母的编码
+// 	// int word[20] = { 0x4f60, 0x597d, 0x4e16, 0x754c };//字母的编码
+// 	float scale = stbtt_ScaleForPixelHeight(&info, pixels);
+// 	int ascent = 0, descent = 0, lineGap = 0;
+// 	stbtt_GetFontVMetrics(&info, &ascent, &descent, &lineGap);
+// 	ascent = roundf(ascent * scale);
+// 	descent = roundf(descent * scale);
+// 	int x = 0;
+//     int advanceWidth = 0, leftSideBearing = 0, c_x1, c_y1, c_x2, c_y2;
+//     stbtt_GetCodepointHMetrics(&info, word, &advanceWidth, &leftSideBearing);
+//     stbtt_GetCodepointBitmapBox(&info, word, scale, scale, &c_x1, &c_y1, &c_x2, &c_y2);
+//     int y = ascent +c_y1;
+//     int byteOffset = x + roundf(leftSideBearing * scale) + (y * bitmap_w);
+//     stbtt_MakeCodepointBitmap(&info, bitmap + byteOffset, c_x2 - c_x1, c_y2 - c_y1, bitmap_w, scale, scale, word);
+//     // x += roundf(advanceWidth * scale);
+//     // int kern;
+//     // kern = stbtt_GetCodepointKernAdvance(&info, word, word);
+//     // x += roundf(kern * scale);
+// 	// stbi_write_png(outImageName, bitmap_w, bitmap_h, 1, bitmap, 0);
+// 	free(bitmap);
+//     return true;
+// }
+// void CreateFontImage(const std::string&fontfile, const std::string&outPath = CHESS_FONT_ROOT_PATH){
+// 	long int size = 0;
+// 	unsigned char *fontBuffer = NULL;
+// 	FILE *fontFile = fopen(fontfile.c_str(), "rb");
+// 	if(fontFile){
+// 		size = vkf::tool::GetFileSize(fontFile);
+// 		fontBuffer = (unsigned char *)malloc(size);
+// 		fread(fontBuffer, size, 1, fontFile);
+// 		fclose(fontFile);
+//         const wchar_t word[] = { L'魏', L'蜀', L'吴', L'漢', L'兵', L'炮', L'車', L'馬', L'相', L'士' };
+//         for (size_t i = 0; i < sizeof(word) / sizeof(int); ++i){
+//             std::string path;
+//             if(word[i] == L'魏'){
+//                 path = outPath + "魏";
+//             }
+//             else if(word[i] == L'蜀'){
+//                 path = outPath + "蜀";
+//             }
+//             else if(word[i] == L'吴'){
+//                 path = outPath + "吴";
+//             }
+//             else if(word[i] == L'漢'){
+//                 path = outPath + "漢";
+//             }
+//             else if(word[i] == L'兵'){
+//                 path = outPath + "兵";
+//             }
+//             else if(word[i] == L'炮'){
+//                 path = outPath + "炮";
+//             }
+//             else if(word[i] == L'車'){
+//                 path = outPath + "車";
+//             }
+//             else if(word[i] == L'馬'){
+//                 path = outPath + "馬";
+//             }
+//             else if(word[i] == L'相'){
+//                 path = outPath + "相";
+//             }
+//             else if(word[i] == L'士'){
+//                 path = outPath + "士";
+//             }
+//             path += ".png";
+// 		    GenerateFontImage(CHESS_FONT_IMAGE_WIDTH, CHESS_FONT_IMAGE_HEIGHT, word[i], path.c_str(), fontBuffer);
+//         }
+// 		free(fontBuffer);
+// 	}
+// 	else{
+// 		perror("open file error");
+// 		printf("file name is %s\n", fontfile.c_str());
+// 	}
+// }
 
 void Chess::DrawFont(VkCommandBuffer cmd){
     VkDeviceSize offset = 0;
@@ -327,10 +415,15 @@ void Wei::Selected(const Chessboard *chessboard, std::vector<Ranks>&canplays){
 //     Chess::UpdateUniform(device, row, column);
 // }
 void Wei::CreateFontTexture(VkDevice device, VkCommandPool pool, VkQueue graphics){
-    if(!CreateTexture(device, CHESS_FONT_ROOT_PATH"魏.png", pool, graphics)){
-        CreateFontImage("fonts/SourceHanSerifCN-Bold.otf");
-        CreateTexture(device, CHESS_FONT_ROOT_PATH"魏.png", pool, graphics);
-    }
+    unsigned char *bitmap = (unsigned char *)malloc(CHESS_FONT_IMAGE_WIDTH * CHESS_FONT_IMAGE_HEIGHT);
+    memset(bitmap, 0, CHESS_FONT_IMAGE_WIDTH * CHESS_FONT_IMAGE_HEIGHT);
+    GetFontImageData("fonts/SourceHanSerifCN-Bold.otf", L'魏', bitmap);
+    vkf::CreateFontImage(device, bitmap, CHESS_FONT_IMAGE_WIDTH, CHESS_FONT_IMAGE_HEIGHT, mFont, pool, graphics);
+    free(bitmap);
+    // if(!CreateTexture(device, CHESS_FONT_ROOT_PATH"魏.png", pool, graphics)){
+    //     CreateFontImage();
+    //     CreateTexture(device, CHESS_FONT_ROOT_PATH"魏.png", pool, graphics);
+    // }
 }
 
 Shu::Shu(){
@@ -361,10 +454,16 @@ void Shu::Selected(const Chessboard *chessboard, std::vector<Ranks>&canplays){
 //     Chess::UpdateUniform(device, row, column);
 // }
 void Shu::CreateFontTexture(VkDevice device, VkCommandPool pool, VkQueue graphics){
-    if(!CreateTexture(device, CHESS_FONT_ROOT_PATH"蜀.png", pool, graphics)){
-        CreateFontImage("fonts/SourceHanSerifCN-Bold.otf");
-        CreateTexture(device, CHESS_FONT_ROOT_PATH"蜀.png", pool, graphics);
-    }
+    unsigned char *bitmap = (unsigned char *)malloc(CHESS_FONT_IMAGE_WIDTH * CHESS_FONT_IMAGE_HEIGHT);
+    memset(bitmap, 0, CHESS_FONT_IMAGE_WIDTH * CHESS_FONT_IMAGE_HEIGHT);
+    GetFontImageData("fonts/SourceHanSerifCN-Bold.otf", L'蜀', bitmap);
+    vkf::CreateFontImage(device, bitmap, CHESS_FONT_IMAGE_WIDTH, CHESS_FONT_IMAGE_HEIGHT, mFont, pool, graphics);
+    free(bitmap);
+
+    // if(!CreateTexture(device, CHESS_FONT_ROOT_PATH"蜀.png", pool, graphics)){
+    //     // CreateFontImage("fonts/SourceHanSerifCN-Bold.otf");
+    //     // CreateTexture(device, CHESS_FONT_ROOT_PATH"蜀.png", pool, graphics);
+    // }
 }
 
 Wu::Wu(){
@@ -395,10 +494,16 @@ void Wu::Selected(const Chessboard *chessboard, std::vector<Ranks>&canplays){
 //     Chess::UpdateUniform(device, row, column);
 // }
 void Wu::CreateFontTexture(VkDevice device, VkCommandPool pool, VkQueue graphics){
-    if(!CreateTexture(device, CHESS_FONT_ROOT_PATH"吴.png", pool, graphics)){
-        CreateFontImage("fonts/SourceHanSerifCN-Bold.otf");
-        CreateTexture(device, CHESS_FONT_ROOT_PATH"吴.png", pool, graphics);
-    }
+    unsigned char *bitmap = (unsigned char *)malloc(CHESS_FONT_IMAGE_WIDTH * CHESS_FONT_IMAGE_HEIGHT);
+    memset(bitmap, 0, CHESS_FONT_IMAGE_WIDTH * CHESS_FONT_IMAGE_HEIGHT);
+    GetFontImageData("fonts/SourceHanSerifCN-Bold.otf", L'吴', bitmap);
+    vkf::CreateFontImage(device, bitmap, CHESS_FONT_IMAGE_WIDTH, CHESS_FONT_IMAGE_HEIGHT, mFont, pool, graphics);
+    free(bitmap);
+
+    // if(!CreateTexture(device, CHESS_FONT_ROOT_PATH"吴.png", pool, graphics)){
+    //     // CreateFontImage("fonts/SourceHanSerifCN-Bold.otf");
+    //     // CreateTexture(device, CHESS_FONT_ROOT_PATH"吴.png", pool, graphics);
+    // }
 }
 
 Han::Han(){
@@ -409,22 +514,28 @@ Han::~Han(){
 }
 void Han::Selected(const Chessboard *chessboard, std::vector<Ranks>&canplays){
     //漢不能被选择
-    // const Ranks ranks[] = { Ranks(mRow + 1, mColumn), Ranks(mRow - 1, mColumn), Ranks(mRow, mColumn + 1), Ranks(mRow, mColumn - 1) };
-    // for(uint32_t i = 0; i < sizeof(ranks) / sizeof(Ranks); ++i){
-    //     if(!chessboard->IsBoundary(ranks[i].row, ranks[i].column)){
-    //         const Chess *chess = chessboard->GetChess(ranks[i].row, ranks[i].column);
-    //         if(!chess || chess->GetCountryColor() != GetCountryColor()){
-    //             canplays.push_back(Ranks(ranks[i].row, ranks[i].column));
-    //         }
-    //     }
-    // }
-    // chessboard->SelectChessInPalace(this, canplays);
+    const Ranks ranks[] = { Ranks(mRow + 1, mColumn), Ranks(mRow - 1, mColumn), Ranks(mRow, mColumn + 1), Ranks(mRow, mColumn - 1) };
+    for(uint32_t i = 0; i < sizeof(ranks) / sizeof(Ranks); ++i){
+        if(!chessboard->IsBoundary(ranks[i].row, ranks[i].column)){
+            const Chess *chess = chessboard->GetChess(ranks[i].row, ranks[i].column);
+            if(!chess || chess->GetCountryColor() != GetCountryColor()){
+                canplays.push_back(Ranks(ranks[i].row, ranks[i].column));
+            }
+        }
+    }
+    chessboard->SelectChessInPalace(this, canplays);
 }
 void Han::CreateFontTexture(VkDevice device, VkCommandPool pool, VkQueue graphics){
-    if(!CreateTexture(device, CHESS_FONT_ROOT_PATH"漢.png", pool, graphics)){
-        CreateFontImage("fonts/SourceHanSerifCN-Bold.otf");
-        CreateTexture(device, CHESS_FONT_ROOT_PATH"漢.png", pool, graphics);
-    }
+    unsigned char *bitmap = (unsigned char *)malloc(CHESS_FONT_IMAGE_WIDTH * CHESS_FONT_IMAGE_HEIGHT);
+    memset(bitmap, 0, CHESS_FONT_IMAGE_WIDTH * CHESS_FONT_IMAGE_HEIGHT);
+    GetFontImageData("fonts/SourceHanSerifCN-Bold.otf", L'漢', bitmap);
+    vkf::CreateFontImage(device, bitmap, CHESS_FONT_IMAGE_WIDTH, CHESS_FONT_IMAGE_HEIGHT, mFont, pool, graphics);
+    free(bitmap);
+
+    // if(!CreateTexture(device, CHESS_FONT_ROOT_PATH"漢.png", pool, graphics)){
+    //     // CreateFontImage("fonts/SourceHanSerifCN-Bold.otf");
+    //     // CreateTexture(device, CHESS_FONT_ROOT_PATH"漢.png", pool, graphics);
+    // }
 }
 
 Bing::Bing(){
@@ -435,26 +546,32 @@ Bing::~Bing(){
 }
 void Bing::Selected(const Chessboard *chessboard, std::vector<Ranks>&canplays){
     //兵不能后退
-    const Ranks ranks[] = { Ranks(mRow + 1, mColumn), Ranks(mRow - 1, mColumn), Ranks(mRow, mColumn + 1), Ranks(mRow, mColumn - 1) };
+    const glm::vec2 behind = chessboard->GetCountryBehind(GetCountryColor());
+    const glm::vec2 ranks[] = { glm::vec2(0, 1), glm::vec2(0, -1), glm::vec2(1, 0), glm::vec2(-1, 0) };
+    // const Ranks ranks[] = { Ranks(mRow + 1, mColumn), Ranks(mRow - 1, mColumn), Ranks(mRow, mColumn + 1), Ranks(mRow, mColumn - 1) };
     for(uint32_t i = 0; i < sizeof(ranks) / sizeof(Ranks); ++i){
-        if(!chessboard->IsBoundary(ranks[i].row, ranks[i].column)){
-            const Chess *chess = chessboard->GetChess(ranks[i].row, ranks[i].column);
+        if(ranks[i].x == behind.x && ranks[i].y == behind.y)continue;
+        const glm::vec2 currentPos = glm::vec2(mColumn, mRow) + ranks[i];
+        if(!chessboard->IsBoundary(currentPos.y, currentPos.x)){
+            const Chess *chess = chessboard->GetChess(currentPos.y, currentPos.x);
             if(!chess || chess->GetCountryColor() != GetCountryColor()){
-                canplays.push_back(Ranks(ranks[i].row, ranks[i].column));
+                canplays.push_back(Ranks(currentPos.y, currentPos.x));
             }
         }
     }
-    //可以通过排除行或列比当前位置大或者小的ranks[i]
-    // for (size_t i = 0; i < canplays.size(); ++i){
-    //     if(canplays[i].row)
-    // }
     chessboard->SelectChessInPalace(this, canplays);
 }
 void Bing::CreateFontTexture(VkDevice device, VkCommandPool pool, VkQueue graphics){
-    if(!CreateTexture(device, CHESS_FONT_ROOT_PATH"兵.png", pool, graphics)){
-        CreateFontImage("fonts/SourceHanSerifCN-Bold.otf");
-        CreateTexture(device, CHESS_FONT_ROOT_PATH"兵.png", pool, graphics);
-    }
+    unsigned char *bitmap = (unsigned char *)malloc(CHESS_FONT_IMAGE_WIDTH * CHESS_FONT_IMAGE_HEIGHT);
+    memset(bitmap, 0, CHESS_FONT_IMAGE_WIDTH * CHESS_FONT_IMAGE_HEIGHT);
+    GetFontImageData("fonts/SourceHanSerifCN-Bold.otf", L'兵', bitmap);
+    vkf::CreateFontImage(device, bitmap, CHESS_FONT_IMAGE_WIDTH, CHESS_FONT_IMAGE_HEIGHT, mFont, pool, graphics);
+    free(bitmap);
+
+    // if(!CreateTexture(device, CHESS_FONT_ROOT_PATH"兵.png", pool, graphics)){
+    //     // CreateFontImage("fonts/SourceHanSerifCN-Bold.otf");
+    //     // CreateTexture(device, CHESS_FONT_ROOT_PATH"兵.png", pool, graphics);
+    // }
 }
 
 Pao::Pao(){
@@ -473,15 +590,13 @@ void Pao::Selected(const Chessboard *chessboard, std::vector<Ranks>&canplays){
             const Chess *chess = chessboard->GetChess(pos.y, pos.x);
             if(chess){
                 pos += direction[i];
-                if(chess->GetCountryColor() != GetCountryColor()){
-                    while(!chessboard->IsBoundary(pos.y, pos.x)){
-                        const Chess *chess = chessboard->GetChess(pos.y, pos.x);
-                        if(chess){
-                            canplays.push_back(Ranks(pos.y, pos.x));
-                            break;
-                        }
-                        pos += direction[i];
+                while(!chessboard->IsBoundary(pos.y, pos.x)){
+                    const Chess *chess = chessboard->GetChess(pos.y, pos.x);
+                    if(chess && chess->GetCountryColor() != GetCountryColor()){
+                        canplays.push_back(Ranks(pos.y, pos.x));
+                        break;
                     }
+                    pos += direction[i];
                 }
                 break;
             }
@@ -491,14 +606,19 @@ void Pao::Selected(const Chessboard *chessboard, std::vector<Ranks>&canplays){
             pos += direction[i];
         }
     }
-    //如果中间有棋子才可以吃子
     chessboard->SelectChessInPalace(this, canplays);
 }
 void Pao::CreateFontTexture(VkDevice device, VkCommandPool pool, VkQueue graphics){
-    if(!CreateTexture(device, CHESS_FONT_ROOT_PATH"炮.png", pool, graphics)){
-        CreateFontImage("fonts/SourceHanSerifCN-Bold.otf");
-        CreateTexture(device, CHESS_FONT_ROOT_PATH"炮.png", pool, graphics);
-    }
+    unsigned char *bitmap = (unsigned char *)malloc(CHESS_FONT_IMAGE_WIDTH * CHESS_FONT_IMAGE_HEIGHT);
+    memset(bitmap, 0, CHESS_FONT_IMAGE_WIDTH * CHESS_FONT_IMAGE_HEIGHT);
+    GetFontImageData("fonts/SourceHanSerifCN-Bold.otf", L'炮', bitmap);
+    vkf::CreateFontImage(device, bitmap, CHESS_FONT_IMAGE_WIDTH, CHESS_FONT_IMAGE_HEIGHT, mFont, pool, graphics);
+    free(bitmap);
+
+    // if(!CreateTexture(device, CHESS_FONT_ROOT_PATH"炮.png", pool, graphics)){
+    //     // CreateFontImage("fonts/SourceHanSerifCN-Bold.otf");
+    //     // CreateTexture(device, CHESS_FONT_ROOT_PATH"炮.png", pool, graphics);
+    // }
 }
 
 Che::Che(){
@@ -527,10 +647,16 @@ void Che::Selected(const Chessboard *chessboard, std::vector<Ranks>&canplays){
     chessboard->SelectChessInPalace(this, canplays);
 }
 void Che::CreateFontTexture(VkDevice device, VkCommandPool pool, VkQueue graphics){
-    if(!CreateTexture(device, CHESS_FONT_ROOT_PATH"車.png", pool, graphics)){
-        CreateFontImage("fonts/SourceHanSerifCN-Bold.otf");
-        CreateTexture(device, CHESS_FONT_ROOT_PATH"車.png", pool, graphics);
-    }
+    unsigned char *bitmap = (unsigned char *)malloc(CHESS_FONT_IMAGE_WIDTH * CHESS_FONT_IMAGE_HEIGHT);
+    memset(bitmap, 0, CHESS_FONT_IMAGE_WIDTH * CHESS_FONT_IMAGE_HEIGHT);
+    GetFontImageData("fonts/SourceHanSerifCN-Bold.otf", L'車', bitmap);
+    vkf::CreateFontImage(device, bitmap, CHESS_FONT_IMAGE_WIDTH, CHESS_FONT_IMAGE_HEIGHT, mFont, pool, graphics);
+    free(bitmap);
+
+    // if(!CreateTexture(device, CHESS_FONT_ROOT_PATH"車.png", pool, graphics)){
+    //     // CreateFontImage("fonts/SourceHanSerifCN-Bold.otf");
+    //     // CreateTexture(device, CHESS_FONT_ROOT_PATH"車.png", pool, graphics);
+    // }
 }
 
 Ma::Ma(){
@@ -554,10 +680,16 @@ void Ma::Selected(const Chessboard *chessboard, std::vector<Ranks>&canplays){
     }
 }
 void Ma::CreateFontTexture(VkDevice device, VkCommandPool pool, VkQueue graphics){
-    if(!CreateTexture(device, CHESS_FONT_ROOT_PATH"馬.png", pool, graphics)){
-        CreateFontImage("fonts/SourceHanSerifCN-Bold.otf");
-        CreateTexture(device, CHESS_FONT_ROOT_PATH"馬.png", pool, graphics);
-    }
+    unsigned char *bitmap = (unsigned char *)malloc(CHESS_FONT_IMAGE_WIDTH * CHESS_FONT_IMAGE_HEIGHT);
+    memset(bitmap, 0, CHESS_FONT_IMAGE_WIDTH * CHESS_FONT_IMAGE_HEIGHT);
+    GetFontImageData("fonts/SourceHanSerifCN-Bold.otf", L'馬', bitmap);
+    vkf::CreateFontImage(device, bitmap, CHESS_FONT_IMAGE_WIDTH, CHESS_FONT_IMAGE_HEIGHT, mFont, pool, graphics);
+    free(bitmap);
+
+    // if(!CreateTexture(device, CHESS_FONT_ROOT_PATH"馬.png", pool, graphics)){
+    //     // CreateFontImage("fonts/SourceHanSerifCN-Bold.otf");
+    //     // CreateTexture(device, CHESS_FONT_ROOT_PATH"馬.png", pool, graphics);
+    // }
 }
 Xiang::Xiang(){
 
@@ -577,10 +709,16 @@ void Xiang::Selected(const Chessboard *chessboard, std::vector<Ranks>&canplays){
     }
 }
 void Xiang::CreateFontTexture(VkDevice device, VkCommandPool pool, VkQueue graphics){
-    if(!CreateTexture(device, CHESS_FONT_ROOT_PATH"相.png", pool, graphics)){
-        CreateFontImage("fonts/SourceHanSerifCN-Bold.otf");
-        CreateTexture(device, CHESS_FONT_ROOT_PATH"相.png", pool, graphics);
-    }
+    unsigned char *bitmap = (unsigned char *)malloc(CHESS_FONT_IMAGE_WIDTH * CHESS_FONT_IMAGE_HEIGHT);
+    memset(bitmap, 0, CHESS_FONT_IMAGE_WIDTH * CHESS_FONT_IMAGE_HEIGHT);
+    GetFontImageData("fonts/SourceHanSerifCN-Bold.otf", L'相', bitmap);
+    vkf::CreateFontImage(device, bitmap, CHESS_FONT_IMAGE_WIDTH, CHESS_FONT_IMAGE_HEIGHT, mFont, pool, graphics);
+    free(bitmap);
+
+    // if(!CreateTexture(device, CHESS_FONT_ROOT_PATH"相.png", pool, graphics)){
+    //     // CreateFontImage("fonts/SourceHanSerifCN-Bold.otf");
+    //     // CreateTexture(device, CHESS_FONT_ROOT_PATH"相.png", pool, graphics);
+    // }
 }
 Shi::Shi(){
 
@@ -592,8 +730,14 @@ void Shi::Selected(const Chessboard *chessboard, std::vector<Ranks>&canplays){
     chessboard->SelectChessInPalace(this, canplays);
 }
 void Shi::CreateFontTexture(VkDevice device, VkCommandPool pool, VkQueue graphics){
-    if(!CreateTexture(device, CHESS_FONT_ROOT_PATH"士.png", pool, graphics)){
-        CreateFontImage("fonts/SourceHanSerifCN-Bold.otf");
-        CreateTexture(device, CHESS_FONT_ROOT_PATH"士.png", pool, graphics);
-    }
+    unsigned char *bitmap = (unsigned char *)malloc(CHESS_FONT_IMAGE_WIDTH * CHESS_FONT_IMAGE_HEIGHT);
+    memset(bitmap, 0, CHESS_FONT_IMAGE_WIDTH * CHESS_FONT_IMAGE_HEIGHT);
+    GetFontImageData("fonts/SourceHanSerifCN-Bold.otf", L'士', bitmap);
+    vkf::CreateFontImage(device, bitmap, CHESS_FONT_IMAGE_WIDTH, CHESS_FONT_IMAGE_HEIGHT, mFont, pool, graphics);
+    free(bitmap);
+
+    // if(!CreateTexture(device, CHESS_FONT_ROOT_PATH"士.png", pool, graphics)){
+    //     // CreateFontImage("fonts/SourceHanSerifCN-Bold.otf");
+    //     // CreateTexture(device, CHESS_FONT_ROOT_PATH"士.png", pool, graphics);
+    // }
 }

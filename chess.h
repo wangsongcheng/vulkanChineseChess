@@ -4,6 +4,7 @@
 #include "vulkanFrame.h"
 #include "glm/glm.hpp"
 #include "glm/gtc/matrix_transform.hpp"
+//因为GetCountryBehind函数中的值是写死的，所以在修改颜色或国家位置后可能需要修改函数内的方向
 #define WU_CHESS_COUNTRY_COLOR glm::vec3(0, 1, 0)
 #define WEI_CHESS_COUNTRY_COLOR glm::vec3(0, 0, 1)
 #define SHU_CHESS_COUNTRY_COLOR glm::vec3(1, 0, 0)

@@ -16,12 +16,20 @@ const uint32_t g_WindowWidth = CHESSBOARD_GRID_SIZE_BIG * 2 + 10 * CHESSBOARD_GR
 std::vector<VkCommandBuffer>g_CommandBuffers;
 
 Chessboard g_Chessboard;
+glm::vec3 g_CurrentCountry;
+
 VkSampler g_TextureSampler;
 
 // void createSurface(VkInstance instance, VkSurfaceKHR&surface, void* userData){
 //     glfwCreateWindowSurface(instance, (GLFWwindow *)userData, nullptr, &surface);
 // }
-
+glm::vec3 NextCountry(){
+    const glm::vec3 color[] = { WEI_CHESS_COUNTRY_COLOR, SHU_CHESS_COUNTRY_COLOR, WU_CHESS_COUNTRY_COLOR };
+    static uint32_t index = 0;
+    const glm::vec3 next = color[index];
+    index = (index + 1) % (sizeof(color) / sizeof(glm::vec3));
+    return next;
+}
 VkBool32 VKAPI_PTR debugUtilsMessenger(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageTypes, const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData, void* pUserData){
     const char* strMessageSeverity = nullptr;//, *strMessageTypes = nullptr;
     if (messageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT) {
@@ -61,7 +69,7 @@ void setupVulkan(GLFWwindow *window){
 #else
     vkf::CreateRenderPassForSwapchain(g_VulkanDevice.device, g_VulkanWindows.renderpass);
 #endif
-    vkf::CreateCommandPool(g_VulkanDevice.physicalDevice, g_VulkanDevice.device, g_VulkanPool.commandPool);
+    vkf::CreateCommandPool(g_VulkanDevice.physicalDevice, g_VulkanDevice.device, g_VulkanPool.commandPool, VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
 #ifdef DRAW_CUBE
     vkf::CreateFrameBufferForSwapchain(g_VulkanDevice.device, { g_WindowWidth, g_WindowHeight }, g_VulkanWindows, g_VulkanPool.commandPool, g_VulkanQueue.graphics, true);
 #else
@@ -135,7 +143,7 @@ void recodeCommand(uint32_t currentFrame){
     vkBeginCommandBuffer(g_CommandBuffers[currentFrame], &beginInfo);
     vkCmdBeginRenderPass(g_CommandBuffers[currentFrame], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 
-    g_Chessboard.RecodeCommand(g_CommandBuffers[currentFrame], g_WindowWidth);
+    g_Chessboard.RecodeCommand(g_CommandBuffers[currentFrame]);
 
     vkCmdEndRenderPass(g_CommandBuffers[currentFrame]);
     vkEndCommandBuffer(g_CommandBuffers[currentFrame]);
@@ -145,10 +153,29 @@ void mousebutton(GLFWwindow *windows, int button, int action, int mods){
     glfwGetCursorPos(windows, &xpos, &ypos);
     if(action == GLFW_RELEASE){
         if(button == GLFW_MOUSE_BUTTON_LEFT){
-            if(g_Chessboard.IsSelected())
-                g_Chessboard.Play(g_VulkanDevice.device, glm::vec2(xpos, ypos));
-            else
-                g_Chessboard.Select(g_VulkanDevice.device, glm::vec2(xpos, ypos));
+            if(g_Chessboard.IsSelected()){
+                bool bNext;
+                uint32_t country;
+                if(g_Chessboard.Play(g_VulkanDevice.device, glm::vec2(xpos, ypos), country, bNext)){
+                    vkDeviceWaitIdle(g_VulkanDevice.device);
+                    g_Chessboard.DestroyChess(g_VulkanDevice.device, country);
+                }
+                if(bNext){
+                    g_CurrentCountry = NextCountry();
+                }
+                vkDeviceWaitIdle(g_VulkanDevice.device);
+                for (size_t i = 0; i < g_VulkanWindows.framebuffers.size(); ++i){
+                    recodeCommand(i);
+                }
+            }
+            else{
+                const Chess *chess = g_Chessboard.GetChess(glm::vec2(xpos, ypos));
+                if(chess){
+                    if(g_CurrentCountry == chess->GetCountryColor()){
+                        g_Chessboard.Select(g_VulkanDevice.device, glm::vec2(xpos, ypos));
+                    }
+                }
+            }
         }
     }
 }
@@ -161,6 +188,8 @@ void setup(GLFWwindow *windows){
     g_Chessboard.InitChessboard(g_VulkanDevice.device, g_WindowWidth, g_VulkanWindows.renderpass, g_VulkanPool, g_VulkanQueue.graphics, g_TextureSampler);
 
     g_Chessboard.UpdateSet(g_VulkanDevice.device);
+
+    g_CurrentCountry = NextCountry();
 
     g_CommandBuffers.resize(g_VulkanWindows.framebuffers.size());
     vkf::tool::AllocateCommandBuffers(g_VulkanDevice.device, g_VulkanPool.commandPool, g_CommandBuffers.size(), g_CommandBuffers.data());
