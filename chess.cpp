@@ -113,23 +113,23 @@ void GetFontImageData(const unsigned char *fontData, int bitmap_w, int bitmap_h,
 // 	stbi_write_png("stb.png", bitmap_w, bitmap_h, 1, bitmap, 0);
 // 	free(bitmap);
 // }
-void GetFontImageData(const std::string&fontfile, wchar_t word, unsigned char *bitmap){
-	long int size = 0;
-	unsigned char *fontBuffer = NULL;
-	FILE *fontFile = fopen(fontfile.c_str(), "rb");
-	if(fontFile){
-		size = vkf::tool::GetFileSize(fontFile);
-		fontBuffer = (unsigned char *)malloc(size);
-		fread(fontBuffer, size, 1, fontFile);
-		fclose(fontFile);
-        GetFontImageData(fontBuffer, CHESS_FONT_IMAGE_WIDTH, CHESS_FONT_IMAGE_HEIGHT, word, bitmap);
-		free(fontBuffer);
-	}
-	else{
-		perror("open file error");
-		printf("file name is %s\n", fontfile.c_str());
-	}
-}
+// void GetFontImageData(const std::string&fontfile, wchar_t word, unsigned char *bitmap){
+// 	long int size = 0;
+// 	unsigned char *fontBuffer = NULL;
+// 	FILE *fontFile = fopen(fontfile.c_str(), "rb");
+// 	if(fontFile){
+// 		size = vkf::tool::GetFileSize(fontFile);
+// 		fontBuffer = (unsigned char *)malloc(size);
+// 		fread(fontBuffer, size, 1, fontFile);
+// 		fclose(fontFile);
+//         GetFontImageData(fontBuffer, CHESS_FONT_IMAGE_WIDTH, CHESS_FONT_IMAGE_HEIGHT, word, bitmap);
+// 		free(fontBuffer);
+// 	}
+// 	else{
+// 		perror("open file error");
+// 		printf("file name is %s\n", fontfile.c_str());
+// 	}
+// }
 // void *GenerateFontImage(int bitmap_w, int bitmap_h, wchar_t word, const char *outImageName, const unsigned char *fontData, float pixels = 20){
 // 	stbtt_fontinfo info;
 // 	if(!stbtt_InitFont(&info, fontData, 0)){
@@ -414,10 +414,10 @@ void Wei::Selected(const Chessboard *chessboard, std::vector<Ranks>&canplays){
 //     }
 //     Chess::UpdateUniform(device, row, column);
 // }
-void Wei::CreateFontTexture(VkDevice device, VkCommandPool pool, VkQueue graphics){
+void Wei::CreateFontTexture(VkDevice device, const unsigned char *fontfiledata, VkCommandPool pool, VkQueue graphics){
     unsigned char *bitmap = (unsigned char *)malloc(CHESS_FONT_IMAGE_WIDTH * CHESS_FONT_IMAGE_HEIGHT);
     memset(bitmap, 0, CHESS_FONT_IMAGE_WIDTH * CHESS_FONT_IMAGE_HEIGHT);
-    GetFontImageData("fonts/SourceHanSerifCN-Bold.otf", L'魏', bitmap);
+    GetFontImageData(fontfiledata, CHESS_FONT_IMAGE_WIDTH, CHESS_FONT_IMAGE_HEIGHT, L'魏', bitmap);
     vkf::CreateFontImage(device, bitmap, CHESS_FONT_IMAGE_WIDTH, CHESS_FONT_IMAGE_HEIGHT, mFont, pool, graphics);
     free(bitmap);
     // if(!CreateTexture(device, CHESS_FONT_ROOT_PATH"魏.png", pool, graphics)){
@@ -453,10 +453,10 @@ void Shu::Selected(const Chessboard *chessboard, std::vector<Ranks>&canplays){
 //     }
 //     Chess::UpdateUniform(device, row, column);
 // }
-void Shu::CreateFontTexture(VkDevice device, VkCommandPool pool, VkQueue graphics){
+void Shu::CreateFontTexture(VkDevice device, const unsigned char *fontfiledata, VkCommandPool pool, VkQueue graphics){
     unsigned char *bitmap = (unsigned char *)malloc(CHESS_FONT_IMAGE_WIDTH * CHESS_FONT_IMAGE_HEIGHT);
     memset(bitmap, 0, CHESS_FONT_IMAGE_WIDTH * CHESS_FONT_IMAGE_HEIGHT);
-    GetFontImageData("fonts/SourceHanSerifCN-Bold.otf", L'蜀', bitmap);
+    GetFontImageData(fontfiledata, CHESS_FONT_IMAGE_WIDTH, CHESS_FONT_IMAGE_HEIGHT, L'蜀', bitmap);
     vkf::CreateFontImage(device, bitmap, CHESS_FONT_IMAGE_WIDTH, CHESS_FONT_IMAGE_HEIGHT, mFont, pool, graphics);
     free(bitmap);
 
@@ -493,10 +493,10 @@ void Wu::Selected(const Chessboard *chessboard, std::vector<Ranks>&canplays){
 //     }
 //     Chess::UpdateUniform(device, row, column);
 // }
-void Wu::CreateFontTexture(VkDevice device, VkCommandPool pool, VkQueue graphics){
+void Wu::CreateFontTexture(VkDevice device, const unsigned char *fontfiledata, VkCommandPool pool, VkQueue graphics){
     unsigned char *bitmap = (unsigned char *)malloc(CHESS_FONT_IMAGE_WIDTH * CHESS_FONT_IMAGE_HEIGHT);
     memset(bitmap, 0, CHESS_FONT_IMAGE_WIDTH * CHESS_FONT_IMAGE_HEIGHT);
-    GetFontImageData("fonts/SourceHanSerifCN-Bold.otf", L'吴', bitmap);
+    GetFontImageData(fontfiledata, CHESS_FONT_IMAGE_WIDTH, CHESS_FONT_IMAGE_HEIGHT, L'吴', bitmap);
     vkf::CreateFontImage(device, bitmap, CHESS_FONT_IMAGE_WIDTH, CHESS_FONT_IMAGE_HEIGHT, mFont, pool, graphics);
     free(bitmap);
 
@@ -525,10 +525,10 @@ void Han::Selected(const Chessboard *chessboard, std::vector<Ranks>&canplays){
     }
     chessboard->SelectChessInPalace(this, canplays);
 }
-void Han::CreateFontTexture(VkDevice device, VkCommandPool pool, VkQueue graphics){
+void Han::CreateFontTexture(VkDevice device, const unsigned char *fontfiledata, VkCommandPool pool, VkQueue graphics){
     unsigned char *bitmap = (unsigned char *)malloc(CHESS_FONT_IMAGE_WIDTH * CHESS_FONT_IMAGE_HEIGHT);
     memset(bitmap, 0, CHESS_FONT_IMAGE_WIDTH * CHESS_FONT_IMAGE_HEIGHT);
-    GetFontImageData("fonts/SourceHanSerifCN-Bold.otf", L'漢', bitmap);
+    GetFontImageData(fontfiledata, CHESS_FONT_IMAGE_WIDTH, CHESS_FONT_IMAGE_HEIGHT, L'漢', bitmap);
     vkf::CreateFontImage(device, bitmap, CHESS_FONT_IMAGE_WIDTH, CHESS_FONT_IMAGE_HEIGHT, mFont, pool, graphics);
     free(bitmap);
 
@@ -561,10 +561,10 @@ void Bing::Selected(const Chessboard *chessboard, std::vector<Ranks>&canplays){
     }
     chessboard->SelectChessInPalace(this, canplays);
 }
-void Bing::CreateFontTexture(VkDevice device, VkCommandPool pool, VkQueue graphics){
+void Bing::CreateFontTexture(VkDevice device, const unsigned char *fontfiledata, VkCommandPool pool, VkQueue graphics){
     unsigned char *bitmap = (unsigned char *)malloc(CHESS_FONT_IMAGE_WIDTH * CHESS_FONT_IMAGE_HEIGHT);
     memset(bitmap, 0, CHESS_FONT_IMAGE_WIDTH * CHESS_FONT_IMAGE_HEIGHT);
-    GetFontImageData("fonts/SourceHanSerifCN-Bold.otf", L'兵', bitmap);
+    GetFontImageData(fontfiledata, CHESS_FONT_IMAGE_WIDTH, CHESS_FONT_IMAGE_HEIGHT, L'兵', bitmap);
     vkf::CreateFontImage(device, bitmap, CHESS_FONT_IMAGE_WIDTH, CHESS_FONT_IMAGE_HEIGHT, mFont, pool, graphics);
     free(bitmap);
 
@@ -608,10 +608,10 @@ void Pao::Selected(const Chessboard *chessboard, std::vector<Ranks>&canplays){
     }
     chessboard->SelectChessInPalace(this, canplays);
 }
-void Pao::CreateFontTexture(VkDevice device, VkCommandPool pool, VkQueue graphics){
+void Pao::CreateFontTexture(VkDevice device, const unsigned char *fontfiledata, VkCommandPool pool, VkQueue graphics){
     unsigned char *bitmap = (unsigned char *)malloc(CHESS_FONT_IMAGE_WIDTH * CHESS_FONT_IMAGE_HEIGHT);
     memset(bitmap, 0, CHESS_FONT_IMAGE_WIDTH * CHESS_FONT_IMAGE_HEIGHT);
-    GetFontImageData("fonts/SourceHanSerifCN-Bold.otf", L'炮', bitmap);
+    GetFontImageData(fontfiledata, CHESS_FONT_IMAGE_WIDTH, CHESS_FONT_IMAGE_HEIGHT, L'炮', bitmap);
     vkf::CreateFontImage(device, bitmap, CHESS_FONT_IMAGE_WIDTH, CHESS_FONT_IMAGE_HEIGHT, mFont, pool, graphics);
     free(bitmap);
 
@@ -646,10 +646,10 @@ void Che::Selected(const Chessboard *chessboard, std::vector<Ranks>&canplays){
     }
     chessboard->SelectChessInPalace(this, canplays);
 }
-void Che::CreateFontTexture(VkDevice device, VkCommandPool pool, VkQueue graphics){
+void Che::CreateFontTexture(VkDevice device, const unsigned char *fontfiledata, VkCommandPool pool, VkQueue graphics){
     unsigned char *bitmap = (unsigned char *)malloc(CHESS_FONT_IMAGE_WIDTH * CHESS_FONT_IMAGE_HEIGHT);
     memset(bitmap, 0, CHESS_FONT_IMAGE_WIDTH * CHESS_FONT_IMAGE_HEIGHT);
-    GetFontImageData("fonts/SourceHanSerifCN-Bold.otf", L'車', bitmap);
+    GetFontImageData(fontfiledata, CHESS_FONT_IMAGE_WIDTH, CHESS_FONT_IMAGE_HEIGHT, L'車', bitmap);
     vkf::CreateFontImage(device, bitmap, CHESS_FONT_IMAGE_WIDTH, CHESS_FONT_IMAGE_HEIGHT, mFont, pool, graphics);
     free(bitmap);
 
@@ -679,10 +679,10 @@ void Ma::Selected(const Chessboard *chessboard, std::vector<Ranks>&canplays){
         }
     }
 }
-void Ma::CreateFontTexture(VkDevice device, VkCommandPool pool, VkQueue graphics){
+void Ma::CreateFontTexture(VkDevice device, const unsigned char *fontfiledata, VkCommandPool pool, VkQueue graphics){
     unsigned char *bitmap = (unsigned char *)malloc(CHESS_FONT_IMAGE_WIDTH * CHESS_FONT_IMAGE_HEIGHT);
     memset(bitmap, 0, CHESS_FONT_IMAGE_WIDTH * CHESS_FONT_IMAGE_HEIGHT);
-    GetFontImageData("fonts/SourceHanSerifCN-Bold.otf", L'馬', bitmap);
+    GetFontImageData(fontfiledata, CHESS_FONT_IMAGE_WIDTH, CHESS_FONT_IMAGE_HEIGHT, L'馬', bitmap);
     vkf::CreateFontImage(device, bitmap, CHESS_FONT_IMAGE_WIDTH, CHESS_FONT_IMAGE_HEIGHT, mFont, pool, graphics);
     free(bitmap);
 
@@ -708,10 +708,10 @@ void Xiang::Selected(const Chessboard *chessboard, std::vector<Ranks>&canplays){
         }
     }
 }
-void Xiang::CreateFontTexture(VkDevice device, VkCommandPool pool, VkQueue graphics){
+void Xiang::CreateFontTexture(VkDevice device, const unsigned char *fontfiledata, VkCommandPool pool, VkQueue graphics){
     unsigned char *bitmap = (unsigned char *)malloc(CHESS_FONT_IMAGE_WIDTH * CHESS_FONT_IMAGE_HEIGHT);
     memset(bitmap, 0, CHESS_FONT_IMAGE_WIDTH * CHESS_FONT_IMAGE_HEIGHT);
-    GetFontImageData("fonts/SourceHanSerifCN-Bold.otf", L'相', bitmap);
+    GetFontImageData(fontfiledata, CHESS_FONT_IMAGE_WIDTH, CHESS_FONT_IMAGE_HEIGHT, L'相', bitmap);
     vkf::CreateFontImage(device, bitmap, CHESS_FONT_IMAGE_WIDTH, CHESS_FONT_IMAGE_HEIGHT, mFont, pool, graphics);
     free(bitmap);
 
@@ -729,10 +729,10 @@ Shi::~Shi(){
 void Shi::Selected(const Chessboard *chessboard, std::vector<Ranks>&canplays){
     chessboard->SelectChessInPalace(this, canplays);
 }
-void Shi::CreateFontTexture(VkDevice device, VkCommandPool pool, VkQueue graphics){
+void Shi::CreateFontTexture(VkDevice device, const unsigned char *fontfiledata, VkCommandPool pool, VkQueue graphics){
     unsigned char *bitmap = (unsigned char *)malloc(CHESS_FONT_IMAGE_WIDTH * CHESS_FONT_IMAGE_HEIGHT);
     memset(bitmap, 0, CHESS_FONT_IMAGE_WIDTH * CHESS_FONT_IMAGE_HEIGHT);
-    GetFontImageData("fonts/SourceHanSerifCN-Bold.otf", L'士', bitmap);
+    GetFontImageData(fontfiledata, CHESS_FONT_IMAGE_WIDTH, CHESS_FONT_IMAGE_HEIGHT, L'士', bitmap);
     vkf::CreateFontImage(device, bitmap, CHESS_FONT_IMAGE_WIDTH, CHESS_FONT_IMAGE_HEIGHT, mFont, pool, graphics);
     free(bitmap);
 

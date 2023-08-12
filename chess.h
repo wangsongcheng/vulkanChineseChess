@@ -91,13 +91,13 @@ public:
     inline bool isSelect(uint32_t row, uint32_t column)const{
         return row == mRow && column == mColumn;
     }
-    // inline void GetChessRanks(uint32_t&row, uint32_t&column)const{
-    //     row = mRow;
-    //     column = mColumn;
-    // }
+    inline void GetChessRanks(uint32_t&row, uint32_t&column)const{
+        row = mRow;
+        column = mColumn;
+    }
     //该函数不考虑九宫格
     virtual void Selected(const Chessboard *chessboard, std::vector<Ranks>&canplays) = 0;
-    virtual void CreateFontTexture(VkDevice device, VkCommandPool pool, VkQueue graphics) = 0;
+    virtual void CreateFontTexture(VkDevice device, const unsigned char *fontfiledata, VkCommandPool pool, VkQueue graphics) = 0;
 };
 
 class Wei:public Chess{
@@ -107,7 +107,7 @@ public:
     virtual void Selected(const Chessboard *chessboard, std::vector<Ranks>&canplays);
     // //一般情况下其他棋子不需要该函数。//重写是因为需要记录一次mFirstRow, mFirstColumn
     // virtual void UpdateUniform(VkDevice device, uint32_t row, uint32_t column);
-    virtual void CreateFontTexture(VkDevice device, VkCommandPool pool, VkQueue graphics);
+    virtual void CreateFontTexture(VkDevice device, const unsigned char *fontfiledata, VkCommandPool pool, VkQueue graphics);
 };
 
 class Shu:public Chess{
@@ -117,7 +117,7 @@ public:
     virtual void Selected(const Chessboard *chessboard, std::vector<Ranks>&canplays);
     // //一般情况下其他棋子不需要该函数。
     // virtual void UpdateUniform(VkDevice device, uint32_t row, uint32_t column);
-    virtual void CreateFontTexture(VkDevice device, VkCommandPool pool, VkQueue graphics);
+    virtual void CreateFontTexture(VkDevice device, const unsigned char *fontfiledata, VkCommandPool pool, VkQueue graphics);
 };
 
 class Wu:public Chess{
@@ -127,7 +127,7 @@ public:
     virtual void Selected(const Chessboard *chessboard, std::vector<Ranks>&canplays);
     // //一般情况下其他棋子不需要该函数。
     // virtual void UpdateUniform(VkDevice device, uint32_t row, uint32_t column);
-    virtual void CreateFontTexture(VkDevice device, VkCommandPool pool, VkQueue graphics);
+    virtual void CreateFontTexture(VkDevice device, const unsigned char *fontfiledata, VkCommandPool pool, VkQueue graphics);
 };
 
 class Han:public Chess{
@@ -135,49 +135,49 @@ public:
     Han();
     ~Han();
     virtual void Selected(const Chessboard *chessboard, std::vector<Ranks>&canplays);
-    virtual void CreateFontTexture(VkDevice device, VkCommandPool pool, VkQueue graphics);
+    virtual void CreateFontTexture(VkDevice device, const unsigned char *fontfiledata, VkCommandPool pool, VkQueue graphics);
 };
 class Bing:public Chess{
 public:
     Bing();
     ~Bing();
     virtual void Selected(const Chessboard *chessboard, std::vector<Ranks>&canplays);
-    virtual void CreateFontTexture(VkDevice device, VkCommandPool pool, VkQueue graphics);
+    virtual void CreateFontTexture(VkDevice device, const unsigned char *fontfiledata, VkCommandPool pool, VkQueue graphics);
 };
 class Pao:public Chess{
 public:
     Pao();
     ~Pao();
     virtual void Selected(const Chessboard *chessboard, std::vector<Ranks>&canplays);
-    virtual void CreateFontTexture(VkDevice device, VkCommandPool pool, VkQueue graphics);
+    virtual void CreateFontTexture(VkDevice device, const unsigned char *fontfiledata, VkCommandPool pool, VkQueue graphics);
 };
 class Che:public Chess{
 public:
     Che();
     ~Che();
     virtual void Selected(const Chessboard *chessboard, std::vector<Ranks>&canplays);
-    virtual void CreateFontTexture(VkDevice device, VkCommandPool pool, VkQueue graphics);
+    virtual void CreateFontTexture(VkDevice device, const unsigned char *fontfiledata, VkCommandPool pool, VkQueue graphics);
 };
 class Ma:public Chess{
 public:
     Ma();
     ~Ma();
     virtual void Selected(const Chessboard *chessboard, std::vector<Ranks>&canplays);
-    virtual void CreateFontTexture(VkDevice device, VkCommandPool pool, VkQueue graphics);
+    virtual void CreateFontTexture(VkDevice device, const unsigned char *fontfiledata, VkCommandPool pool, VkQueue graphics);
 };
 class Xiang:public Chess{
 public:
     Xiang();
     ~Xiang();
     virtual void Selected(const Chessboard *chessboard, std::vector<Ranks>&canplays);
-    virtual void CreateFontTexture(VkDevice device, VkCommandPool pool, VkQueue graphics);
+    virtual void CreateFontTexture(VkDevice device, const unsigned char *fontfiledata, VkCommandPool pool, VkQueue graphics);
 };
 class Shi:public Chess{
 public:
     Shi();
     ~Shi();
     virtual void Selected(const Chessboard *chessboard, std::vector<Ranks>&canplays);
-    virtual void CreateFontTexture(VkDevice device, VkCommandPool pool, VkQueue graphics);
+    virtual void CreateFontTexture(VkDevice device, const unsigned char *fontfiledata, VkCommandPool pool, VkQueue graphics);
 };
 
 // void CreateFontImage(const std::string&fontfile, const std::string&outPath = CHESS_FONT_ROOT_PATH);

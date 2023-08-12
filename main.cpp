@@ -76,7 +76,7 @@ void setupVulkan(GLFWwindow *window){
     vkf::CreateFrameBufferForSwapchain(g_VulkanDevice.device, { g_WindowWidth, g_WindowHeight }, g_VulkanWindows, g_VulkanPool.commandPool, g_VulkanQueue.graphics);
 #endif
     vkf::CreateSemaphoreAndFenceForSwapchain(g_VulkanDevice.device, 3, g_VulkanSynchronize);
-    vkf::CreateDescriptorPool(g_VulkanDevice.device, 131, g_VulkanPool.descriptorPool);
+    vkf::CreateDescriptorPool(g_VulkanDevice.device, 147, g_VulkanPool.descriptorPool);
     //显示设备信息
     const char *deviceType;
     VkPhysicalDeviceProperties physicalDeviceProperties;

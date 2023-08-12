@@ -39,9 +39,12 @@
 #define XIANG_CHESS_2 11
 #define PAO_CHESS_1 12
 #define PAO_CHESS_2 13
-#define CHE_CHESS_1 14
-#define CHE_CHESS_2 15
-#define CHE_CHESS_3 16
+#define PAO_CHESS_3 14
+#define CHE_CHESS_1 15
+#define CHE_CHESS_2 16
+#define CHE_CHESS_3 17
+#define CHE_CHESS_4 18
+#define CHE_CHESS_5 19
 struct ChessboardVertex {
     glm::vec3 pos;
     glm::vec3 color;
@@ -54,7 +57,8 @@ struct ChessboardVertex {
 };
 struct ChessboardChess{
     //原棋子数为16,因为汉需要3个車,比原棋子多1个, 所以为17
-    Chess *chess[17];
+    //在占领漢后, 需要3个車和1个炮来获取漢的車和炮//因为非漢势力有一个車的位置用不到，所以只需要增加2个車
+    Chess *chess[20];
     // Chess *jiang;//实际上是魏蜀吴汉
     // Chess *ma[2];
     // Chess *pao[2];
@@ -153,10 +157,12 @@ public:
     void Select(VkDevice device, const glm::vec2&pos);
     bool IsInPalace(uint32_t row, uint32_t column)const;
     bool IsPalaceCenter(uint32_t row, uint32_t column)const;
-    //如果函数返回真, country表示被灭亡的势力。否则该值无效
+    //如果返回真, country表示被灭亡的势力。否则该值无效
     bool Play(VkDevice device, const glm::vec2&pos, uint32_t&country, bool&next);
     // void Play(VkDevice device, uint32_t row, uint32_t column);
     void SelectChessInPalace(const Chess *ptrChess, std::vector<Ranks>&canplays)const;
+    //如果返回真, 表示目标势力灭亡
+    bool CaptureChess(VkDevice device, const Chess *src, uint32_t dstCountry, uint32_t destChess);
 
     //返回真表示在边界上，不能下棋
     bool IsBoundary(uint32_t row, uint32_t column)const;
