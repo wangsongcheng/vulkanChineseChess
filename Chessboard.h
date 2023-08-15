@@ -48,9 +48,21 @@
 struct ChessboardVertex {
     glm::vec3 pos;
     glm::vec3 color;
+    glm::uint pointSize;
     ChessboardVertex(){
     }
-    ChessboardVertex(const glm::vec3&pos, const glm::vec3&color){
+    ChessboardVertex(const glm::vec3&pos, const glm::vec3&color, const glm::uint&pointSize){
+        this->pos = pos;
+        this->color = color;
+        this->pointSize = pointSize;
+    }
+};
+struct ChessboardRectVertex {
+    glm::vec3 pos;
+    glm::vec3 color;
+    ChessboardRectVertex(){
+    }
+    ChessboardRectVertex(const glm::vec3&pos, const glm::vec3&color){
         this->pos = pos;
         this->color = color;
     }
@@ -71,10 +83,10 @@ struct ChessboardChess{
 //     glm::mat4 projection;
 // };
 //两个成员必须一样大才能一次送进uniform
-struct PointUniform{
-    glm::mat4 model;
-    glm::uint pointSize;
-};
+// struct PointUniform{
+//     glm::mat4 model;
+//     // glm::uint pointSize;
+// };
 struct ChessboardWireframe{
     VkDescriptorSet set;
     VulkanBuffer uniform;
@@ -131,10 +143,10 @@ class Chessboard{
     int32_t mPointMinUniformBufferOffset, mRectMinUniformBufferOffset;
     // //棋类的管线//在没有更好的办法前先这么写
     // GraphicsPipeline mCircularPipeline, mFontPipeline;
-    void DrawChess(VkCommandBuffer cmd);
     void DrawChessboard(VkCommandBuffer cmd);
     void DrawSelectChessWireframe(VkCommandBuffer cmd);
     void DrawChessboardBackground(VkCommandBuffer cmd);
+    void DrawChess(VkCommandBuffer cmd, const glm::vec3&nowCountryColor);
     void GetRectVertices(const glm::vec3&color, ChessboardVertex vertices[]);
     void InitChess(VkDevice device, uint32_t country, uint32_t windowWidth, VkRenderPass renderpass, VulkanPool pool, VkQueue graphics, VkSampler fontSampler);
     void CreateGraphicsPipeline(VkDevice device, uint32_t windowWidth, VkRenderPass renderpass, const std::vector<std::string>&shader, GraphicsPipeline&pipeline, const GraphicsPipelineStateInfo&pipelineState = {});
@@ -144,9 +156,9 @@ public:
     //该函数只改变坐标,所以不需要关心调用的先后顺序(至少CreateVulkanResource是这样)
     void Cleanup(VkDevice device);
     void UpdateSet(VkDevice device);
-    void RecodeCommand(VkCommandBuffer cmd);
     void DestroyGraphicsPipeline(VkDevice device);
     void DestroyChess(VkDevice device, uint32_t country);
+    void RecodeCommand(VkCommandBuffer cmd, const glm::vec3&nowCountryColor);
     void CreatePipeline(VkDevice device, VkRenderPass renderpass, uint32_t windowWidth);
     void CreateVulkanResource(VkPhysicalDevice physicalDevice, VkDevice device, uint32_t windowWidth, VkQueue graphics, VulkanPool pool);
     void InitChessboard(VkDevice device, uint32_t windowWidth, VkRenderPass renderpass, VulkanPool pool, VkQueue graphics, VkSampler fontSampler);
@@ -170,6 +182,9 @@ public:
     Chess *GetChess(const glm::vec2&pos)const;
     Chess *GetChess(uint32_t row, uint32_t column)const;
 
+    inline bool IsSelfChess(const glm::vec3&color){
+        return mSelected->GetCountryColor() == color;
+    }
     inline bool IsSelected(){
         return mSelected;
     }

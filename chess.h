@@ -60,14 +60,14 @@ class Chess{
     VulkanBuffer mFontPosition;
     VulkanBuffer mVertex, mIndex;
     VkDescriptorSet mSet, mFontSet;
-    uint32_t mCircularIndicesCount;
     VulkanBuffer mFontVertex, mFontIndex;
+    uint32_t mIndicesCount, mVerticesCount;
     GraphicsPipeline mPipeline, mFontPipeline;
 protected:
     VulkanImage mFont;
     uint32_t mRow, mColumn;//棋子目前所在的行列
     void DrawFont(VkCommandBuffer cmd);
-    void DrawCircular(VkCommandBuffer cmd);
+    void DrawCircular(VkCommandBuffer cmd, bool bBan);
     void GetCircularVertex(const glm::vec3&color, std::vector<ChessVertex>&vertices);
     bool CreateTexture(VkDevice device, const char *file, VkCommandPool pool, VkQueue graphics);
     void CreateGraphicsPipeline(VkDevice device, uint32_t windowWidth, VkRenderPass renderpass, const std::vector<std::string>&shader, GraphicsPipeline&pipeline, const GraphicsPipelineStateInfo&pipelineState = {});
@@ -76,7 +76,7 @@ public:
     ~Chess();
     void Cleanup(VkDevice device);
     void DestroyGraphicsPipeline(VkDevice device);
-    void RecodeCommand(VkCommandBuffer cmd, uint32_t windowWidth);
+    void RecodeCommand(VkCommandBuffer cmd, uint32_t windowWidth, bool bBan);
     void CreatePipeline(VkDevice device, VkRenderPass renderpass, uint32_t windowWidth);
     void CreateVulkanResource(VkDevice device, const glm::vec3&color, const VulkanPool&pool, VkQueue graphics);
 

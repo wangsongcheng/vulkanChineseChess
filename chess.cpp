@@ -223,12 +223,12 @@ void Chess::DrawFont(VkCommandBuffer cmd){
     mFontPipeline.BindDescriptorSet(cmd, mFontSet);
     vkCmdDrawIndexed(cmd, 6, 1, 0, 0, 0);
 }
-void Chess::DrawCircular(VkCommandBuffer cmd){
+void Chess::DrawCircular(VkCommandBuffer cmd, bool bBan){
     VkDeviceSize offset = 0;
     vkCmdBindVertexBuffers(cmd, 0, 1, &mVertex.buffer, &offset);
     vkCmdBindIndexBuffer(cmd, mIndex.buffer, 0, VK_INDEX_TYPE_UINT16);
     mPipeline.BindDescriptorSet(cmd, mSet);
-    vkCmdDrawIndexed(cmd, mCircularIndicesCount, 1, 0, 0, 0);
+    vkCmdDrawIndexed(cmd, mIndicesCount, 1, 0, bBan?mVerticesCount:0, 0);
 }
 void Chess::GetCircularVertex(const glm::vec3&color, std::vector<ChessVertex>&vertices){
     ChessVertex v = ChessVertex(glm::vec3(.0f), color);
@@ -301,11 +301,11 @@ void Chess::DestroyGraphicsPipeline(VkDevice device){
     mFontPipeline.DestroyLayout(device);
     mFontPipeline.DestroyPipeline(device);
 }
-void Chess::RecodeCommand(VkCommandBuffer cmd, uint32_t windowWidth){
+void Chess::RecodeCommand(VkCommandBuffer cmd, uint32_t windowWidth, bool bBan){
     const glm::mat4 projection = glm::ortho(0.0f, (float)windowWidth, 0.0f, (float)windowWidth, -1.0f, 1.0f);
     mPipeline.BindPipeline(cmd);
     mPipeline.PushPushConstant(cmd, VK_SHADER_STAGE_VERTEX_BIT, sizeof(glm::mat4), &projection);
-    DrawCircular(cmd);
+    DrawCircular(cmd, bBan);
     mFontPipeline.BindPipeline(cmd);
     mFontPipeline.PushPushConstant(cmd, VK_SHADER_STAGE_VERTEX_BIT, sizeof(glm::mat4), &projection);
     DrawFont(cmd);
@@ -328,13 +328,16 @@ void Chess::CreateVulkanResource(VkDevice device, const glm::vec3&color, const V
     mCountryColor = color;
     std::vector<ChessVertex> circularVertices;
     GetCircularVertex(color, circularVertices);
+    mVerticesCount = circularVertices.size();
+    glm::vec3 banColor = glm::vec3(color.r * .5, color.g * .5, color.b * .5);
+    GetCircularVertex(banColor, circularVertices);
     std::vector<uint16_t> circularIndices;
-    for (size_t i = 1; i <= circularVertices.size(); ++i){
+    for (size_t i = 1; i <= mVerticesCount; ++i){
         circularIndices.push_back(0);
         circularIndices.push_back(i);
         circularIndices.push_back(i + 1);
     }
-    mCircularIndicesCount = circularIndices.size();
+    mIndicesCount = circularIndices.size();
     const ChessFontVertex vertices[] = {
         ChessFontVertex(glm::vec3(.0f, 1.0f, .0f), glm::vec2(0.0f, 1.0f)),//左下
         ChessFontVertex(glm::vec3(1.0f, .0f, .0f), glm::vec2(1.0f, 0.0f)),//右上

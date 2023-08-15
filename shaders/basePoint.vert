@@ -3,6 +3,7 @@
 
 layout(location = 0) in vec3 inPos;
 layout(location = 1) in vec3 inColor;
+layout(location = 2) in uint inPointSize;
 
 layout(location = 0) out vec3 outColor;
 
@@ -12,11 +13,10 @@ layout(push_constant) uniform uPushConstant {
 
 layout(binding = 0)uniform Position_UBO{
 	mat4 model;
-	uint pointSize;
 }POS_UBO;
 
 void main() {
 	outColor = inColor;
-	gl_PointSize = POS_UBO.pointSize;
+	gl_PointSize = inPointSize;
 	gl_Position = pc.projection * POS_UBO.model * vec4(inPos, 1.0);
 }

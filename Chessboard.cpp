@@ -1,8 +1,62 @@
 #include "Chessboard.h"
-void Chessboard::DrawChess(VkCommandBuffer cmd){
-    for (size_t i = 0; i < sizeof(mChess) / sizeof(ChessboardChess); ++i){
-        for (uint32_t j = 0; j < sizeof(mChess[i].chess) / sizeof(Chess *); ++j){
-            if(mChess[i].chess[j])mChess[i].chess[j]->RecodeCommand(cmd, mWindowWidth);
+void Chessboard::DrawChessboard(VkCommandBuffer cmd){
+    VkDeviceSize offset = 0;
+    uint32_t dynamicOffset = 0;
+    const glm::mat4 projection = glm::ortho(0.0f, (float)mWindowWidth, 0.0f, (float)mWindowWidth, -1.0f, 1.0f);
+    mGrid.pipeline.PushPushConstant(cmd, VK_SHADER_STAGE_VERTEX_BIT, sizeof(glm::mat4), &projection);
+    mGrid.pipeline.BindPipeline(cmd);
+    vkCmdBindVertexBuffers(cmd, 0, 1, &mGrid.vert.buffer, &offset);
+    for (size_t i = 0; i < 4; ++i){
+        dynamicOffset = i * mPointMinUniformBufferOffset;
+        mGrid.pipeline.BindDescriptorSet(cmd, mGrid.set, 1, &dynamicOffset);
+        vkCmdDraw(cmd, 1, 1, 1, 0);
+        // vkCmdDrawIndexed(cmd, 1, 1, 0, 0, 0);
+    }
+    for (uint32_t uiRow = 0; uiRow < 4; ++uiRow){//32
+        for (uint32_t uiColumn = 0; uiColumn < 8; ++uiColumn){
+            dynamicOffset = (CHESSBOARD_ROW_COLUMN_INDEX(uiRow, uiColumn, 8) + 4) * mPointMinUniformBufferOffset;
+            mGrid.pipeline.BindDescriptorSet(cmd, mGrid.set, 1, &dynamicOffset);
+            vkCmdDraw(cmd, 1, 1, 0, 0);
+            // vkCmdDrawIndexed(cmd, 1, 1, 0, 0, 0);
+        }
+    }
+    for (uint32_t uiRow = 0; uiRow < 8; ++uiRow){//128
+        for (uint32_t uiColumn = 0; uiColumn < 16; ++uiColumn){
+            dynamicOffset = (CHESSBOARD_ROW_COLUMN_INDEX(uiRow, uiColumn, 16) + 36) * mPointMinUniformBufferOffset;
+            mGrid.pipeline.BindDescriptorSet(cmd, mGrid.set, 1, &dynamicOffset);
+            vkCmdDraw(cmd, 1, 1, 0, 0);
+            // vkCmdDrawIndexed(cmd, 1, 1, 0, 0, 0);
+        }
+    }
+    for (uint32_t uiRow = 0; uiRow < 4; ++uiRow){//32
+        for (uint32_t uiColumn = 0; uiColumn < 8; ++uiColumn){
+            dynamicOffset = (CHESSBOARD_ROW_COLUMN_INDEX(uiRow, uiColumn, 8) + 164) * mPointMinUniformBufferOffset;
+            mGrid.pipeline.BindDescriptorSet(cmd, mGrid.set, 1, &dynamicOffset);
+            vkCmdDraw(cmd, 1, 1, 0, 0);
+            // vkCmdDrawIndexed(cmd, 1, 1, 0, 0, 0);
+        }
+    }
+    //线框
+    vkCmdBindVertexBuffers(cmd, 0, 1, &mWireframe.vert.buffer, &offset);
+    mWireframe.pipeline.PushPushConstant(cmd, VK_SHADER_STAGE_VERTEX_BIT, sizeof(glm::mat4), &projection);
+    mWireframe.pipeline.BindPipeline(cmd);
+
+    for (uint32_t i = 0; i < 2; ++i){
+        vkCmdBindIndexBuffer(cmd, mWireframe.index[i].buffer, 0, VK_INDEX_TYPE_UINT16);
+        for (uint32_t j = 0; j < 6; ++j){
+            dynamicOffset = (CHESSBOARD_ROW_COLUMN_INDEX(i, j, 6)) * mRectMinUniformBufferOffset;
+            mWireframe.pipeline.BindDescriptorSet(cmd, mWireframe.set, 1, &dynamicOffset);
+            vkCmdDrawIndexed(cmd, 6, 1, 0, 0, 0);
+        }
+    }
+}
+void Chessboard::DrawChess(VkCommandBuffer cmd, const glm::vec3&nowCountryColor){
+    bool bBan = false;
+    for (size_t uiCountry = 0; uiCountry < sizeof(mChess) / sizeof(ChessboardChess); ++uiCountry){
+        bBan = nowCountryColor != mChess[uiCountry].chess[JIANG_CHESS]->GetCountryColor();
+        if(uiCountry == HAN_CHESS_INDEX)bBan = false;
+        for (uint32_t uiChess = 0; uiChess < sizeof(mChess[uiCountry].chess) / sizeof(Chess *); ++uiChess){
+            if(mChess[uiCountry].chess[uiChess])mChess[uiCountry].chess[uiChess]->RecodeCommand(cmd, mWindowWidth, bBan);
         }
         // mChess[i].jiang->RecodeCommand(cmd, windowWidth);
         // for (size_t j = 0; j < sizeof(mChess->bing) / sizeof(Chess *); ++j){
@@ -23,57 +77,6 @@ void Chessboard::DrawChess(VkCommandBuffer cmd){
         // for (size_t j = 0; j < sizeof(mChess->xiang) / sizeof(Chess *); ++j){
         //     if(mChess[i].xiang[j])mChess[i].xiang[j]->RecodeCommand(cmd, windowWidth);
         // }
-    }
-}
-void Chessboard::DrawChessboard(VkCommandBuffer cmd){
-    VkDeviceSize offset = 0;
-    uint32_t dynamicOffset = 0;
-    const glm::mat4 projection = glm::ortho(0.0f, (float)mWindowWidth, 0.0f, (float)mWindowWidth, -1.0f, 1.0f);
-    mGrid.pipeline.PushPushConstant(cmd, VK_SHADER_STAGE_VERTEX_BIT, sizeof(glm::mat4), &projection);
-    mGrid.pipeline.BindPipeline(cmd);
-    vkCmdBindVertexBuffers(cmd, 0, 1, &mGrid.vert.buffer, &offset);
-    for (size_t i = 0; i < 4; ++i){
-        dynamicOffset = i * mPointMinUniformBufferOffset;
-        mGrid.pipeline.BindDescriptorSet(cmd, mGrid.set, 1, &dynamicOffset);
-        vkCmdDraw(cmd, 1, 1, 0, 0);
-        // vkCmdDrawIndexed(cmd, 1, 1, 0, 0, 0);
-    }
-    for (uint32_t uiRow = 0; uiRow < 4; ++uiRow){
-        for (uint32_t uiColumn = 0; uiColumn < 8; ++uiColumn){
-            dynamicOffset = (CHESSBOARD_ROW_COLUMN_INDEX(uiRow, uiColumn, 8) + 4) * mPointMinUniformBufferOffset;
-            mGrid.pipeline.BindDescriptorSet(cmd, mGrid.set, 1, &dynamicOffset);
-            vkCmdDraw(cmd, 1, 1, 0, 0);
-            // vkCmdDrawIndexed(cmd, 1, 1, 0, 0, 0);
-        }
-    }
-    for (uint32_t uiRow = 0; uiRow < 8; ++uiRow){
-        for (uint32_t uiColumn = 0; uiColumn < 16; ++uiColumn){
-            dynamicOffset = (CHESSBOARD_ROW_COLUMN_INDEX(uiRow, uiColumn, 16) + 36) * mPointMinUniformBufferOffset;
-            mGrid.pipeline.BindDescriptorSet(cmd, mGrid.set, 1, &dynamicOffset);
-            vkCmdDraw(cmd, 1, 1, 0, 0);
-            // vkCmdDrawIndexed(cmd, 1, 1, 0, 0, 0);
-        }
-    }
-    for (uint32_t uiRow = 0; uiRow < 4; ++uiRow){
-        for (uint32_t uiColumn = 0; uiColumn < 8; ++uiColumn){
-            dynamicOffset = (CHESSBOARD_ROW_COLUMN_INDEX(uiRow, uiColumn, 8) + 164) * mPointMinUniformBufferOffset;
-            mGrid.pipeline.BindDescriptorSet(cmd, mGrid.set, 1, &dynamicOffset);
-            vkCmdDraw(cmd, 1, 1, 0, 0);
-            // vkCmdDrawIndexed(cmd, 1, 1, 0, 0, 0);
-        }
-    }
-    //线框
-    vkCmdBindVertexBuffers(cmd, 0, 1, &mWireframe.vert.buffer, &offset);
-    mWireframe.pipeline.PushPushConstant(cmd, VK_SHADER_STAGE_VERTEX_BIT, sizeof(glm::mat4), &projection);
-    mWireframe.pipeline.BindPipeline(cmd);
-
-    for (uint32_t i = 0; i < 2; ++i){
-        vkCmdBindIndexBuffer(cmd, mWireframe.index[i].buffer, 0, VK_INDEX_TYPE_UINT16);
-        for (uint32_t j = 0; j < 6; ++j){
-            dynamicOffset = (CHESSBOARD_ROW_COLUMN_INDEX(i, j, 6)) * mRectMinUniformBufferOffset;
-            mWireframe.pipeline.BindDescriptorSet(cmd, mWireframe.set, 1, &dynamicOffset);
-            vkCmdDrawIndexed(cmd, 6, 1, 0, 0, 0);
-        }
     }
 }
 void Chessboard::DrawSelectChessWireframe(VkCommandBuffer cmd){
@@ -108,12 +111,12 @@ void Chessboard::DrawChessboardBackground(VkCommandBuffer cmd){
     vkCmdDrawIndexed(cmd, 6, 1, 0, 0, 0);
 }
 void Chessboard::GetRectVertices(const glm::vec3&color, ChessboardVertex vertices[]){
-    const ChessboardVertex v[] = {
-        ChessboardVertex(glm::vec3(.0f, 1.0f, .0f), color),//左下
-        ChessboardVertex(glm::vec3(1.0f, .0f, .0f), color),//右上
-        ChessboardVertex(glm::vec3(.0f, .0f, .0f), color), //左上
+    const ChessboardRectVertex v[] = {
+        ChessboardRectVertex(glm::vec3(.0f, 1.0f, .0f), color),//左下
+        ChessboardRectVertex(glm::vec3(1.0f, .0f, .0f), color),//右上
+        ChessboardRectVertex(glm::vec3(.0f, .0f, .0f), color), //左上
 
-        ChessboardVertex(glm::vec3(1.0f, 1.0f, .0f), color)//右下
+        ChessboardRectVertex(glm::vec3(1.0f, 1.0f, .0f), color)//右下
     };
     memcpy(vertices, v, sizeof(v));
 }
@@ -277,10 +280,6 @@ void Chessboard::CreateGraphicsPipeline(VkDevice device, uint32_t windowWidth, V
     pipeline.SetStateInfo(pipelineState);
     pipeline.PushScissor(windowWidth, windowWidth);
     pipeline.PushViewport(windowWidth, windowWidth);
-    pipeline.SetVertexInputBindingDescription(sizeof(ChessboardVertex));
-    pipeline.PushPushConstant(sizeof(glm::mat4), VK_SHADER_STAGE_VERTEX_BIT);
-    pipeline.PushVertexInputAttributeDescription(0, 0, VK_FORMAT_R32G32B32_SFLOAT);
-    pipeline.PushVertexInputAttributeDescription(1, 3 * sizeof(float), VK_FORMAT_R32G32B32_SFLOAT);
     pipeline.CreateCache(device, cacheData);
     pipeline.CreateDescriptorSetLayout(device);
     pipeline.CreateLayout(device);
@@ -344,10 +343,10 @@ void Chessboard::DestroyChess(VkDevice device, uint32_t country){
         }
     }
 }
-void Chessboard::RecodeCommand(VkCommandBuffer cmd){
+void Chessboard::RecodeCommand(VkCommandBuffer cmd, const glm::vec3&nowCountryColor){
     DrawChessboardBackground(cmd);
     DrawChessboard(cmd);
-    DrawChess(cmd);
+    DrawChess(cmd, nowCountryColor);
 
     DrawSelectChessWireframe(cmd);
 }
@@ -355,12 +354,25 @@ void Chessboard::CreatePipeline(VkDevice device, VkRenderPass renderpass, uint32
     GraphicsPipelineStateInfo state;
     state.mRasterization.lineWidth = CHESSBOARD_LINE_WIDTH;
     state.mInputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_POINT_LIST;
+    mGrid.pipeline.SetVertexInputBindingDescription(sizeof(ChessboardVertex));
+    mGrid.pipeline.PushPushConstant(sizeof(glm::mat4), VK_SHADER_STAGE_VERTEX_BIT);
+    mGrid.pipeline.PushVertexInputAttributeDescription(0, 0, VK_FORMAT_R32G32B32_SFLOAT);
+    mGrid.pipeline.PushVertexInputAttributeDescription(1, 3 * sizeof(float), VK_FORMAT_R32G32B32_SFLOAT);
+    mGrid.pipeline.PushVertexInputAttributeDescription(2, 6 * sizeof(float), VK_FORMAT_R32_UINT);
     CreateGraphicsPipeline(device, windowWidth, renderpass, { "shaders/basePointVert.spv", "shaders/baseFrag.spv" }, mGrid.pipeline, state);
     state.mRasterization.polygonMode = VK_POLYGON_MODE_LINE;
     state.mInputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+    mWireframe.pipeline.SetVertexInputBindingDescription(sizeof(ChessboardRectVertex));
+    mWireframe.pipeline.PushPushConstant(sizeof(glm::mat4), VK_SHADER_STAGE_VERTEX_BIT);
+    mWireframe.pipeline.PushVertexInputAttributeDescription(0, 0, VK_FORMAT_R32G32B32_SFLOAT);
+    mWireframe.pipeline.PushVertexInputAttributeDescription(1, 3 * sizeof(float), VK_FORMAT_R32G32B32_SFLOAT);
     CreateGraphicsPipeline(device, windowWidth, renderpass, { "shaders/baseVert.spv", "shaders/baseFrag.spv" }, mWireframe.pipeline, state);
     // if(mPointSizeRange < CHESSBOARD_BLACK_BACKGROUND_SIZE(windowWidth)){
     state.mRasterization.polygonMode = VK_POLYGON_MODE_FILL;
+    mBackground.pipeline.SetVertexInputBindingDescription(sizeof(ChessboardRectVertex));
+    mBackground.pipeline.PushPushConstant(sizeof(glm::mat4), VK_SHADER_STAGE_VERTEX_BIT);
+    mBackground.pipeline.PushVertexInputAttributeDescription(0, 0, VK_FORMAT_R32G32B32_SFLOAT);
+    mBackground.pipeline.PushVertexInputAttributeDescription(1, 3 * sizeof(float), VK_FORMAT_R32G32B32_SFLOAT);
     CreateGraphicsPipeline(device, windowWidth, renderpass, { "shaders/baseVert.spv", "shaders/baseFrag.spv" }, mBackground.pipeline, state);
     // }
 
@@ -376,13 +388,13 @@ void Chessboard::CreateVulkanResource(VkPhysicalDevice physicalDevice, VkDevice 
     VkPhysicalDeviceProperties physicalDeviceProperties;
     vkGetPhysicalDeviceProperties(physicalDevice, &physicalDeviceProperties);
     // mPointSizeRange = physicalDeviceProperties.limits.pointSizeRange[1];
-    mPointMinUniformBufferOffset = ALIGN(sizeof(PointUniform), physicalDeviceProperties.limits.minUniformBufferOffsetAlignment);
     mRectMinUniformBufferOffset = ALIGN(sizeof(glm::mat4), physicalDeviceProperties.limits.minUniformBufferOffsetAlignment);
+    mPointMinUniformBufferOffset = ALIGN(sizeof(glm::mat4), physicalDeviceProperties.limits.minUniformBufferOffsetAlignment);
     ChessboardVertex vertices[4];
     const ChessboardVertex pointVertices[] = {
-        ChessboardVertex(glm::vec3(.0f), glm::vec3(1, .9, .5)),
+        ChessboardVertex(glm::vec3(.0f), glm::vec3(1, .9, .5), CHESSBOARD_GRID_SIZE),
         // ChessboardVertex(glm::vec3(.0f), glm::vec3(50, 215, 90.0f)),
-        ChessboardVertex(glm::vec3(.0f), glm::vec3(0))
+        ChessboardVertex(glm::vec3(.0f), glm::vec3(1, .9, .5), CHESSBOARD_GRID_SIZE_BIG)
     };
     // const uint16_t pointIndices[] = { 0 };
     const uint16_t indices[] = { 0, 1, 2, 0, 3, 1 };
@@ -430,12 +442,12 @@ void Chessboard::CreateVulkanResource(VkPhysicalDevice physicalDevice, VkDevice 
         vkf::tool::CopyBuffer(device, sizeof(vertices), vertices, graphics, pool.commandPool, mBackground.vert[i]);
     }
     // }
-    glm::mat4 model = glm::scale(glm::mat4(1.0f), glm::vec3(windowWidth, windowWidth, 1));
-    mBackground.pos.UpdateData(device, &model);
-    model = glm::scale(glm::translate(glm::mat4(1.0f), glm::vec3(CHESSBOARD_GRID_SIZE, CHESSBOARD_GRID_SIZE, 0)), glm::vec3(CHESSBOARD_BLACK_BACKGROUND_SIZE(windowWidth), CHESSBOARD_BLACK_BACKGROUND_SIZE(windowWidth), 1));
+    glm::mat4 model[196] = { glm::scale(glm::mat4(1.0f), glm::vec3(windowWidth, windowWidth, 1)) };
+    mBackground.pos.UpdateData(device, &model[0]);
+    model[0] = glm::scale(glm::translate(glm::mat4(1.0f), glm::vec3(CHESSBOARD_GRID_SIZE, CHESSBOARD_GRID_SIZE, 0)), glm::vec3(CHESSBOARD_BLACK_BACKGROUND_SIZE(windowWidth), CHESSBOARD_BLACK_BACKGROUND_SIZE(windowWidth), 1));
     mBackground.pos.UpdateData(device, &model, mRectMinUniformBufferOffset);
 
-    PointUniform pointPos;
+
     //4个大网格的大小
     const uint32_t gridBigPointOffset = CHESSBOARD_GRID_SIZE_BIG * .5 + CHESSBOARD_LINE_WIDTH;
     const glm::vec3 bigGridPos[] = {
@@ -444,35 +456,28 @@ void Chessboard::CreateVulkanResource(VkPhysicalDevice physicalDevice, VkDevice 
         glm::vec3(bigGridPos[0].x, bigGridPos[1].x, 0),
         glm::vec3(bigGridPos[1].x, bigGridPos[2].y, 0)
     };
-    pointPos.pointSize = CHESSBOARD_GRID_SIZE_BIG;
     for (size_t i = 0; i < 4; ++i){
-        pointPos.model = glm::translate(glm::mat4(1.0f), bigGridPos[i]);
-        mGrid.uniform.UpdateData(device, &pointPos, i * mPointMinUniformBufferOffset);
+        model[i] = glm::translate(glm::mat4(1.0f), bigGridPos[i]);
     }
     //魏
-    pointPos.pointSize = CHESSBOARD_GRID_SIZE;
     const uint32_t gridPointOffset = CHESSBOARD_GRID_SIZE * .5;
     for (uint32_t uiRow = 0; uiRow < 4; ++uiRow){
         for (uint32_t uiColumn = 0; uiColumn < 8; ++uiColumn){
-            pointPos.model = glm::translate(glm::mat4(1.0f), glm::vec3(gridPointOffset + COLUMN_TO_X(uiColumn + 4, CHESSBOARD_GRID_SIZE, CHESSBOARD_LINE_WIDTH), gridPointOffset + ROW_TO_Y(uiRow, CHESSBOARD_GRID_SIZE, CHESSBOARD_LINE_WIDTH), 0));
-            mGrid.uniform.UpdateData(device, &pointPos, (CHESSBOARD_ROW_COLUMN_INDEX(uiRow, uiColumn, 8) + 4) * mPointMinUniformBufferOffset);
+            model[CHESSBOARD_ROW_COLUMN_INDEX(uiRow, uiColumn, 8) + 4] = glm::translate(glm::mat4(1.0f), glm::vec3(gridPointOffset + COLUMN_TO_X(uiColumn + 4, CHESSBOARD_GRID_SIZE, CHESSBOARD_LINE_WIDTH), gridPointOffset + ROW_TO_Y(uiRow, CHESSBOARD_GRID_SIZE, CHESSBOARD_LINE_WIDTH), 0));
         }
     }
     //汉 吴
-    pointPos.pointSize = CHESSBOARD_GRID_SIZE;
     for (uint32_t uiRow = 0; uiRow < 8; ++uiRow){
         for (uint32_t uiColumn = 0; uiColumn < 16; ++uiColumn){
-            pointPos.model = glm::translate(glm::mat4(1.0f), glm::vec3(gridPointOffset + COLUMN_TO_X(uiColumn, CHESSBOARD_GRID_SIZE, CHESSBOARD_LINE_WIDTH), gridPointOffset + ROW_TO_Y(uiRow + 4, CHESSBOARD_GRID_SIZE, CHESSBOARD_LINE_WIDTH), 0));
-            mGrid.uniform.UpdateData(device, &pointPos, (CHESSBOARD_ROW_COLUMN_INDEX(uiRow, uiColumn, 16) + 36) * mPointMinUniformBufferOffset);
+            model[CHESSBOARD_ROW_COLUMN_INDEX(uiRow, uiColumn, 16) + 36] = glm::translate(glm::mat4(1.0f), glm::vec3(gridPointOffset + COLUMN_TO_X(uiColumn, CHESSBOARD_GRID_SIZE, CHESSBOARD_LINE_WIDTH), gridPointOffset + ROW_TO_Y(uiRow + 4, CHESSBOARD_GRID_SIZE, CHESSBOARD_LINE_WIDTH), 0));
         }
     }
-    pointPos.pointSize = CHESSBOARD_GRID_SIZE;
     for (uint32_t uiRow = 0; uiRow < 4; ++uiRow){
         for (uint32_t uiColumn = 0; uiColumn < 8; ++uiColumn){
-            pointPos.model = glm::translate(glm::mat4(1.0f), glm::vec3(gridPointOffset + COLUMN_TO_X(uiColumn + 4, CHESSBOARD_GRID_SIZE, CHESSBOARD_LINE_WIDTH), gridPointOffset + ROW_TO_Y(uiRow + 12, CHESSBOARD_GRID_SIZE, CHESSBOARD_LINE_WIDTH), 0));
-            mGrid.uniform.UpdateData(device, &pointPos, (CHESSBOARD_ROW_COLUMN_INDEX(uiRow, uiColumn, 8) + 164) * mPointMinUniformBufferOffset);
+            model[CHESSBOARD_ROW_COLUMN_INDEX(uiRow, uiColumn, 8) + 164] = glm::translate(glm::mat4(1.0f), glm::vec3(gridPointOffset + COLUMN_TO_X(uiColumn + 4, CHESSBOARD_GRID_SIZE, CHESSBOARD_LINE_WIDTH), gridPointOffset + ROW_TO_Y(uiRow + 12, CHESSBOARD_GRID_SIZE, CHESSBOARD_LINE_WIDTH), 0));
         }
     }
+    mGrid.uniform.UpdateData(device, sizeof(model), model);
     const glm::mat4 gridScale = glm::scale(glm::mat4(1.0f), glm::vec3(CHESSBOARD_GRID_SIZE + CHESSBOARD_LINE_WIDTH, CHESSBOARD_GRID_SIZE + CHESSBOARD_LINE_WIDTH, 1));
 
     const glm::vec2 rc[] = {

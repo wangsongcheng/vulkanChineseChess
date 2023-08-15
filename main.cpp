@@ -143,7 +143,7 @@ void recodeCommand(uint32_t currentFrame){
     vkBeginCommandBuffer(g_CommandBuffers[currentFrame], &beginInfo);
     vkCmdBeginRenderPass(g_CommandBuffers[currentFrame], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 
-    g_Chessboard.RecodeCommand(g_CommandBuffers[currentFrame]);
+    g_Chessboard.RecodeCommand(g_CommandBuffers[currentFrame], g_CurrentCountry);
 
     vkCmdEndRenderPass(g_CommandBuffers[currentFrame]);
     vkEndCommandBuffer(g_CommandBuffers[currentFrame]);
@@ -153,7 +153,15 @@ void mousebutton(GLFWwindow *windows, int button, int action, int mods){
     glfwGetCursorPos(windows, &xpos, &ypos);
     if(action == GLFW_RELEASE){
         if(button == GLFW_MOUSE_BUTTON_LEFT){
-            if(g_Chessboard.IsSelected()){
+            const Chess *chess = g_Chessboard.GetChess(glm::vec2(xpos, ypos));
+            if(!g_Chessboard.IsSelected() || (chess && g_Chessboard.IsSelfChess(chess->GetCountryColor()))){
+                if(chess){
+                    if(g_CurrentCountry == chess->GetCountryColor()){
+                        g_Chessboard.Select(g_VulkanDevice.device, glm::vec2(xpos, ypos));
+                    }
+                }
+            }
+            else{
                 bool bNext;
                 uint32_t country;
                 if(g_Chessboard.Play(g_VulkanDevice.device, glm::vec2(xpos, ypos), country, bNext)){
@@ -166,14 +174,6 @@ void mousebutton(GLFWwindow *windows, int button, int action, int mods){
                 vkDeviceWaitIdle(g_VulkanDevice.device);
                 for (size_t i = 0; i < g_VulkanWindows.framebuffers.size(); ++i){
                     recodeCommand(i);
-                }
-            }
-            else{
-                const Chess *chess = g_Chessboard.GetChess(glm::vec2(xpos, ypos));
-                if(chess){
-                    if(g_CurrentCountry == chess->GetCountryColor()){
-                        g_Chessboard.Select(g_VulkanDevice.device, glm::vec2(xpos, ypos));
-                    }
                 }
             }
         }
@@ -205,7 +205,7 @@ void cleanup(){
 }
 void display(GLFWwindow* window){
     static size_t currentFrame;
-    // vkDeviceWaitIdle(g_VulkanBasic.device);
+    vkDeviceWaitIdle(g_VulkanDevice.device);
     // recodeCommand(currentFrame);
     vkf::DrawFrame(g_VulkanDevice.device, currentFrame, g_CommandBuffers[currentFrame], g_VulkanWindows.swapchain, g_VulkanQueue, g_VulkanSynchronize);
     currentFrame = (currentFrame + 1) % g_VulkanWindows.framebuffers.size();
