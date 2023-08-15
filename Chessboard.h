@@ -176,6 +176,9 @@ public:
     //如果返回真, 表示目标势力灭亡
     bool CaptureChess(VkDevice device, const Chess *src, uint32_t dstCountry, uint32_t destChess);
 
+    inline bool IsPerish(uint32_t country)const{
+        return !mChess[country].chess[JIANG_CHESS];
+    }
     //返回真表示在边界上，不能下棋
     bool IsBoundary(uint32_t row, uint32_t column)const;
     //如果返回null,说明该位置没有棋子

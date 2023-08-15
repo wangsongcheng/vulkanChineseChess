@@ -24,10 +24,13 @@ VkSampler g_TextureSampler;
 //     glfwCreateWindowSurface(instance, (GLFWwindow *)userData, nullptr, &surface);
 // }
 glm::vec3 NextCountry(){
-    const glm::vec3 color[] = { WEI_CHESS_COUNTRY_COLOR, SHU_CHESS_COUNTRY_COLOR, WU_CHESS_COUNTRY_COLOR };
+    std::vector<glm::vec3>color;
     static uint32_t index = 0;
-    const glm::vec3 next = color[index];
-    index = (index + 1) % (sizeof(color) / sizeof(glm::vec3));
+    if(!g_Chessboard.IsPerish(WEI_CHESS_INDEX))color.push_back(WEI_CHESS_COUNTRY_COLOR);
+    if(!g_Chessboard.IsPerish(SHU_CHESS_INDEX))color.push_back(SHU_CHESS_COUNTRY_COLOR);
+    if(!g_Chessboard.IsPerish(WU_CHESS_INDEX))color.push_back(WU_CHESS_COUNTRY_COLOR);
+    glm::vec3 next = color[index];
+    index = (index + 1) % color.size();
     return next;
 }
 VkBool32 VKAPI_PTR debugUtilsMessenger(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageTypes, const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData, void* pUserData){
@@ -188,7 +191,6 @@ void setup(GLFWwindow *windows){
     g_Chessboard.InitChessboard(g_VulkanDevice.device, g_WindowWidth, g_VulkanWindows.renderpass, g_VulkanPool, g_VulkanQueue.graphics, g_TextureSampler);
 
     g_Chessboard.UpdateSet(g_VulkanDevice.device);
-
     g_CurrentCountry = NextCountry();
 
     g_CommandBuffers.resize(g_VulkanWindows.framebuffers.size());

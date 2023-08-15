@@ -53,30 +53,32 @@ void Chessboard::DrawChessboard(VkCommandBuffer cmd){
 void Chessboard::DrawChess(VkCommandBuffer cmd, const glm::vec3&nowCountryColor){
     bool bBan = false;
     for (size_t uiCountry = 0; uiCountry < sizeof(mChess) / sizeof(ChessboardChess); ++uiCountry){
-        bBan = nowCountryColor != mChess[uiCountry].chess[JIANG_CHESS]->GetCountryColor();
-        if(uiCountry == HAN_CHESS_INDEX)bBan = false;
-        for (uint32_t uiChess = 0; uiChess < sizeof(mChess[uiCountry].chess) / sizeof(Chess *); ++uiChess){
-            if(mChess[uiCountry].chess[uiChess])mChess[uiCountry].chess[uiChess]->RecodeCommand(cmd, mWindowWidth, bBan);
+        if(mChess[uiCountry].chess[JIANG_CHESS]){
+            bBan = nowCountryColor != mChess[uiCountry].chess[JIANG_CHESS]->GetCountryColor();
+            if(uiCountry == HAN_CHESS_INDEX)bBan = false;
+            for (uint32_t uiChess = 0; uiChess < sizeof(mChess[uiCountry].chess) / sizeof(Chess *); ++uiChess){
+                if(mChess[uiCountry].chess[uiChess])mChess[uiCountry].chess[uiChess]->RecodeCommand(cmd, mWindowWidth, bBan);
+            }
+            // mChess[i].jiang->RecodeCommand(cmd, windowWidth);
+            // for (size_t j = 0; j < sizeof(mChess->bing) / sizeof(Chess *); ++j){
+            //     if(mChess[i].bing[j])mChess[i].bing[j]->RecodeCommand(cmd, windowWidth);
+            // }
+            // for (size_t j = 0; j < sizeof(mChess->ma) / sizeof(Chess *); ++j){
+            //     if(mChess[i].ma[j])mChess[i].ma[j]->RecodeCommand(cmd, windowWidth);
+            // }
+            // for (size_t j = 0; j < sizeof(mChess->che) / sizeof(Chess *); ++j){
+            //     if(mChess[i].che[j])mChess[i].che[j]->RecodeCommand(cmd, windowWidth);
+            // }
+            // for (size_t j = 0; j < sizeof(mChess->pao) / sizeof(Chess *); ++j){
+            //     if(mChess[i].pao[j])mChess[i].pao[j]->RecodeCommand(cmd, windowWidth);
+            // }
+            // for (size_t j = 0; j < sizeof(mChess->shi) / sizeof(Chess *); ++j){
+            //     if(mChess[i].shi[j])mChess[i].shi[j]->RecodeCommand(cmd, windowWidth);
+            // }
+            // for (size_t j = 0; j < sizeof(mChess->xiang) / sizeof(Chess *); ++j){
+            //     if(mChess[i].xiang[j])mChess[i].xiang[j]->RecodeCommand(cmd, windowWidth);
+            // }
         }
-        // mChess[i].jiang->RecodeCommand(cmd, windowWidth);
-        // for (size_t j = 0; j < sizeof(mChess->bing) / sizeof(Chess *); ++j){
-        //     if(mChess[i].bing[j])mChess[i].bing[j]->RecodeCommand(cmd, windowWidth);
-        // }
-        // for (size_t j = 0; j < sizeof(mChess->ma) / sizeof(Chess *); ++j){
-        //     if(mChess[i].ma[j])mChess[i].ma[j]->RecodeCommand(cmd, windowWidth);
-        // }
-        // for (size_t j = 0; j < sizeof(mChess->che) / sizeof(Chess *); ++j){
-        //     if(mChess[i].che[j])mChess[i].che[j]->RecodeCommand(cmd, windowWidth);
-        // }
-        // for (size_t j = 0; j < sizeof(mChess->pao) / sizeof(Chess *); ++j){
-        //     if(mChess[i].pao[j])mChess[i].pao[j]->RecodeCommand(cmd, windowWidth);
-        // }
-        // for (size_t j = 0; j < sizeof(mChess->shi) / sizeof(Chess *); ++j){
-        //     if(mChess[i].shi[j])mChess[i].shi[j]->RecodeCommand(cmd, windowWidth);
-        // }
-        // for (size_t j = 0; j < sizeof(mChess->xiang) / sizeof(Chess *); ++j){
-        //     if(mChess[i].xiang[j])mChess[i].xiang[j]->RecodeCommand(cmd, windowWidth);
-        // }
     }
 }
 void Chessboard::DrawSelectChessWireframe(VkCommandBuffer cmd){
