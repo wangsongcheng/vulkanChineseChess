@@ -4,6 +4,82 @@
 
 #include "Chessboard.h"
 #include "vulkanFrame.h"
+
+#define INTERNET_MODE
+
+#ifdef INTERNET_MODE
+#include <array>
+#ifdef WIN32
+#define WIN32_LEAN_AND_MEAN
+#include <Windows.h>
+#include <WS2tcpip.h>
+#include <WinSock2.h>
+#pragma comment(lib, "ws2_32.lib")
+#else
+#include <netdb.h>
+#include <unistd.h>
+#include <pthread.h>
+#include <arpa/inet.h>
+#include <sys/socket.h>
+typedef unsigned int SOCKET;
+#endif
+#include "imgui_impl_glfw.h"
+#include "imgui_impl_vulkan.h"
+#define INTERNET_PORT 10086
+#define MAX_NAME 0x255
+enum GameEvent{
+    GAME_START_GAMEEVENT = 0,
+    CHANGE_COUNTRY_GAMEEVENT,
+    GAME_OVER_GAMEEVENT,
+    JOINS_GAME_GAMEEVENT,
+    PLAY_CHESS_GAMEEVENT
+};
+//考虑一下怎么记录该程序是那国
+struct GameInfo{
+    uint32_t index;
+    glm::vec3 color;
+    char country[MAX_NAME];
+};
+//记录服务端的房间名称密码(如果有)等。
+struct ServerInfo{
+    SOCKET socket;
+    char name[MAX_NAME];//房间名
+};
+struct ClientInfo{
+    char ip[MAX_NAME];
+    SOCKET socket = -1;
+    char name[MAX_NAME];//用户名
+    char serverIp[MAX_NAME];
+};
+struct GameMessage{
+    // Ranks ranks;
+    GameInfo game;
+    GameEvent event;
+    ClientInfo client;
+    uint32_t clientIndex;
+    glm::vec2 playPos, selectPos;
+};
+VkCommandBuffer g_CommandBuffers;
+
+GameInfo g_Player;
+bool g_ServerAppaction;
+char g_ServerIp[MAX_NAME];
+ServerInfo g_Server;
+//当该程序作为客户端时,应该使用该变量而不是std::vector<ClientInfo>g_Clients
+ClientInfo g_Client;
+//当该程序作为服务端和客户端时, 应该使用该变量而不是ClientInfo g_Client
+std::array<ClientInfo, 3>g_Clients;
+#ifdef __linux
+pthread_t g_ServerPthreadId;
+pthread_t g_ClientPthreadId;
+#endif
+#ifdef WIN32
+HANDLE g_ServerPthreadId;
+HANDLE g_ClientPthreadId;
+#endif
+#else
+std::vector<VkCommandBuffer>g_CommandBuffers;
+#endif
 VulkanPool g_VulkanPool;
 VulkanQueue g_VulkanQueue;
 VulkanDevice g_VulkanDevice;
@@ -13,16 +89,107 @@ VkDebugUtilsMessengerEXT g_VulkanMessenger;
 //                              163 * 2 + 400 + 11
 const uint32_t g_WindowWidth = CHESSBOARD_GRID_SIZE_BIG * 2 + 10 * CHESSBOARD_GRID_SIZE + 11 * CHESSBOARD_LINE_WIDTH, g_WindowHeight = g_WindowWidth;
 
-std::vector<VkCommandBuffer>g_CommandBuffers;
-
 Chessboard g_Chessboard;
 glm::vec3 g_CurrentCountry;
 
 VkSampler g_TextureSampler;
-
-// void createSurface(VkInstance instance, VkSurfaceKHR&surface, void* userData){
-//     glfwCreateWindowSurface(instance, (GLFWwindow *)userData, nullptr, &surface);
-// }
+void Send(int __fd, const GameMessage *__buf, size_t __n, int __flags){
+    int sendSize, offset;
+    do{
+        offset = 0;
+        sendSize = 0;
+        sendSize = send(__fd, __buf + offset, __n - offset, __flags);
+        if(sendSize == -1){
+            perror("send error");
+            printf("send error:socket:%d, sendSize:%d\n", __fd, sendSize);
+            break;
+        }
+        offset += sendSize;
+    } while (offset < __n);
+}
+void Recv(int __fd, GameMessage *__buf, size_t __n, int __flags){
+    int recvSize, offset;
+    do{
+        offset = 0;
+        recvSize = 0;
+        recvSize = recv(__fd, __buf + offset, __n - offset, __flags);
+        if(recvSize == -1){
+            perror("recv error\n");
+            printf("recv error:socket:%d, recvSize:%d\n", __fd, recvSize);
+            break;
+        }
+        offset += recvSize;
+    } while (offset < __n);
+}
+void SendToAllClient(const GameMessage *__buf, size_t __n){
+    for (size_t i = 0; i < g_Clients.size(); ++i){
+        if(g_Clients[i].socket != -1){
+            Send(g_Clients[i].socket, __buf, __n, 0);
+        }
+    }
+}
+void SendToServer(const GameMessage *__buf, size_t __n){
+    Send(g_Client.socket, __buf, __n, 0);
+}
+void CreateClient(const char *serverIp){
+    struct in_addr address;
+    struct sockaddr_in addr;
+#ifdef WIN32
+    if (1 != inet_pton(AF_INET, serverIp, &address)) {
+        perror("inet_aton");
+        return;
+    }
+#else
+    if(!inet_aton(serverIp, &address)){
+        perror("inet_aton");
+        return;
+    }
+#endif
+    addr.sin_addr = address;
+    g_Client.socket = socket(AF_INET, SOCK_STREAM, 0);
+    if(g_Client.socket == -1){
+        perror("create client:function:socket");
+        return;
+    }
+    addr.sin_family = AF_INET;
+    addr.sin_port = htons(INTERNET_PORT);
+    bzero(&addr.sin_zero, sizeof(addr.sin_zero)); /* zero the rest of the struct */
+    if(connect(g_Client.socket,(struct sockaddr *)&addr,sizeof(struct sockaddr)) == -1){
+        perror("create client:function:connect");
+        return;
+    }
+}
+void CreateServer(int listenCount){
+    g_Server.socket = socket(AF_INET, SOCK_STREAM, 0);
+    if(g_Server.socket == -1){
+        perror("create server:function:socket");
+        // herror("create server:function:socket");
+        return;
+    }
+    struct sockaddr_in my_addr;
+    my_addr.sin_family = AF_INET; /* host byte order */
+    my_addr.sin_addr.s_addr = INADDR_ANY; /* auto-fill with my IP */
+    my_addr.sin_port = htons(INTERNET_PORT); /* short, network byte order */
+    bzero(&my_addr.sin_zero, sizeof(my_addr.sin_zero)); /* zero the rest of the struct */
+    if(bind(g_Server.socket, (struct sockaddr *)&my_addr, sizeof(struct sockaddr)) == -1){
+        perror("create server:function:bind");
+        // herror("create server:function:bind");
+        return;
+    }
+    if (listen(g_Server.socket, listenCount) == -1){
+        perror("create server:function:listen");
+        // herror("create server:function:listen");
+        return;
+    }
+    g_ServerAppaction = true;
+}
+void JoinsGame(const char *serverIp){
+    GameMessage message;
+    message.event = JOINS_GAME_GAMEEVENT;
+    // message.clientIndex = ;
+    message.client = g_Client;
+    Send(g_Client.socket, &message, sizeof(message), 0);
+}
 glm::vec3 NextCountry(){
     std::vector<glm::vec3>color;
     static uint32_t index = 0;
@@ -32,6 +199,54 @@ glm::vec3 NextCountry(){
     glm::vec3 next = color[index];
     index = (index + 1) % color.size();
     return next;
+}
+void InitChessboard(){
+    g_Chessboard.InitChessboard(g_VulkanDevice.device);
+
+    g_CurrentCountry = NextCountry();
+}
+void GetLocalIp(char outIp[]){
+    int status = -1;
+    char buffer[MAX_NAME] = {0};
+    if(!gethostname(buffer, sizeof(buffer))){
+#ifdef WIN32
+        struct addrinfo* result = NULL;
+        //struct addrinfo* ptr = NULL;
+        struct addrinfo hints;
+        ZeroMemory(&hints, sizeof(hints));
+        hints.ai_family = AF_UNSPEC;
+        hints.ai_socktype = SOCK_STREAM;
+        hints.ai_protocol = IPPROTO_TCP;
+        getaddrinfo(buffer, nullptr, &hints, &result);
+        struct addrinfo* ptr;
+        for (ptr = result; ptr != NULL;) {
+            char* local_ip = NULL;
+            struct sockaddr_in* sockaddr = (struct sockaddr_in*)ptr->ai_addr;
+            local_ip = inet_ntoa(sockaddr->sin_addr);
+            if (local_ip) {
+                strcpy(outIp, local_ip);
+                if(strcmp("127.0.0.1", outIp) && strcmp("0.0.0.0", outIp)){
+                    break;
+                }
+            }
+            ptr = ptr->ai_next;
+        }
+#else
+        hostent* temp = gethostbyname(buffer);
+        if (temp) {
+            for (size_t i = 0; temp->h_addr_list[i]; ++i) {
+                char* local_ip = NULL;
+                local_ip = inet_ntoa(*(struct in_addr*)temp->h_addr_list[i]);
+                if (local_ip) {
+                    strcpy(outIp, local_ip);
+                    if (strcmp("127.0.0.1", outIp)) {
+                        break;
+                    }
+                }
+            }
+        }
+#endif
+    }
 }
 VkBool32 VKAPI_PTR debugUtilsMessenger(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageTypes, const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData, void* pUserData){
     const char* strMessageSeverity = nullptr;//, *strMessageTypes = nullptr;
@@ -67,19 +282,15 @@ void setupVulkan(GLFWwindow *window){
     vkGetDeviceQueue(g_VulkanDevice.device, queueFamilies[0], 0, &g_VulkanQueue.graphics);
     vkGetDeviceQueue(g_VulkanDevice.device, queueFamilies[1], 0, &g_VulkanQueue.present);
     vkf::CreateSwapchain(g_VulkanDevice.physicalDevice, g_VulkanDevice.device, g_VulkanWindows.surface, g_VulkanWindows.swapchain);
-#ifdef DRAW_CUBE
-    vkf::CreateRenderPassForSwapchain(g_VulkanDevice.device, g_VulkanWindows.renderpass, true);
-#else
     vkf::CreateRenderPassForSwapchain(g_VulkanDevice.device, g_VulkanWindows.renderpass);
-#endif
     vkf::CreateCommandPool(g_VulkanDevice.physicalDevice, g_VulkanDevice.device, g_VulkanPool.commandPool, VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
-#ifdef DRAW_CUBE
-    vkf::CreateFrameBufferForSwapchain(g_VulkanDevice.device, { g_WindowWidth, g_WindowHeight }, g_VulkanWindows, g_VulkanPool.commandPool, g_VulkanQueue.graphics, true);
-#else
     vkf::CreateFrameBufferForSwapchain(g_VulkanDevice.device, { g_WindowWidth, g_WindowHeight }, g_VulkanWindows, g_VulkanPool.commandPool, g_VulkanQueue.graphics);
-#endif
     vkf::CreateSemaphoreAndFenceForSwapchain(g_VulkanDevice.device, 3, g_VulkanSynchronize);
+#ifdef INTERNET_MODE
+    vkf::CreateDescriptorPool(g_VulkanDevice.device, 148, g_VulkanPool.descriptorPool);
+#else
     vkf::CreateDescriptorPool(g_VulkanDevice.device, 147, g_VulkanPool.descriptorPool);
+#endif
     //显示设备信息
     const char *deviceType;
     VkPhysicalDeviceProperties physicalDeviceProperties;
@@ -128,6 +339,259 @@ void cleanupVulkan(){
     vkDestroyDevice(g_VulkanDevice.device, nullptr);
     vkDestroyInstance(g_VulkanDevice.instance, nullptr);
 }
+#ifdef INTERNET_MODE
+void *process_server(void *userData){
+    GameMessage message;
+    //该函数只负责向所有客户端转发消息
+    SOCKET socket = *(SOCKET *)userData;
+    do{ 
+        Recv(socket, &message, sizeof(message), 0);
+        SendToAllClient(&message, sizeof(message));
+    } while (message.event != GAME_OVER_GAMEEVENT);
+    return nullptr;
+}
+void *server_start(void *userData){
+    GameMessage message;
+    struct sockaddr_in client_addr;
+    socklen_t size = sizeof(client_addr);
+    //直接在这里等会导致imgui控件无法更新
+    for (size_t i = 0; i < 3; i++){
+        g_Clients[i].socket = accept(g_Server.socket, (struct sockaddr *)&client_addr, &size);
+        if(g_Clients[i].socket == -1){
+            perror("process_server:accept");
+        }
+        else{
+            //客户端连接后会发送自身信息
+            Recv(g_Clients[i].socket, &message, sizeof(message), 0);
+            printf("玩家加入, 名字:%s, ip:%s\n", message.client.name, message.client.ip);
+            memcpy(g_Clients[i].name, message.client.name, MAX_NAME);
+            memcpy(g_Clients[i].ip, message.client.ip, MAX_NAME);
+            for (size_t uiClient = 0; uiClient < g_Clients.size(); uiClient++){
+                if(g_Clients[uiClient].socket != -1){
+                    message.clientIndex = uiClient;
+                    message.client = g_Clients[uiClient];
+                    SendToAllClient(&message, sizeof(message));
+                }
+            }
+
+            message.event = CHANGE_COUNTRY_GAMEEVENT;
+            message.game.index = i;
+            strcpy(message.game.country, "魏");
+            message.game.color = WEI_CHESS_COUNTRY_COLOR;
+            if(i == 1){
+                message.game.color = SHU_CHESS_COUNTRY_COLOR;
+                strcpy(message.game.country, "蜀");
+            }
+            else if(i == 2){
+                message.game.color = WU_CHESS_COUNTRY_COLOR;
+                strcpy(message.game.country, "吴");
+            }
+            Send(g_Clients[i].socket, &message, sizeof(message), 0);
+        }
+    }
+#ifdef WIN32
+    DWORD  threadId;
+    for (size_t i = 0; i < 3; i++){
+        g_ServerPthreadId = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)process_server, &g_Clients[i].socket, 0, &pthreadId);
+    }
+#endif
+#ifdef __linux
+    pthread_t pthreadId;
+    for (size_t i = 0; i < 3; i++){
+        pthread_create(&g_ServerPthreadId, nullptr, process_server, &g_Clients[i].socket);
+    }
+#endif
+    //游戏开始, 发消息告诉所有客户端游戏开始
+    message.event = GAME_START_GAMEEVENT;
+    SendToAllClient(&message, sizeof(message));
+    return nullptr;
+}
+void Play(const glm::vec2&mousePos){
+    bool bNext;
+    uint32_t country;
+    if(g_Chessboard.Play(g_VulkanDevice.device, mousePos, country, bNext)){
+        // vkDeviceWaitIdle(g_VulkanDevice.device);
+        g_Chessboard.DestroyChess(g_VulkanDevice.device, country);
+    }
+    if(bNext){
+        g_CurrentCountry = NextCountry();
+    }
+}
+// void Play(uint32_t row, uint32_t column){
+//     Play(glm::vec2(COLUMN_TO_X(column, CHESSBOARD_GRID_SIZE, CHESSBOARD_LINE_WIDTH), ROW_TO_Y(row, CHESSBOARD_GRID_SIZE, CHESSBOARD_LINE_WIDTH)));
+// }
+void Play(const GameInfo&game, const glm::vec2&playPos, const glm::vec2&selectPos){
+    GameMessage message;
+    message.event = PLAY_CHESS_GAMEEVENT;
+    message.game = game;
+    message.playPos = playPos;
+    message.selectPos = selectPos;
+    SendToServer(&message, sizeof(message));
+}
+//但该程序为客户端时,一般不会用上面的函数而是用下面的函数创建创建线程
+void *process_client(void *userData){
+    //接收消息后做出动作即可
+    GameMessage message;
+    do{
+        Recv(g_Client.socket, &message, sizeof(GameMessage), 0);
+        if(message.event == GAME_START_GAMEEVENT){
+            InitChessboard();
+        }
+        else if(message.event == JOINS_GAME_GAMEEVENT){
+            g_Clients[message.clientIndex] = message.client;
+        }
+        else if(message.event == PLAY_CHESS_GAMEEVENT){
+            //下棋和选棋的坐标不一样
+            g_Chessboard.Select(g_VulkanDevice.device, message.selectPos);
+            // printf("%s国下棋:位置:%f, %f\n", message.game.country, message.mousePos.x, message.mousePos.y);
+            Play(message.playPos);
+            // Play(message.ranks.row, message.ranks.column);
+        }
+        else if(message.event == CHANGE_COUNTRY_GAMEEVENT){
+            g_Player = message.game;
+        }
+    }while(message.event != GAME_OVER_GAMEEVENT);
+    return nullptr;
+}
+void updateImguiWidget(){
+    // static bool checkbuttonstatu;//检查框的状态。这个值传给imgui会影响到检查框
+    ImGui_ImplGlfw_NewFrame();
+    ImGui::NewFrame();
+
+    static bool bShowCreateServer = false, bShowConnectServer = false;
+    if(ImGui::Begin("局域网联机")){
+        static char name[MAX_NAME];
+        //在非广播模式下，直接显示本机ip。(或许广播模式下也可以显示)
+        ImGui::Text("本机ip:%s", g_ServerIp);
+        ImGui::InputText("用户名", name, sizeof(name));
+        if(strcmp(name, g_Client.name)){
+            memcpy(g_Client.name, name, MAX_NAME);
+        }
+        //当有客户端程序接入后，显示名称和ip，然后初始化棋盘并开始游戏
+        if(ImGui::BeginTable("客户端信息", 2)){
+            ImGui::TableNextColumn();
+            ImGui::Text("name");
+            for (size_t i = 0; i < g_Clients.size(); ++i){
+                ImGui::Text(g_Clients[i].name);
+            }
+            ImGui::TableNextColumn();
+            ImGui::Text("ip");
+            for (size_t i = 0; i < g_Clients.size(); ++i){
+                ImGui::Text(g_Clients[i].ip);
+            }
+            // ImGui::TableNextColumn();
+            // ImGui::Text("势力");
+            // for (size_t i = 0; i < g_Clients.size(); ++i){
+            //     ImGui::Text();
+            // }
+            // const char *countryItem[] = {
+            //     "魏",
+            //     "蜀",
+            //     "吴",
+            // };
+            // for (size_t i = 0; i < g_Clients.size(); ++i){
+            //     if(ImGui::Combo("国", &g_Clients[i], countryItem, sizeof(countryItem) / sizeof(char *))){
+                    
+            //         ImGui::TreePop();
+            //     }
+            // }
+            ImGui::EndTable();
+        }
+        if(ImGui::Button("创建房间")){
+            bShowCreateServer = true;
+        }
+        if(ImGui::Button("连接服务端")){
+            bShowConnectServer = true;
+        }
+        ImGui::End();
+    }
+    if(bShowCreateServer){
+        if(ImGui::Begin("创建房间")){
+            static char name[MAX_NAME] = {0};
+            ImGui::InputText("输入房间名", name, sizeof(name));
+            //目前用不到房间名, 所以不需要判断
+            if(ImGui::Button("确定")){
+                bShowCreateServer = false;
+                memcpy(g_Server.name, name, MAX_NAME);
+                memcpy(g_Client.ip, g_ServerIp, MAX_NAME);
+                CreateServer(3);
+#ifdef WIN32
+                DWORD  threadId;
+                g_ServerPthreadId = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)server_start, 0, 0, &threadId);
+                CreateClient(g_ServerIp);
+                g_ClientPthreadId = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)process_client, 0, 0, &threadId);
+#endif
+#ifdef __linux
+                pthread_create(&g_ServerPthreadId, nullptr, server_start, nullptr);
+                CreateClient(g_ServerIp);
+                //该程序也需要客户端方面的线程
+                pthread_create(&g_ClientPthreadId, nullptr, process_client, nullptr);
+#endif
+                JoinsGame(g_ServerIp);
+            }
+            if(ImGui::Button("取消")){
+                bShowCreateServer = false;
+            }
+            ImGui::End();
+        }
+    }
+    if(bShowConnectServer){
+        if(ImGui::Begin("连接服务端")){
+            static char serverIp[MAX_NAME] = {0};
+            ImGui::InputText("服务端ip", serverIp, sizeof(serverIp));
+            if(ImGui::Button("确定")){
+                bShowConnectServer = false;
+                memcpy(g_Client.serverIp, serverIp, MAX_NAME);
+                CreateClient(serverIp);
+                GetLocalIp(serverIp);//用来存自己的ip
+                memcpy(g_Client.ip, serverIp, MAX_NAME);
+#ifdef WIN32
+                DWORD  threadId;
+                g_ClientPthreadId = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)process_client, 0, 0, &threadId);
+#endif
+#ifdef __linux
+                pthread_create(&g_ClientPthreadId, nullptr, process_client, nullptr);
+#endif
+                JoinsGame(g_Client.serverIp);
+            }
+            if(ImGui::Button("取消")){
+                bShowConnectServer = false;
+            }
+            ImGui::End();
+        }
+    }
+    ImGui::Render();
+    ImDrawData *draw_data = ImGui::GetDrawData();
+
+    const bool isMinimized = (draw_data->DisplaySize.x <=.0f || draw_data->DisplaySize.y <= .0f);
+    if(!isMinimized)ImGui_ImplVulkan_RenderDrawData(draw_data, g_CommandBuffers);
+}
+void recodeCommand(uint32_t currentFrame){
+    std::vector<VkClearValue> clearValues(1);
+    clearValues[0].color = { 0.1f , 0.1f , 0.1f , 1.0f };
+    VkRenderPassBeginInfo renderPassInfo = {};
+    renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+    renderPassInfo.clearValueCount = clearValues.size();
+    renderPassInfo.pClearValues = clearValues.data();
+    renderPassInfo.renderArea = { 0, 0, g_WindowWidth, g_WindowHeight };
+    renderPassInfo.renderPass = g_VulkanWindows.renderpass;
+    renderPassInfo.framebuffer = g_VulkanWindows.framebuffers[currentFrame];
+    VkCommandBufferBeginInfo beginInfo;
+    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    beginInfo.pNext = nullptr;
+    beginInfo.flags = VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
+    beginInfo.pInheritanceInfo = nullptr;
+    vkBeginCommandBuffer(g_CommandBuffers, &beginInfo);
+    vkCmdBeginRenderPass(g_CommandBuffers, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+
+    g_Chessboard.RecodeCommand(g_CommandBuffers, g_CurrentCountry);
+
+    updateImguiWidget();
+
+    vkCmdEndRenderPass(g_CommandBuffers);
+    vkEndCommandBuffer(g_CommandBuffers);
+}
+#else
 void recodeCommand(uint32_t currentFrame){
     std::vector<VkClearValue> clearValues(1);
     clearValues[0].color = { 0.1f , 0.1f , 0.1f , 1.0f };
@@ -151,33 +615,39 @@ void recodeCommand(uint32_t currentFrame){
     vkCmdEndRenderPass(g_CommandBuffers[currentFrame]);
     vkEndCommandBuffer(g_CommandBuffers[currentFrame]);
 }
+#endif
+glm::vec2 g_SelectPos;
 void mousebutton(GLFWwindow *windows, int button, int action, int mods){
     double xpos, ypos;
     glfwGetCursorPos(windows, &xpos, &ypos);
     if(action == GLFW_RELEASE){
         if(button == GLFW_MOUSE_BUTTON_LEFT){
+            //单机和局域网联机差不多。无非就是要接收和发送消息
             const Chess *chess = g_Chessboard.GetChess(glm::vec2(xpos, ypos));
             if(!g_Chessboard.IsSelected() || (chess && g_Chessboard.IsSelfChess(chess->GetCountryColor()))){
                 if(chess){
+#ifdef INTERNET_MODE
+                    if(g_CurrentCountry == g_Player.color){
+                        g_SelectPos = glm::vec2(xpos, ypos);
+                        g_Chessboard.Select(g_VulkanDevice.device, g_SelectPos);
+                    }
+#else
                     if(g_CurrentCountry == chess->GetCountryColor()){
                         g_Chessboard.Select(g_VulkanDevice.device, glm::vec2(xpos, ypos));
                     }
+#endif
                 }
             }
             else{
-                bool bNext;
-                uint32_t country;
-                if(g_Chessboard.Play(g_VulkanDevice.device, glm::vec2(xpos, ypos), country, bNext)){
-                    vkDeviceWaitIdle(g_VulkanDevice.device);
-                    g_Chessboard.DestroyChess(g_VulkanDevice.device, country);
-                }
-                if(bNext){
-                    g_CurrentCountry = NextCountry();
-                }
+#ifdef INTERNET_MODE
+                if(!chess || chess->GetCountryColor() != g_Player.color)Play(g_Player, glm::vec2(xpos, ypos), g_SelectPos);
+#else
+                Play(glm::vec2(xpos, ypos));
                 vkDeviceWaitIdle(g_VulkanDevice.device);
                 for (size_t i = 0; i < g_VulkanWindows.framebuffers.size(); ++i){
                     recodeCommand(i);
                 }
+#endif
             }
         }
     }
@@ -187,31 +657,98 @@ void setup(GLFWwindow *windows){
     vkf::CreateTextureSampler(g_VulkanDevice.device, g_TextureSampler);
 
     g_Chessboard.CreatePipeline(g_VulkanDevice.device, g_VulkanWindows.renderpass, g_WindowWidth);
-    g_Chessboard.CreateVulkanResource(g_VulkanDevice.physicalDevice, g_VulkanDevice.device, g_WindowWidth, g_VulkanQueue.graphics, g_VulkanPool);
-    g_Chessboard.InitChessboard(g_VulkanDevice.device, g_WindowWidth, g_VulkanWindows.renderpass, g_VulkanPool, g_VulkanQueue.graphics, g_TextureSampler);
+    g_Chessboard.CreateVulkanResource(g_VulkanDevice.physicalDevice, g_VulkanDevice.device, g_WindowWidth, g_VulkanQueue.graphics, g_VulkanPool, g_VulkanWindows.renderpass, g_TextureSampler);
 
     g_Chessboard.UpdateSet(g_VulkanDevice.device);
-    g_CurrentCountry = NextCountry();
+#ifndef INTERNET_MODE
+    InitChessboard();
+#endif
+    //局域网联机需要imgui
+    //先通过ip连接, 后面知道怎么广播再说
+    //或者说，先实现简单的网络联机，在解决广播问题
+#ifdef INTERNET_MODE
+    vkf::tool::AllocateCommandBuffers(g_VulkanDevice.device, g_VulkanPool.commandPool, 1, &g_CommandBuffers);
 
+    //imgui
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    ImGuiIO&io = ImGui::GetIO();
+    // io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;//启用手柄    ImGui::StyleColorsDark();
+
+    ImGui_ImplGlfw_InitForVulkan(windows, true);
+    int queueFamily;
+    vkf::tool::GetGraphicAndPresentQueueFamiliesIndex(g_VulkanDevice.physicalDevice, VK_NULL_HANDLE, &queueFamily);
+    ImGui_ImplVulkan_InitInfo initInfo = {};
+    initInfo.Instance = g_VulkanDevice.instance;
+    initInfo.PhysicalDevice = g_VulkanDevice.physicalDevice;
+    initInfo.Device = g_VulkanDevice.device;
+    initInfo.QueueFamily = queueFamily;
+    initInfo.Queue = g_VulkanQueue.graphics;
+    initInfo.PipelineCache = VK_NULL_HANDLE;//g_GraphicsPipline.getCache();
+    initInfo.DescriptorPool = g_VulkanPool.descriptorPool;
+    initInfo.MinImageCount = 2;
+    initInfo.ImageCount = g_VulkanWindows.framebuffers.size();
+    initInfo.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
+    initInfo.Allocator = nullptr;
+    initInfo.CheckVkResultFn = nullptr;
+    ImGui_ImplVulkan_Init(&initInfo, g_VulkanWindows.renderpass);
+
+    io.Fonts->AddFontFromFileTTF("fonts/SourceHanSerifCN-Bold.otf", 20, NULL, io.Fonts->GetGlyphRangesChineseFull());
+
+    VkCommandBuffer cmd;
+    vkf::tool::BeginSingleTimeCommands(g_VulkanDevice.device, g_VulkanPool.commandPool, cmd);
+    ImGui_ImplVulkan_CreateFontsTexture(cmd);
+    vkf::tool::EndSingleTimeCommands(g_VulkanDevice.device, g_VulkanPool.commandPool, g_VulkanQueue.graphics, cmd);
+    ImGui_ImplVulkan_DestroyFontUploadObjects();
+#ifdef WIN32
+    WSADATA wsaData;
+    int wsaResult = WSAStartup(MAKEWORD(2, 2), &wsaData);
+    if(wsaResult == 0){
+        printf("in function:%s:WSAStartup error, result = %d", __FUNCTION__, wsaResult);
+    }
+#endif
+    GetLocalIp(g_ServerIp);
+#else
     g_CommandBuffers.resize(g_VulkanWindows.framebuffers.size());
     vkf::tool::AllocateCommandBuffers(g_VulkanDevice.device, g_VulkanPool.commandPool, g_CommandBuffers.size(), g_CommandBuffers.data());
     for (size_t i = 0; i < g_VulkanWindows.framebuffers.size(); ++i){
         recodeCommand(i);
     }
-}
+#endif
+} 
 void cleanup(){
     vkDeviceWaitIdle(g_VulkanDevice.device);
 
+    ImGui_ImplGlfw_Shutdown();
+    ImGui_ImplVulkan_Shutdown();
     g_Chessboard.Cleanup(g_VulkanDevice.device);
     vkDestroySampler(g_VulkanDevice.device, g_TextureSampler, nullptr);
+
+    GameMessage message;
+    message.event = GAME_OVER_GAMEEVENT;
+    if(g_ServerAppaction)SendToAllClient(&message, sizeof(message));
+    for (size_t i = 0; i < g_Clients.size(); ++i){
+        if(g_Clients[i].socket != -1)shutdown(g_Clients[i].socket, 2);
+    }
+    if(g_Server.socket != -1)shutdown(g_Server.socket, 2);
+#ifdef WIN32
+    WSACleanup();
+#endif
 }
 void display(GLFWwindow* window){
     static size_t currentFrame;
     vkDeviceWaitIdle(g_VulkanDevice.device);
-    // recodeCommand(currentFrame);
+#ifdef INTERNET_MODE
+    recodeCommand(currentFrame);
+    vkf::DrawFrame(g_VulkanDevice.device, currentFrame, g_CommandBuffers, g_VulkanWindows.swapchain, g_VulkanQueue, g_VulkanSynchronize);
+#else
     vkf::DrawFrame(g_VulkanDevice.device, currentFrame, g_CommandBuffers[currentFrame], g_VulkanWindows.swapchain, g_VulkanQueue, g_VulkanSynchronize);
+#endif
     currentFrame = (currentFrame + 1) % g_VulkanWindows.framebuffers.size();
 }
+// void createSurface(VkInstance instance, VkSurfaceKHR&surface, void* userData){
+//     glfwCreateWindowSurface(instance, (GLFWwindow *)userData, nullptr, &surface);
+// }
 int main(){
     if (GLFW_FALSE == glfwInit()) {
         printf("initialize glfw error");

@@ -148,7 +148,8 @@ class Chessboard{
     void DrawChessboardBackground(VkCommandBuffer cmd);
     void DrawChess(VkCommandBuffer cmd, const glm::vec3&nowCountryColor);
     void GetRectVertices(const glm::vec3&color, ChessboardVertex vertices[]);
-    void InitChess(VkDevice device, uint32_t country, uint32_t windowWidth, VkRenderPass renderpass, VulkanPool pool, VkQueue graphics, VkSampler fontSampler);
+    void InitChess(VkDevice device, uint32_t country);
+    void InitChessForVulkan(VkDevice device, uint32_t country, uint32_t windowWidth, VkRenderPass renderpass, VulkanPool pool, VkQueue graphics, VkSampler fontSampler);
     void CreateGraphicsPipeline(VkDevice device, uint32_t windowWidth, VkRenderPass renderpass, const std::vector<std::string>&shader, GraphicsPipeline&pipeline, const GraphicsPipelineStateInfo&pipelineState = {});
 public:
     Chessboard(/* args */);
@@ -156,12 +157,12 @@ public:
     //该函数只改变坐标,所以不需要关心调用的先后顺序(至少CreateVulkanResource是这样)
     void Cleanup(VkDevice device);
     void UpdateSet(VkDevice device);
+    void InitChessboard(VkDevice device);
     void DestroyGraphicsPipeline(VkDevice device);
     void DestroyChess(VkDevice device, uint32_t country);
     void RecodeCommand(VkCommandBuffer cmd, const glm::vec3&nowCountryColor);
     void CreatePipeline(VkDevice device, VkRenderPass renderpass, uint32_t windowWidth);
-    void CreateVulkanResource(VkPhysicalDevice physicalDevice, VkDevice device, uint32_t windowWidth, VkQueue graphics, VulkanPool pool);
-    void InitChessboard(VkDevice device, uint32_t windowWidth, VkRenderPass renderpass, VulkanPool pool, VkQueue graphics, VkSampler fontSampler);
+    void CreateVulkanResource(VkPhysicalDevice physicalDevice, VkDevice device, uint32_t windowWidth, VkQueue graphics, VulkanPool pool, VkRenderPass renderpass, VkSampler fontSampler);
 
     //调用这个函数前应该先调用select函数。该函数会将select选中的棋子移动到row,column
     // void Select(uint32_t row, uint32_t column);
@@ -171,8 +172,8 @@ public:
     bool IsPalaceCenter(uint32_t row, uint32_t column)const;
     //如果返回真, country表示被灭亡的势力。否则该值无效
     bool Play(VkDevice device, const glm::vec2&pos, uint32_t&country, bool&next);
-    // void Play(VkDevice device, uint32_t row, uint32_t column);
     void SelectChessInPalace(const Chess *ptrChess, std::vector<Ranks>&canplays)const;
+    bool Play(VkDevice device, uint32_t row, uint32_t column, uint32_t&country, bool&next);
     //如果返回真, 表示目标势力灭亡
     bool CaptureChess(VkDevice device, const Chess *src, uint32_t dstCountry, uint32_t destChess);
 
