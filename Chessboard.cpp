@@ -577,7 +577,7 @@ bool Chessboard::CaptureChess(VkDevice device, const Chess *src, uint32_t dstCou
     if(mChess[dstCountry].chess[dstChess] == mChess[dstCountry].chess[JIANG_CHESS]){
         bMate = true;
         if(mChess[dstCountry].chess[JIANG_CHESS]->GetCountryColor() == HAN_CHESS_COUNTRY_COLOR){
-            //棋子归属src所属国家
+            //棋子归属src所选国家
             uint32_t srcCountry = WEI_CHESS_INDEX;
             if(src->GetCountryColor() == SHU_CHESS_COUNTRY_COLOR){
                 srcCountry = SHU_CHESS_INDEX;
