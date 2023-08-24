@@ -410,10 +410,8 @@ VkResult vkf::RenderFrame(VkDevice device, const VkCommandBuffer&commandbuffers,
 	return vkQueueSubmit(graphics, 1, &submitInfo, fence);
 }
 
-uint32_t vkf::PrepareFrame(VkDevice device, VkSwapchainKHR swapchain, const VkSemaphore&imageAcquired, void(*recreateSwapchain)(void* userData), void* userData, const VkFence&fence){
+uint32_t vkf::PrepareFrame(VkDevice device, VkSwapchainKHR swapchain, const VkSemaphore&imageAcquired, void(*recreateSwapchain)(void* userData), void* userData){
     uint32_t imageIndex;
-    if(fence != VK_NULL_HANDLE)
-        vkWaitForFences(device, 1, &fence, VK_TRUE, UINT16_MAX);
     VkResult result = vkAcquireNextImageKHR(device, swapchain, UINT64_MAX, imageAcquired, VK_NULL_HANDLE, &imageIndex);
     if (recreateSwapchain && result == VK_ERROR_OUT_OF_DATE_KHR) {
         recreateSwapchain(userData);
@@ -423,8 +421,6 @@ uint32_t vkf::PrepareFrame(VkDevice device, VkSwapchainKHR swapchain, const VkSe
         printf("failed to acquire swap chain image!\n");
         return result;
     }
-    if (fence != VK_NULL_HANDLE)
-        vkResetFences(device, 1, &fence);
     return imageIndex;
 }
 
@@ -436,19 +432,22 @@ VkResult vkf::SubmitFrame(VkDevice device, uint32_t imageIndex, VkSwapchainKHR s
 	presentInfo.pSwapchains = &swapchain;
 	presentInfo.waitSemaphoreCount = 1;
 	presentInfo.pWaitSemaphores = &renderComplete;
-	VkResult result = vkQueuePresentKHR(present, &presentInfo);
+    return vkQueuePresentKHR(present, &presentInfo);;
+}
+void vkf::DrawFrame(VkDevice device, uint32_t currentFrame, const VkCommandBuffer& commandbuffers, VkSwapchainKHR swapchain, const VulkanQueue&vulkanQueue, const VulkanSynchronize&vulkanSynchronize, void(*recreateSwapchain)(void* userData), void* userData){
+    vkWaitForFences(device, 1, &vulkanSynchronize.fences[currentFrame], VK_TRUE, UINT16_MAX);
+    uint32_t imageIndex = PrepareFrame(device, swapchain, vulkanSynchronize.imageAcquired[currentFrame], recreateSwapchain, userData);
+    vkResetFences(device, 1, &vulkanSynchronize.fences[currentFrame]);
+    
+    RenderFrame(device, commandbuffers, vulkanQueue.graphics, vulkanSynchronize.imageAcquired[currentFrame], vulkanSynchronize.renderComplete[currentFrame], vulkanSynchronize.fences[currentFrame]);
+    VkResult result = SubmitFrame(device, imageIndex, swapchain, vulkanQueue.present, vulkanSynchronize.renderComplete[currentFrame], recreateSwapchain, userData);
 	if (recreateSwapchain && (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR)) {
+		vkResetFences(device, 1, &vulkanSynchronize.fences[currentFrame]);
 		recreateSwapchain(userData);
 	}
 	else if(VK_SUCCESS != result){
 		printf("failed to acquire swap chain image!\n");
 	}
-    return result;
-}
-void vkf::DrawFrame(VkDevice device, uint32_t currentFrame, const VkCommandBuffer& commandbuffers, VkSwapchainKHR swapchain, const VulkanQueue&vulkanQueue, const VulkanSynchronize&vulkanSynchronize, void(*recreateSwapchain)(void* userData), void* userData){
-    uint32_t imageIndex = PrepareFrame(device, swapchain, vulkanSynchronize.imageAcquired[currentFrame], recreateSwapchain, userData, vulkanSynchronize.fences[currentFrame]);
-    RenderFrame(device, commandbuffers, vulkanQueue.graphics, vulkanSynchronize.imageAcquired[currentFrame], vulkanSynchronize.renderComplete[currentFrame], vulkanSynchronize.fences[currentFrame]);
-    SubmitFrame(device, imageIndex, swapchain, vulkanQueue.present, vulkanSynchronize.renderComplete[currentFrame], recreateSwapchain, userData);
 }
 
 uint32_t vkf::tool::findMemoryTypeIndex(uint32_t typeFilter, VkMemoryPropertyFlags properties) {

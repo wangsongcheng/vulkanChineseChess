@@ -204,6 +204,17 @@ void cleanupVulkan(){
     vkDestroyDevice(g_VulkanDevice.device, nullptr);
     vkDestroyInstance(g_VulkanDevice.instance, nullptr);
 }
+void Play(const glm::vec2&mousePos){
+    bool bNext;
+    uint32_t country;
+    if(g_Chessboard.Play(g_VulkanDevice.device, mousePos, country, bNext)){
+        // vkDeviceWaitIdle(g_VulkanDevice.device);
+        g_Chessboard.DestroyChess(g_VulkanDevice.device, country);
+    }
+    if(bNext){
+        g_CurrentCountry = NextCountry();
+    }
+}
 #ifdef INTERNET_MODE
 void Send(int __fd, const GameMessage *__buf, size_t __n, int __flags){
     int sendSize, offset;
@@ -440,17 +451,6 @@ void *server_start(void *userData){
     message.event = GAME_START_GAMEEVENT;
     SendToAllClient(&message, sizeof(message));
     return nullptr;
-}
-void Play(const glm::vec2&mousePos){
-    bool bNext;
-    uint32_t country;
-    if(g_Chessboard.Play(g_VulkanDevice.device, mousePos, country, bNext)){
-        // vkDeviceWaitIdle(g_VulkanDevice.device);
-        g_Chessboard.DestroyChess(g_VulkanDevice.device, country);
-    }
-    if(bNext){
-        g_CurrentCountry = NextCountry();
-    }
 }
 // void Play(uint32_t row, uint32_t column){
 //     Play(glm::vec2(COLUMN_TO_X(column, CHESSBOARD_GRID_SIZE, CHESSBOARD_LINE_WIDTH), ROW_TO_Y(row, CHESSBOARD_GRID_SIZE, CHESSBOARD_LINE_WIDTH)));
@@ -786,11 +786,9 @@ void setup(GLFWwindow *windows){
 } 
 void cleanup(){
     vkDeviceWaitIdle(g_VulkanDevice.device);
-
+#ifdef INTERNET_MODE
     ImGui_ImplGlfw_Shutdown();
     ImGui_ImplVulkan_Shutdown();
-    g_Chessboard.Cleanup(g_VulkanDevice.device);
-    vkDestroySampler(g_VulkanDevice.device, g_TextureSampler, nullptr);
 
     GameMessage message;
     message.event = GAME_OVER_GAMEEVENT;
@@ -802,6 +800,9 @@ void cleanup(){
 #ifdef WIN32
     WSACleanup();
 #endif
+#endif
+    g_Chessboard.Cleanup(g_VulkanDevice.device);
+    vkDestroySampler(g_VulkanDevice.device, g_TextureSampler, nullptr);
 }
 void display(GLFWwindow* window){
     static size_t currentFrame;
