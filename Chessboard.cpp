@@ -290,6 +290,9 @@ void Chessboard::InitChessForVulkan(VkDevice device, uint32_t country, uint32_t 
     }
     fclose(fontFile);
     free(fontBuffer);
+    for (uint32_t uiChess = 0; uiChess < sizeof(mChess[country].chess) / sizeof(Chess*); ++uiChess) {
+        if(mChess[country].chess[uiChess])mChess[country].chess[uiChess]->UpdateUniform(device, 20, 20);
+    }
 }
 void Chessboard::CreateGraphicsPipeline(VkDevice device, uint32_t windowWidth, VkRenderPass renderpass, const std::vector<std::string>&shader, GraphicsPipeline&pipeline, const GraphicsPipelineStateInfo&pipelineState){
     std::vector<VkShaderStageFlagBits> stage = { VK_SHADER_STAGE_VERTEX_BIT, VK_SHADER_STAGE_FRAGMENT_BIT };
@@ -665,7 +668,7 @@ bool Chessboard::IsInPalace(uint32_t row, uint32_t column)const{
     bool bInIsPalace = false;
     if(IsPalaceCenter(row, column))return true;
     for (size_t i = 0; i < sizeof(mPalacePos) / sizeof(Ranks); ++i){
-        if(abs(row - mPalacePos[i].row) < 2 && abs(column - mPalacePos[i].column) < 2){
+        if(abs((float)row - mPalacePos[i].row) < 2 && abs((float)column - mPalacePos[i].column) < 2){
             bInIsPalace = true;
             break;
         }
