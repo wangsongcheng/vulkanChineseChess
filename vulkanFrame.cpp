@@ -320,6 +320,7 @@ VkResult vkf::CreateRenderPass(VkDevice device, const std::vector<VkSubpassDescr
 void vkf::CreateFrameBufferForSwapchain(VkDevice device, const VkExtent2D&swapchainExtent, VulkanWindows&vulkanWindows, VkCommandPool pool, VkQueue graphics, bool createDepthImage){
     uint32_t count;
 	vkGetSwapchainImagesKHR(device, vulkanWindows.swapchain, &count, nullptr);
+    if(count > 3)count = 3;
 	std::vector<VkImage>swapchainImages(count);
 	vkGetSwapchainImagesKHR(device, vulkanWindows.swapchain, &count, swapchainImages.data());
 	vulkanWindows.swapchainImageViews.resize(swapchainImages.size());
