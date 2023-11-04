@@ -304,7 +304,7 @@ void Chess::DestroyGraphicsPipeline(VkDevice device){
     mFontPipeline.DestroyLayout(device);
     mFontPipeline.DestroyPipeline(device);
 }
-void Chess::RecodeCommand(VkCommandBuffer cmd, uint32_t windowWidth, bool bBan){
+void Chess::RecordCommand(VkCommandBuffer cmd, uint32_t windowWidth, bool bBan){
     const glm::mat4 projection = glm::ortho(0.0f, (float)windowWidth, 0.0f, (float)windowWidth, -1.0f, 1.0f);
     mPipeline.BindPipeline(cmd);
     mPipeline.PushPushConstant(cmd, VK_SHADER_STAGE_VERTEX_BIT, sizeof(glm::mat4), &projection);

@@ -224,8 +224,11 @@ VkResult vkf::CreateSwapchain(VkPhysicalDevice physicalDevice, VkDevice device, 
 	uint32_t count;
 	VkSurfaceCapabilitiesKHR surfaceCapabilities;
 	vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physicalDevice, surface, &surfaceCapabilities);
-    uint32_t minImageCount = surfaceCapabilities.minImageCount + 1;
-	if(minImageCount > 3)minImageCount = 3;
+    uint32_t imageCount = surfaceCapabilities.minImageCount;
+    if(surfaceCapabilities.maxImageCount && imageCount > surfaceCapabilities.maxImageCount){
+        //最大图片数不等于0说明能使用的最大图片数不能是任意数量
+        imageCount = surfaceCapabilities.maxImageCount;
+    }
 	VkSwapchainCreateInfoKHR swapchainInfo = {};//vki::swapchainCreateInfoKHR(surface, surfaceCapabilities, presentModes);
     swapchainInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
     swapchainInfo.clipped = VK_TRUE;
@@ -234,7 +237,7 @@ VkResult vkf::CreateSwapchain(VkPhysicalDevice physicalDevice, VkDevice device, 
     // swapchainInfo.presentMode = presentMode;
     // swapchainInfo.pQueueFamilyIndices = ;
     // swapchainInfo.queueFamilyIndexCount = ;
-    swapchainInfo.minImageCount = minImageCount;
+    swapchainInfo.minImageCount = imageCount;
     // swapchainInfo.oldSwapchain = VK_NULL_HANDLE;
     swapchainInfo.imageFormat = VK_FORMAT_B8G8R8A8_UNORM;
     swapchainInfo.presentMode = VK_PRESENT_MODE_MAILBOX_KHR;
@@ -320,7 +323,6 @@ VkResult vkf::CreateRenderPass(VkDevice device, const std::vector<VkSubpassDescr
 void vkf::CreateFrameBufferForSwapchain(VkDevice device, const VkExtent2D&swapchainExtent, VulkanWindows&vulkanWindows, VkCommandPool pool, VkQueue graphics, bool createDepthImage){
     uint32_t count;
 	vkGetSwapchainImagesKHR(device, vulkanWindows.swapchain, &count, nullptr);
-    if(count > 3)count = 3;
 	std::vector<VkImage>swapchainImages(count);
 	vkGetSwapchainImagesKHR(device, vulkanWindows.swapchain, &count, swapchainImages.data());
 	vulkanWindows.swapchainImageViews.resize(swapchainImages.size());

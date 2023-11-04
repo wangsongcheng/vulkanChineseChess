@@ -631,7 +631,7 @@ void updateImguiWidget(){
     const bool isMinimized = (draw_data->DisplaySize.x <=.0f || draw_data->DisplaySize.y <= .0f);
     if(!isMinimized)ImGui_ImplVulkan_RenderDrawData(draw_data, g_CommandBuffers);
 }
-void recodeCommand(uint32_t currentFrame){
+void RecordCommand(uint32_t currentFrame){
     std::vector<VkClearValue> clearValues(1);
     clearValues[0].color = { 0.1f , 0.1f , 0.1f , 1.0f };
     VkRenderPassBeginInfo renderPassInfo = {};
@@ -649,7 +649,7 @@ void recodeCommand(uint32_t currentFrame){
     vkBeginCommandBuffer(g_CommandBuffers, &beginInfo);
     vkCmdBeginRenderPass(g_CommandBuffers, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 
-    g_Chessboard.RecodeCommand(g_CommandBuffers, g_CurrentCountry);
+    g_Chessboard.RecordCommand(g_CommandBuffers, g_CurrentCountry);
 
     updateImguiWidget();
 
@@ -657,7 +657,7 @@ void recodeCommand(uint32_t currentFrame){
     vkEndCommandBuffer(g_CommandBuffers);
 }
 #else
-void recodeCommand(uint32_t currentFrame){
+void RecordCommand(uint32_t currentFrame){
     std::vector<VkClearValue> clearValues(1);
     clearValues[0].color = { 0.1f , 0.1f , 0.1f , 1.0f };
     VkRenderPassBeginInfo renderPassInfo = {};
@@ -675,7 +675,7 @@ void recodeCommand(uint32_t currentFrame){
     vkBeginCommandBuffer(g_CommandBuffers[currentFrame], &beginInfo);
     vkCmdBeginRenderPass(g_CommandBuffers[currentFrame], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 
-    g_Chessboard.RecodeCommand(g_CommandBuffers[currentFrame], g_CurrentCountry);
+    g_Chessboard.RecordCommand(g_CommandBuffers[currentFrame], g_CurrentCountry);
 
     vkCmdEndRenderPass(g_CommandBuffers[currentFrame]);
     vkEndCommandBuffer(g_CommandBuffers[currentFrame]);
@@ -710,7 +710,7 @@ void mousebutton(GLFWwindow *windows, int button, int action, int mods){
                 Play(glm::vec2(xpos, ypos));
                 vkDeviceWaitIdle(g_VulkanDevice.device);
                 for (size_t i = 0; i < g_VulkanWindows.framebuffers.size(); ++i){
-                    recodeCommand(i);
+                    RecordCommand(i);
                 }
 #endif
             }
@@ -780,7 +780,7 @@ void setup(GLFWwindow *windows){
     g_CommandBuffers.resize(g_VulkanWindows.framebuffers.size());
     vkf::tool::AllocateCommandBuffers(g_VulkanDevice.device, g_VulkanPool.commandPool, g_CommandBuffers.size(), g_CommandBuffers.data());
     for (size_t i = 0; i < g_VulkanWindows.framebuffers.size(); ++i){
-        recodeCommand(i);
+        RecordCommand(i);
     }
 #endif
 } 
@@ -808,7 +808,7 @@ void display(GLFWwindow* window){
     static size_t currentFrame;
     vkDeviceWaitIdle(g_VulkanDevice.device);
 #ifdef INTERNET_MODE
-    recodeCommand(currentFrame);
+    RecordCommand(currentFrame);
     vkf::DrawFrame(g_VulkanDevice.device, currentFrame, g_CommandBuffers, g_VulkanWindows.swapchain, g_VulkanQueue, g_VulkanSynchronize);
 #else
     vkf::DrawFrame(g_VulkanDevice.device, currentFrame, g_CommandBuffers[currentFrame], g_VulkanWindows.swapchain, g_VulkanQueue, g_VulkanSynchronize);

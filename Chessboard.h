@@ -160,7 +160,7 @@ public:
     void InitChessboard(VkDevice device);
     void DestroyGraphicsPipeline(VkDevice device);
     void DestroyChess(VkDevice device, uint32_t country);
-    void RecodeCommand(VkCommandBuffer cmd, const glm::vec3&nowCountryColor);
+    void RecordCommand(VkCommandBuffer cmd, const glm::vec3&nowCountryColor);
     void CreatePipeline(VkDevice device, VkRenderPass renderpass, uint32_t windowWidth);
     void CreateVulkanResource(VkPhysicalDevice physicalDevice, VkDevice device, uint32_t windowWidth, VkQueue graphics, VulkanPool pool, VkRenderPass renderpass, VkSampler fontSampler);
 

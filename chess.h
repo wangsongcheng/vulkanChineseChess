@@ -76,7 +76,7 @@ public:
     ~Chess();
     void Cleanup(VkDevice device);
     void DestroyGraphicsPipeline(VkDevice device);
-    void RecodeCommand(VkCommandBuffer cmd, uint32_t windowWidth, bool bBan);
+    void RecordCommand(VkCommandBuffer cmd, uint32_t windowWidth, bool bBan);
     void CreatePipeline(VkDevice device, VkRenderPass renderpass, uint32_t windowWidth);
     void CreateVulkanResource(VkDevice device, const glm::vec3&color, const VulkanPool&pool, VkQueue graphics);
 
