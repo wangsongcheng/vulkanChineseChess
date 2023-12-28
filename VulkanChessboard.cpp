@@ -187,7 +187,7 @@ void VulkanChessboard::Setup(VkPhysicalDevice physicalDevice, VkDevice device, V
 
     VulkanChess::Setup(physicalDevice, device, setLayout, pool, graphics);
 }
-void VulkanChessboard::RecordCommand(VkCommandBuffer cmd, uint32_t windowWidth){
+void VulkanChessboard::RecordCommand(VkCommandBuffer cmd, uint32_t windowWidth, uint32_t currentCountry){
     //绘制顺序:非黑色背景->黑色背景->所有小方块->4个大方块->九宫格
     const glm::mat4 projection = glm::ortho(0.0f, (float)windowWidth, 0.0f, (float)windowWidth, -1.0f, 1.0f);
     pipelines.grid.BindPipeline(cmd);
@@ -204,7 +204,7 @@ void VulkanChessboard::RecordCommand(VkCommandBuffer cmd, uint32_t windowWidth){
     pipelines.wireframe.PushConstant(cmd, VK_SHADER_STAGE_VERTEX_BIT, sizeof(glm::mat4), &projection);
     DrawWireframe(cmd, pipelines.wireframe);
     DrawSelectWireframe(cmd, pipelines.wireframe);
-    VulkanChess::RecordCommand(cmd, windowWidth);
+    VulkanChess::RecordCommand(cmd, windowWidth, currentCountry);
 }
 void VulkanChessboard::UpdateUniform(VkDevice device){
     UpdateBigGridUniform(device);

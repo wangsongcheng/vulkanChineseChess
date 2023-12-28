@@ -105,11 +105,11 @@ class VulkanChess{
     void DestroyFontResource(VkDevice device);
     void DestroyChessResource(VkDevice device);
     void DrawFont(VkCommandBuffer command, const GraphicsPipeline&pipeline);
-    void DrawChess(VkCommandBuffer command, const GraphicsPipeline&pipeline);
     void GetCircularVertex(const glm::vec3&color, std::vector<Vertex>&vertices);
     void CreateFontResource(VkDevice device, VkCommandPool pool, VkQueue graphics);
     void CreateChessResource(VkDevice device, VkCommandPool pool, VkQueue graphics);
     void SetupDescriptorSet(VkDevice device, VkDescriptorSetLayout setLayout, VkDescriptorPool pool);
+    void DrawChess(VkCommandBuffer command, uint32_t currentCountry, const GraphicsPipeline&pipeline);
 protected:
     // void DrawGraphics(VkCommandBuffer command, const BaseGraphics *ptrGraphics);
 public:
@@ -118,7 +118,7 @@ public:
     void Cleanup(VkDevice device);
     void Setup(VkPhysicalDevice physicalDevice, VkDevice device, VkDescriptorSetLayout setLayout, const VulkanPool&pool, VkQueue graphics);
     
-    void RecordCommand(VkCommandBuffer cmd, uint32_t windowWidth);
+    void RecordCommand(VkCommandBuffer cmd, uint32_t windowWidth, uint32_t currentCountry);
 
     void UpdateUniform(VkDevice device, const glm::vec2&pos, const VkExtent2D&size, uint32_t offset);
     void UpdateFontUniform(VkDevice device, uint32_t fontIndex, const glm::vec2&pos, const VkExtent2D&size, uint32_t offset);

@@ -58,25 +58,6 @@ void VulkanChess::DrawFont(VkCommandBuffer command, const GraphicsPipeline &pipe
         // DrawGraphics(command, &mFont);
     }
 }
-void VulkanChess::DrawChess(VkCommandBuffer command, const GraphicsPipeline&pipeline){
-    uint32_t dynamicOffsets, country = 0;
-    
-    const uint32_t countryChess[] = { WEI_CHESS_COUNT + 4, SHU_CHESS_COUNT + 4, WU_CHESS_COUNT + 4 };
-    for (size_t uiCountry = 0; uiCountry < sizeof(countryChess) / sizeof(uint32_t); ++uiCountry){
-        for (size_t uiChess = 0; uiChess < countryChess[uiCountry]; ++uiChess){
-            dynamicOffsets = ROW_COLUMN_INDEX(uiCountry, uiChess, countryChess[uiCountry]) * mMinUniformBufferOffset;
-            pipeline.BindDescriptorSet(command, descriptorSet.chess, 1, &dynamicOffsets);
-            vkCmdDrawIndexed(command, mChess.indexCount, 1, 0, uiCountry * mChess.vertexCount, 0);
-            // DrawGraphics(command, &mChess);
-        }
-    }
-    for (size_t uiChess = 0; uiChess < HAN_CHESS_COUNT; ++uiChess){
-        dynamicOffsets = ROW_COLUMN_INDEX(HAN_COUNTRY_INDEX, uiChess, countryChess[0]) * mMinUniformBufferOffset;
-        pipeline.BindDescriptorSet(command, descriptorSet.chess, 1, &dynamicOffsets);
-        vkCmdDrawIndexed(command, mChess.indexCount, 1, 0, HAN_COUNTRY_INDEX * mChess.vertexCount, 0);
-        // DrawGraphics(command, &mChess);
-    }
-}
 void VulkanChess::GetCircularVertex(const glm::vec3 &color, std::vector<Vertex> &vertices){
     Vertex v = Vertex(glm::vec3(.0f), color);
     vertices.push_back(v);
@@ -135,7 +116,7 @@ void VulkanChess::CreateFontResource(VkDevice device, VkCommandPool pool, VkQueu
 void VulkanChess::CreateChessResource(VkDevice device, VkCommandPool pool, VkQueue graphics){
     //这里得准备4*2种颜色的棋子
     std::vector<Vertex> circularVertices;
-    glm::vec3 countryColor[] = { WEI_CHESS_COUNTRY_COLOR, SHU_CHESS_COUNTRY_COLOR, WU_CHESS_COUNTRY_COLOR, HAN_CHESS_COUNTRY_COLOR };
+    const glm::vec3 countryColor[] = { WEI_CHESS_COUNTRY_COLOR, SHU_CHESS_COUNTRY_COLOR, WU_CHESS_COUNTRY_COLOR, HAN_CHESS_COUNTRY_COLOR };
     GetCircularVertex(countryColor[0], circularVertices);
     mChess.vertexCount = circularVertices.size();
     std::vector<uint16_t> circularIndices;
@@ -148,8 +129,10 @@ void VulkanChess::CreateChessResource(VkDevice device, VkCommandPool pool, VkQue
     for (size_t uiChess = 1; uiChess < sizeof(countryColor) / sizeof(glm::vec3); ++uiChess){
         GetCircularVertex(countryColor[uiChess], circularVertices);
     }
-    glm::vec3 banColor = glm::vec3(countryColor[0].r * .5, countryColor[0].g * .5, countryColor[0].b * .5);
-    GetCircularVertex(banColor, circularVertices);
+    for (size_t uiChess = 0; uiChess < sizeof(countryColor) / sizeof(glm::vec3); ++uiChess){
+        const glm::vec3 banColor = glm::vec3(countryColor[uiChess].r * .6, countryColor[uiChess].g * .6, countryColor[uiChess].b * .6);
+        GetCircularVertex(banColor, circularVertices);
+    }
     mChess.index.CreateBuffer(device, sizeof(uint16_t) * circularIndices.size(), VK_BUFFER_USAGE_INDEX_BUFFER_BIT|VK_BUFFER_USAGE_TRANSFER_DST_BIT);
     //8是4种颜色+亮度较低的颜色(表示不是该玩家下子)
     mChess.vertex.CreateBuffer(device, sizeof(Vertex) * circularVertices.size() * 5, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT|VK_BUFFER_USAGE_TRANSFER_DST_BIT);
@@ -178,6 +161,25 @@ void VulkanChess::SetupDescriptorSet(VkDevice device, VkDescriptorSetLayout setL
     descriptorSetLayoutBindings[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     vkf::tool::UpdateDescriptorSets(device, 1, descriptorSetLayoutBindings, {uniform.chess},{}, descriptorSet.chess);
     vkf::tool::UpdateDescriptorSets(device, 2, descriptorSetLayoutBindings, {uniform.font},{fonts.image}, descriptorSet.font, fonts.sampler);
+}
+void VulkanChess::DrawChess(VkCommandBuffer command, uint32_t currentCountry, const GraphicsPipeline&pipeline){
+    uint32_t dynamicOffsets, country = 0;
+    
+    const uint32_t countryChess[] = { WEI_CHESS_COUNT + 4, SHU_CHESS_COUNT + 4, WU_CHESS_COUNT + 4 };
+    for (size_t uiCountry = 0; uiCountry < sizeof(countryChess) / sizeof(uint32_t); ++uiCountry){
+        for (size_t uiChess = 0; uiChess < countryChess[uiCountry]; ++uiChess){
+            dynamicOffsets = ROW_COLUMN_INDEX(uiCountry, uiChess, countryChess[uiCountry]) * mMinUniformBufferOffset;
+            pipeline.BindDescriptorSet(command, descriptorSet.chess, 1, &dynamicOffsets);
+            vkCmdDrawIndexed(command, mChess.indexCount, 1, 0, uiCountry == currentCountry?uiCountry * mChess.vertexCount:(4 + uiCountry) * mChess.vertexCount, 0);
+            // DrawGraphics(command, &mChess);
+        }
+    }
+    for (size_t uiChess = 0; uiChess < HAN_CHESS_COUNT; ++uiChess){
+        dynamicOffsets = ROW_COLUMN_INDEX(HAN_COUNTRY_INDEX, uiChess, countryChess[0]) * mMinUniformBufferOffset;
+        pipeline.BindDescriptorSet(command, descriptorSet.chess, 1, &dynamicOffsets);
+        vkCmdDrawIndexed(command, mChess.indexCount, 1, 0, HAN_COUNTRY_INDEX * mChess.vertexCount, 0);
+        // DrawGraphics(command, &mChess);
+    }
 }
 // void VulkanChess::DrawGraphics(VkCommandBuffer command, const BaseGraphics *ptrGraphics){
 //     VkDeviceSize offset = 0;
@@ -217,7 +219,7 @@ void VulkanChess::Setup(VkPhysicalDevice physicalDevice, VkDevice device, VkDesc
     SetupDescriptorSet(device, setLayout, pool.descriptorPool);
 }
 
-void VulkanChess::RecordCommand(VkCommandBuffer cmd, uint32_t windowWidth){
+void VulkanChess::RecordCommand(VkCommandBuffer cmd, uint32_t windowWidth, uint32_t currentCountry){
     const glm::mat4 projection = glm::ortho(0.0f, (float)windowWidth, 0.0f, (float)windowWidth, -1.0f, 1.0f);
     pipelines.chess.BindPipeline(cmd);
     pipelines.chess.PushConstant(cmd, VK_SHADER_STAGE_VERTEX_BIT, sizeof(glm::mat4), &projection);
@@ -226,7 +228,7 @@ void VulkanChess::RecordCommand(VkCommandBuffer cmd, uint32_t windowWidth){
     vkCmdBindVertexBuffers(cmd, 0, 1, &mChess.vertex.buffer, &offset);
     vkCmdBindIndexBuffer(cmd, mChess.index.buffer, 0, VK_INDEX_TYPE_UINT16);
 
-    DrawChess(cmd, pipelines.chess);
+    DrawChess(cmd, currentCountry, pipelines.chess);
 
     pipelines.font.BindPipeline(cmd);
     pipelines.font.PushConstant(cmd, VK_SHADER_STAGE_VERTEX_BIT, sizeof(glm::mat4), &projection);

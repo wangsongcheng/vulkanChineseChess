@@ -58,7 +58,7 @@ public:
 
     void Cleanup(VkDevice device);
     void Setup(VkPhysicalDevice physicalDevice, VkDevice device, VkDescriptorSetLayout setLayout, uint32_t windowWidth, VkQueue graphics, VulkanPool pool);
-    void RecordCommand(VkCommandBuffer cmd, uint32_t windowWidth);
+    void RecordCommand(VkCommandBuffer cmd, uint32_t windowWidth, uint32_t currentCountry);
 
     void UpdateUniform(VkDevice device);
     void ClearSelectWireframeUnfirom(VkDevice device);

@@ -667,8 +667,7 @@ void RecordCommand(uint32_t currentFrame){
     vkBeginCommandBuffer(g_CommandBuffers[currentFrame], &beginInfo);
     vkCmdBeginRenderPass(g_CommandBuffers[currentFrame], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 
-    g_Chessboard.RecordCommand(g_CommandBuffers[currentFrame], g_WindowWidth);
-    // g_VulkanChessboard.RecordCommand(g_CommandBuffers[currentFrame], g_CurrentCountry);
+    g_Chessboard.RecordCommand(g_CommandBuffers[currentFrame], g_WindowWidth, g_CurrentCountry);
 
     vkCmdEndRenderPass(g_CommandBuffers[currentFrame]);
     vkEndCommandBuffer(g_CommandBuffers[currentFrame]);
@@ -708,6 +707,10 @@ void mousebutton(GLFWwindow *windows, int button, int action, int mods){
         }
         else if(pSelected){
             Play(mousePos, nullptr);
+        }
+        vkDeviceWaitIdle(g_VulkanDevice.device);
+        for (size_t i = 0; i < g_VulkanWindows.framebuffers.size(); ++i){
+            RecordCommand(i);
         }
     }
 }
