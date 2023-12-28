@@ -1,186 +1,158 @@
-#ifndef CHESS_H
-#define CHESS_H
-#include "Pipeline.h"
-#include "vulkanFrame.h"
+#ifndef CHESS_INCLUDE_H
+#define CHESS_INCLUDE_H
+#include <vector>
+#include "VulkanChess.h"
 #include "glm/glm.hpp"
 #include "glm/gtc/matrix_transform.hpp"
-//因为GetCountryBehind函数中的值是写死的，所以在修改颜色或国家位置后可能需要修改函数内的方向
-#define WU_CHESS_COUNTRY_COLOR glm::vec3(0, 1, 0)
-#define WEI_CHESS_COUNTRY_COLOR glm::vec3(0, 0, 1)
-#define SHU_CHESS_COUNTRY_COLOR glm::vec3(1, 0, 0)
-#define HAN_CHESS_COUNTRY_COLOR glm::vec3(1, 1, 0)
+//除非增加新棋,否则在不包括汉棋子的情况下, 其他棋子的值应该在16以下;这些值主要用于动态偏移
+#define MA_CHESS_INDEX_1 1
+#define MA_CHESS_INDEX_2 2
+#define JIANG_CHESS_INDEX 0
+#define PAO_CHESS_INDEX_1 7
+#define PAO_CHESS_INDEX_2 8
+#define CHE_CHESS_INDEX_1 9
+#define CHE_CHESS_INDEX_2 10
+#define SHI_CHESS_INDEX_1 3
+#define SHI_CHESS_INDEX_2 4
+#define XIANG_CHESS_INDEX_1 5
+#define XIANG_CHESS_INDEX_2 6
+#define BING_CHESS_INDEX_1 11
+#define BING_CHESS_INDEX_2 12
+#define BING_CHESS_INDEX_3 13
+#define BING_CHESS_INDEX_4 14
+#define BING_CHESS_INDEX_5 15
+//因为漢也有'将'所以从1开始
+#define PAO_CHESS_INDEX_3 1
+#define CHE_CHESS_INDEX_3 2
+#define CHE_CHESS_INDEX_4 3
+#define CHE_CHESS_INDEX_5 4
 
-#define CHESSBOARD_LINE_WIDTH 1
-#define CHESSBOARD_GRID_SIZE 40
-#define ROW_TO_Y(ROW, GRIDSIZE, LINE_WIDTH)((GRIDSIZE) + (ROW) * (GRIDSIZE) + ((ROW) + 1) * LINE_WIDTH)
-#define COLUMN_TO_X(COLUMN, GRIDSIZE, LINE_WIDTH)(ROW_TO_Y(COLUMN, GRIDSIZE, LINE_WIDTH))
-#define CHESSBOARD_ROW_TO_Y(ROW)(ROW_TO_Y(ROW, CHESSBOARD_GRID_SIZE, CHESSBOARD_LINE_WIDTH))
-// #define CHESSBOARD_ROW_TO_Y(ROW)(ROW_TO_Y(ROW, CHESSBOARD_GRID_SIZE, CHESSBOARD_LINE_WIDTH) - (CHESSBOARD_GRID_SIZE * .5 + CHESSBOARD_LINE_WIDTH))
-#define CHESSBOARD_COLUMN_TO_X(COLUMN)(CHESSBOARD_ROW_TO_Y(COLUMN))
-
-#define CHESS_WIDTH (CHESSBOARD_GRID_SIZE * .45)
+#define CHESS_WIDTH 20
 #define CHESS_HEIGHT CHESS_WIDTH
-#define CHESS_FONT_IMAGE_WIDTH CHESS_WIDTH
-#define CHESS_FONT_ROOT_PATH "./ChessFont/"
-#define CHESS_FONT_IMAGE_HEIGHT CHESS_FONT_IMAGE_WIDTH
-struct Ranks{
+#define ROW_TO_Y(ROW)((CHESSBOARD_GRID_SIZE) + (ROW) * (CHESSBOARD_GRID_SIZE) + ((ROW) + 1) * CHESSBOARD_LINE_WIDTH)
+#define COLUMN_TO_X(COLUMN)(ROW_TO_Y(COLUMN))
+struct ChessInfo{
     uint32_t row;
+    uint32_t chess;//一般用上面的宏赋值(*_CHESS_INDEX_*)
     uint32_t column;
-    Ranks(){
+    uint32_t country;
+    uint32_t fontIndex;
+    ChessInfo(){
     }
-    Ranks(uint32_t row, uint32_t column){
+    ChessInfo(uint32_t row, uint32_t column){
         this->row = row;
         this->column = column;
     }
-    ~Ranks(){
-        
+    // ChessInfo(uint32_t country, uint32_t row, uint32_t column){
+    //     this->row = row;
+    //     this->column = column;
+    //     this->country = country;
+    // }
+    ~ChessInfo(){
+
     }
 };
-struct ChessVertex {
-    glm::vec3 pos;
-    glm::vec3 color;
-    ChessVertex(const glm::vec3&pos, const glm::vec3&color){
-        this->pos = pos;
-        this->color = color;
-    }
-};
-struct ChessFontVertex {
-    glm::vec3 pos;
-    glm::vec2 uv;
-    ChessFontVertex(const glm::vec3&pos, const glm::vec2&uv){
-        this->pos = pos;
-        this->uv = uv;
-    }
-};
-class Chessboard;
 class Chess{
     glm::vec2 mPos;
-    VulkanBuffer mPosition;
-    glm::vec3 mCountryColor;
-    VulkanBuffer mFontPosition;
-    VulkanBuffer mVertex, mIndex;
-    VkDescriptorSet mSet, mFontSet;
-    VulkanBuffer mFontVertex, mFontIndex;
-    uint32_t mIndicesCount, mVerticesCount;
-    GraphicsPipeline mPipeline, mFontPipeline;
 protected:
-    VulkanImage mFont;
-    uint32_t mRow, mColumn;//棋子目前所在的行列
-    void DrawFont(VkCommandBuffer cmd);
-    void DrawCircular(VkCommandBuffer cmd, bool bBan);
-    void GetCircularVertex(const glm::vec3&color, std::vector<ChessVertex>&vertices);
-    bool CreateTexture(VkDevice device, const char *file, VkCommandPool pool, VkQueue graphics);
-    void CreateGraphicsPipeline(VkDevice device, uint32_t windowWidth, VkRenderPass renderpass, const std::vector<std::string>&shader, GraphicsPipeline&pipeline, const GraphicsPipelineStateInfo&pipelineState = {});
+    ChessInfo mInfo;
+    const ChessInfo *GetChessInfo(const ChessInfo *pInfo, uint32_t count, uint32_t row, uint32_t column)const;
 public:
-    Chess(/* args */);
+    Chess(const ChessInfo&info);
     ~Chess();
-    void Cleanup(VkDevice device);
-    void DestroyGraphicsPipeline(VkDevice device);
-    void RecordCommand(VkCommandBuffer cmd, uint32_t windowWidth, bool bBan);
-    void CreatePipeline(VkDevice device, VkRenderPass renderpass, uint32_t windowWidth);
-    void CreateVulkanResource(VkDevice device, const glm::vec3&color, const VulkanPool&pool, VkQueue graphics);
+    void ResetPos(uint32_t row, uint32_t column);
+    //返回真表示在边界上，不能下棋
+    bool IsBoundary(uint32_t row, uint32_t column)const;
+    bool IsInPalace(uint32_t row, uint32_t column, uint32_t centerCount, const ChessInfo *center)const;
+    bool IsPalaceCenter(uint32_t row, uint32_t column, uint32_t centerCount, const ChessInfo *center)const;
+    //该函数不考虑其他地方是否有棋子, 因此调用完后需要在判断一次
+    void SelectChessInPalace(uint32_t centerCount, const ChessInfo *center, std::vector<ChessInfo>&canplays)const;
 
-    void UpdateSet(VkDevice device, VkSampler fontSampler);
-    virtual void UpdateUniform(VkDevice device, const glm::vec2&pos);
-    virtual void UpdateUniform(VkDevice device, uint32_t row, uint32_t column);
-    
-    bool isSelect(const glm::vec2&pos);
-    inline glm::vec3 GetCountryColor()const{
-        return mCountryColor;
+        //可以通过返回mInfo.chess来得到棋子索引
+//     bool isSelect(const glm::vec2&pos);
+//     inline glm::vec3 GetCountryColor()const{
+//         return mCountryColor;
+//     }
+    inline bool IsSelect(const glm::vec2&pos)const{
+        return abs(pos.x - mPos.x) < CHESS_WIDTH && abs(pos.y - mPos.y) < CHESS_HEIGHT;
     }
-    inline bool isSelect(uint32_t row, uint32_t column)const{
-        return row == mRow && column == mColumn;
-    }
-    inline void GetChessRanks(uint32_t&row, uint32_t&column)const{
-        row = mRow;
-        column = mColumn;
-    }
-    //该函数不考虑九宫格
-    virtual void Selected(const Chessboard *chessboard, std::vector<Ranks>&canplays) = 0;
-    virtual void CreateFontTexture(VkDevice device, const unsigned char *fontfiledata, VkCommandPool pool, VkQueue graphics) = 0;
+//     inline void GetChessRanks(uint32_t&row, uint32_t&column)const{
+//         row = mRow;
+//         column = mColumn;
+//     }
+    virtual void Selected(const ChessInfo *pInfo, uint32_t count, std::vector<ChessInfo>&canplays) = 0;
 };
 
 class Wei:public Chess{
+    ChessInfo mCenter;//九宫格中心
 public:
-    Wei();
+    Wei(const ChessInfo&info);
     ~Wei();
-    virtual void Selected(const Chessboard *chessboard, std::vector<Ranks>&canplays);
-    // //一般情况下其他棋子不需要该函数。//重写是因为需要记录一次mFirstRow, mFirstColumn
-    // virtual void UpdateUniform(VkDevice device, uint32_t row, uint32_t column);
-    virtual void CreateFontTexture(VkDevice device, const unsigned char *fontfiledata, VkCommandPool pool, VkQueue graphics);
+    virtual void Selected(const ChessInfo *pInfo, uint32_t count, std::vector<ChessInfo>&canplays);
 };
 
 class Shu:public Chess{
+    ChessInfo mCenter;//九宫格中心
 public:
-    Shu();
+    Shu(const ChessInfo&info);
     ~Shu();
-    virtual void Selected(const Chessboard *chessboard, std::vector<Ranks>&canplays);
-    // //一般情况下其他棋子不需要该函数。
-    // virtual void UpdateUniform(VkDevice device, uint32_t row, uint32_t column);
-    virtual void CreateFontTexture(VkDevice device, const unsigned char *fontfiledata, VkCommandPool pool, VkQueue graphics);
+    virtual void Selected(const ChessInfo *pInfo, uint32_t count, std::vector<ChessInfo>&canplays);
 };
 
 class Wu:public Chess{
+    ChessInfo mCenter;//九宫格中心
 public:
-    Wu();
+    Wu(const ChessInfo&info);
     ~Wu();
-    virtual void Selected(const Chessboard *chessboard, std::vector<Ranks>&canplays);
-    // //一般情况下其他棋子不需要该函数。
-    // virtual void UpdateUniform(VkDevice device, uint32_t row, uint32_t column);
-    virtual void CreateFontTexture(VkDevice device, const unsigned char *fontfiledata, VkCommandPool pool, VkQueue graphics);
+    virtual void Selected(const ChessInfo *pInfo, uint32_t count, std::vector<ChessInfo>&canplays);
 };
 
 class Han:public Chess{
 public:
-    Han();
+    Han(const ChessInfo&info);
     ~Han();
-    virtual void Selected(const Chessboard *chessboard, std::vector<Ranks>&canplays);
-    virtual void CreateFontTexture(VkDevice device, const unsigned char *fontfiledata, VkCommandPool pool, VkQueue graphics);
+    virtual void Selected(const ChessInfo *pInfo, uint32_t count, std::vector<ChessInfo>&canplays);
 };
 class Bing:public Chess{
+    ChessInfo mCenter[2];//九宫格中心
+    glm::vec2 GetCountryBack(uint32_t country)const;
 public:
-    Bing();
+    Bing(const ChessInfo&info);
     ~Bing();
-    virtual void Selected(const Chessboard *chessboard, std::vector<Ranks>&canplays);
-    virtual void CreateFontTexture(VkDevice device, const unsigned char *fontfiledata, VkCommandPool pool, VkQueue graphics);
+    virtual void Selected(const ChessInfo *pInfo, uint32_t count, std::vector<ChessInfo>&canplays);
 };
 class Pao:public Chess{
+    ChessInfo mCenter[3];//九宫格中心
 public:
-    Pao();
+    Pao(const ChessInfo&info);
     ~Pao();
-    virtual void Selected(const Chessboard *chessboard, std::vector<Ranks>&canplays);
-    virtual void CreateFontTexture(VkDevice device, const unsigned char *fontfiledata, VkCommandPool pool, VkQueue graphics);
+    virtual void Selected(const ChessInfo *pInfo, uint32_t count, std::vector<ChessInfo>&canplays);
 };
 class Che:public Chess{
+    ChessInfo mCenter[3];//九宫格中心
 public:
-    Che();
+    Che(const ChessInfo&info);
     ~Che();
-    virtual void Selected(const Chessboard *chessboard, std::vector<Ranks>&canplays);
-    virtual void CreateFontTexture(VkDevice device, const unsigned char *fontfiledata, VkCommandPool pool, VkQueue graphics);
+    virtual void Selected(const ChessInfo *pInfo, uint32_t count, std::vector<ChessInfo>&canplays);
 };
 class Ma:public Chess{
+    ChessInfo mCenter[3];//九宫格中心
 public:
-    Ma();
+    Ma(const ChessInfo&info);
     ~Ma();
-    virtual void Selected(const Chessboard *chessboard, std::vector<Ranks>&canplays);
-    virtual void CreateFontTexture(VkDevice device, const unsigned char *fontfiledata, VkCommandPool pool, VkQueue graphics);
+    virtual void Selected(const ChessInfo *pInfo, uint32_t count, std::vector<ChessInfo>&canplays);
 };
 class Xiang:public Chess{
 public:
-    Xiang();
+    Xiang(const ChessInfo&info);
     ~Xiang();
-    virtual void Selected(const Chessboard *chessboard, std::vector<Ranks>&canplays);
-    virtual void CreateFontTexture(VkDevice device, const unsigned char *fontfiledata, VkCommandPool pool, VkQueue graphics);
+    virtual void Selected(const ChessInfo *pInfo, uint32_t count, std::vector<ChessInfo>&canplays);
 };
 class Shi:public Chess{
+    ChessInfo mCenter;//九宫格中心
 public:
-    Shi();
+    Shi(const ChessInfo&info);
     ~Shi();
-    virtual void Selected(const Chessboard *chessboard, std::vector<Ranks>&canplays);
-    virtual void CreateFontTexture(VkDevice device, const unsigned char *fontfiledata, VkCommandPool pool, VkQueue graphics);
+    virtual void Selected(const ChessInfo *pInfo, uint32_t count, std::vector<ChessInfo>&canplays);
 };
-
-// void CreateFontImage(const std::string&fontfile, const std::string&outPath = CHESS_FONT_ROOT_PATH);
-// bool GenerateFontImage(int bitmap_w, int bitmap_h, wchar_t word, const char *outImageName, const unsigned char *fontData, float pixels = 30);
-// bool GenerateFontImage(int bitmap_w, int bitmap_h, const wchar_t *word, uint32_t wordCount, const char *outImageName, const unsigned char *fontData, float pixels = 30);
 #endif

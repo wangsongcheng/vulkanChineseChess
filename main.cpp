@@ -3,9 +3,12 @@
 #include <GLFW/glfw3.h>
 
 #include "Chessboard.h"
-#include "vulkanFrame.h"
+#include "VulkanChessboard.h"
 
-#define INTERNET_MODE
+#include "imgui_impl_glfw.h"
+#include "imgui_impl_vulkan.h"
+
+// #define INTERNET_MODE
 
 #ifdef INTERNET_MODE
 #include <array>
@@ -23,8 +26,6 @@
 #include <sys/socket.h>
 typedef unsigned int SOCKET;
 #endif
-#include "imgui_impl_glfw.h"
-#include "imgui_impl_vulkan.h"
 #define INTERNET_PORT 10086
 #define MAX_NAME 0x255
 enum GameEvent{
@@ -92,26 +93,20 @@ VulkanWindows g_VulkanWindows;
 VulkanSynchronize g_VulkanSynchronize;
 VkDebugUtilsMessengerEXT g_VulkanMessenger;
 //                              163 * 2 + 400 + 11
-const uint32_t g_WindowWidth = CHESSBOARD_GRID_SIZE_BIG * 2 + 10 * CHESSBOARD_GRID_SIZE + 11 * CHESSBOARD_LINE_WIDTH, g_WindowHeight = g_WindowWidth;
+const uint32_t g_WindowWidth = CHESSBOARD_BIG_GRID_SIZE * 2 + 10 * CHESSBOARD_GRID_SIZE + 11 * CHESSBOARD_LINE_WIDTH, g_WindowHeight = g_WindowWidth;
 
 Chessboard g_Chessboard;
-glm::vec3 g_CurrentCountry;
+uint32_t g_CurrentCountry;
 
 VkSampler g_TextureSampler;
-glm::vec3 NextCountry(){
-    std::vector<glm::vec3>color;
-    static uint32_t index = 0;
-    if(!g_Chessboard.IsPerish(WEI_CHESS_INDEX))color.push_back(WEI_CHESS_COUNTRY_COLOR);
-    if(!g_Chessboard.IsPerish(SHU_CHESS_INDEX))color.push_back(SHU_CHESS_COUNTRY_COLOR);
-    if(!g_Chessboard.IsPerish(WU_CHESS_INDEX))color.push_back(WU_CHESS_COUNTRY_COLOR);
-    glm::vec3 next = color[index];
-    index = (index + 1) % color.size();
-    return next;
-}
-void InitChessboard(){
-    g_Chessboard.InitChessboard(g_VulkanDevice.device);
+VkPipelineCache g_PipelineCache;
+VkDescriptorSetLayout g_SetLayout;
 
-    g_CurrentCountry = NextCountry();
+uint32_t NextCountry(){
+    do{
+        g_CurrentCountry = (g_CurrentCountry + 1) % 3;
+    } while (g_Chessboard.IsDeath(g_CurrentCountry));
+    return g_CurrentCountry;
 }
 VkBool32 VKAPI_PTR debugUtilsMessenger(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageTypes, const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData, void* pUserData){
     const char* strMessageSeverity = nullptr;//, *strMessageTypes = nullptr;
@@ -149,7 +144,7 @@ void setupVulkan(GLFWwindow *window){
     vkf::CreateSwapchain(g_VulkanDevice.physicalDevice, g_VulkanDevice.device, g_VulkanWindows.surface, g_VulkanWindows.swapchain);
     vkf::CreateRenderPassForSwapchain(g_VulkanDevice.device, g_VulkanWindows.renderpass);
     vkf::CreateCommandPool(g_VulkanDevice.physicalDevice, g_VulkanDevice.device, g_VulkanPool.commandPool, VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
-    vkf::CreateFrameBufferForSwapchain(g_VulkanDevice.device, { g_WindowWidth, g_WindowHeight }, g_VulkanWindows, g_VulkanPool.commandPool, g_VulkanQueue.graphics);
+    vkf::CreateFrameBufferForSwapchain(g_VulkanDevice.device, { g_WindowWidth, g_WindowHeight }, g_VulkanWindows);
     vkf::CreateSemaphoreAndFenceForSwapchain(g_VulkanDevice.device, 3, g_VulkanSynchronize);
 #ifdef INTERNET_MODE
     vkf::CreateDescriptorPool(g_VulkanDevice.device, 148, g_VulkanPool.descriptorPool);
@@ -204,14 +199,11 @@ void cleanupVulkan(){
     vkDestroyDevice(g_VulkanDevice.device, nullptr);
     vkDestroyInstance(g_VulkanDevice.instance, nullptr);
 }
-void Play(const glm::vec2&mousePos){
-    bool bNext;
-    uint32_t country;
-    if(g_Chessboard.Play(g_VulkanDevice.device, mousePos, country, bNext)){
-        // vkDeviceWaitIdle(g_VulkanDevice.device);
-        g_Chessboard.DestroyChess(g_VulkanDevice.device, country);
-    }
-    if(bNext){
+void Play(const glm::vec2&mousePos, const ChessInfo *pRival){
+    //或者也可以在ai调用这个函数前先设置选择的棋子
+    if(g_Chessboard.Play(g_VulkanDevice.device, mousePos, pRival)){
+        if(pRival && g_Chessboard.IsDeath(pRival->country))
+            g_Chessboard.DestroyCountry(g_VulkanDevice.device, pRival->country);
         g_CurrentCountry = NextCountry();
     }
 }
@@ -675,65 +667,81 @@ void RecordCommand(uint32_t currentFrame){
     vkBeginCommandBuffer(g_CommandBuffers[currentFrame], &beginInfo);
     vkCmdBeginRenderPass(g_CommandBuffers[currentFrame], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 
-    g_Chessboard.RecordCommand(g_CommandBuffers[currentFrame], g_CurrentCountry);
+    g_Chessboard.RecordCommand(g_CommandBuffers[currentFrame], g_WindowWidth);
+    // g_VulkanChessboard.RecordCommand(g_CommandBuffers[currentFrame], g_CurrentCountry);
 
     vkCmdEndRenderPass(g_CommandBuffers[currentFrame]);
     vkEndCommandBuffer(g_CommandBuffers[currentFrame]);
 }
 #endif
-glm::vec2 g_SelectPos;
+// glm::vec2 g_SelectPos;
 void mousebutton(GLFWwindow *windows, int button, int action, int mods){
-    double xpos, ypos;
-    glfwGetCursorPos(windows, &xpos, &ypos);
-    if(action == GLFW_RELEASE){
-        if(button == GLFW_MOUSE_BUTTON_LEFT){
-            //单机和局域网联机差不多。无非就是要接收和发送消息
-            const Chess *chess = g_Chessboard.GetChess(glm::vec2(xpos, ypos));
-            if(!g_Chessboard.IsSelected() || (chess && g_Chessboard.IsSelfChess(chess->GetCountryColor()))){
-                if(chess){
+    if(action == GLFW_RELEASE && button == GLFW_MOUSE_BUTTON_LEFT){
+        double xpos, ypos;
+        glfwGetCursorPos(windows, &xpos, &ypos);
+        const glm::vec2 mousePos = glm::vec2(xpos, ypos);
+        //单机和局域网联机差不多。无非就是要接收和发送消息
+        const ChessInfo *pSelected = g_Chessboard.GetSelected();
+        const ChessInfo *pChessInfo = g_Chessboard.GetSelectInfo(mousePos);//因为选择的地方没棋子，所以就不能获得棋子，导致无法走棋
+        if(pChessInfo){
+            if(pSelected && pChessInfo->country != g_CurrentCountry){
+#ifdef INTERNET_MODE
+                Play(g_Player, mousePos, g_SelectPos);
+#else
+                Play(mousePos, pChessInfo);
+#endif
+            }
+            else if(pChessInfo->country == g_CurrentCountry){
+                g_Chessboard.UnSelect(g_VulkanDevice.device);
+                if(!pSelected || (pSelected->row != pChessInfo->row || pSelected->column != pChessInfo->column)){
+                    g_Chessboard.SetSelected(pChessInfo);
 #ifdef INTERNET_MODE
                     if(g_CurrentCountry == g_Player.color){
-                        g_SelectPos = glm::vec2(xpos, ypos);
+                        g_SelectPos = mousePos;
                         g_Chessboard.Select(g_VulkanDevice.device, g_SelectPos);
                     }
 #else
-                    if(g_CurrentCountry == chess->GetCountryColor()){
-                        g_Chessboard.Select(g_VulkanDevice.device, glm::vec2(xpos, ypos));
-                    }
+                    g_Chessboard.Selected(g_VulkanDevice.device);
 #endif
                 }
             }
-            else{
-#ifdef INTERNET_MODE
-                if(!chess || chess->GetCountryColor() != g_Player.color)Play(g_Player, glm::vec2(xpos, ypos), g_SelectPos);
-#else
-                Play(glm::vec2(xpos, ypos));
-                vkDeviceWaitIdle(g_VulkanDevice.device);
-                for (size_t i = 0; i < g_VulkanWindows.framebuffers.size(); ++i){
-                    RecordCommand(i);
-                }
-#endif
-            }
+        }
+        else if(pSelected){
+            Play(mousePos, nullptr);
         }
     }
 }
+void SetupDescriptorSetLayout(VkDevice device){
+    VkDescriptorSetLayoutBinding descriptorSetLayoutBindings[2] = {};
+    // descriptorSetLayoutBindings[0].binding = 0;
+    descriptorSetLayoutBindings[0].descriptorCount = 1;
+    descriptorSetLayoutBindings[0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+    descriptorSetLayoutBindings[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
+    descriptorSetLayoutBindings[1].binding = 1;
+    descriptorSetLayoutBindings[1].descriptorCount = 1;
+    descriptorSetLayoutBindings[1].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    descriptorSetLayoutBindings[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    vkf::CreateDescriptorSetLayout(device, sizeof(descriptorSetLayoutBindings) / sizeof(VkDescriptorSetLayoutBinding), descriptorSetLayoutBindings, &g_SetLayout);
+}
 void setup(GLFWwindow *windows){
     glfwSetMouseButtonCallback(windows, mousebutton);
+
+    SetupDescriptorSetLayout(g_VulkanDevice.device);
     vkf::CreateTextureSampler(g_VulkanDevice.device, g_TextureSampler);
+    vkf::CreatePipelineCache(g_VulkanDevice.device, "GraphicsPipelineCache", g_PipelineCache);
 
-    g_Chessboard.CreatePipeline(g_VulkanDevice.device, g_VulkanWindows.renderpass, g_WindowWidth);
-    g_Chessboard.CreateVulkanResource(g_VulkanDevice.physicalDevice, g_VulkanDevice.device, g_WindowWidth, g_VulkanQueue.graphics, g_VulkanPool, g_VulkanWindows.renderpass, g_TextureSampler);
+    g_Chessboard.Setup(g_VulkanDevice.physicalDevice, g_VulkanDevice.device, g_SetLayout, g_WindowWidth, g_VulkanQueue.graphics, g_VulkanPool);
+    g_Chessboard.CreatePipeline(g_VulkanDevice.device, g_VulkanWindows.renderpass, g_SetLayout, g_PipelineCache, g_WindowWidth);
 
-    g_Chessboard.UpdateSet(g_VulkanDevice.device);
-#ifndef INTERNET_MODE
-    InitChessboard();
-#endif
+    g_Chessboard.UpdateBackgroundUniform(g_VulkanDevice.device, g_WindowWidth);
+    g_Chessboard.UpdateUniform(g_VulkanDevice.device);
+    g_Chessboard.InitChess(g_VulkanDevice.device);
+
     //局域网联机需要imgui
     //先通过ip连接, 后面知道怎么广播再说
     //或者说，先实现简单的网络联机，在解决广播问题
 #ifdef INTERNET_MODE
     vkf::tool::AllocateCommandBuffers(g_VulkanDevice.device, g_VulkanPool.commandPool, 1, &g_CommandBuffers);
-
     //imgui
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
@@ -760,11 +768,7 @@ void setup(GLFWwindow *windows){
 
     io.Fonts->AddFontFromFileTTF("fonts/SourceHanSerifCN-Bold.otf", 20, NULL, io.Fonts->GetGlyphRangesChineseFull());
 
-    VkCommandBuffer cmd;
-    vkf::tool::BeginSingleTimeCommands(g_VulkanDevice.device, g_VulkanPool.commandPool, cmd);
-    ImGui_ImplVulkan_CreateFontsTexture(cmd);
-    vkf::tool::EndSingleTimeCommands(g_VulkanDevice.device, g_VulkanPool.commandPool, g_VulkanQueue.graphics, cmd);
-    ImGui_ImplVulkan_DestroyFontUploadObjects();
+    ImGui_ImplVulkan_CreateFontsTexture(g_VulkanPool.commandPool, g_VulkanQueue.graphics);
 #ifdef WIN32
     WSADATA wsaData;
     int wsaResult = WSAStartup(MAKEWORD(2, 2), &wsaData);
@@ -801,7 +805,14 @@ void cleanup(){
     WSACleanup();
 #endif
 #endif
+    vkDestroyDescriptorSetLayout(g_VulkanDevice.device, g_SetLayout, nullptr);
+    vkf::DestroyPipelineCache(g_VulkanDevice.device, "GraphicsPipelineCache", g_PipelineCache);
+
+    // g_Chessboard.Cleanup(g_VulkanDevice.device);
+    
+    g_Chessboard.DestroyGraphicsPipeline(g_VulkanDevice.device);
     g_Chessboard.Cleanup(g_VulkanDevice.device);
+
     vkDestroySampler(g_VulkanDevice.device, g_TextureSampler, nullptr);
 }
 void display(GLFWwindow* window){
