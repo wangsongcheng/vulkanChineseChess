@@ -1,4 +1,4 @@
-#include "chess.h"
+#include "Chess.h"
 #include "VulkanChess.h"
 #include "VulkanChessboard.h"
 // #define STB_IMAGE_IMPLEMENTATION
@@ -47,48 +47,55 @@ bool Chess::IsBoundary(uint32_t row, uint32_t column) const{
     }
     return false;
 }
-bool Chess::IsInPalace(uint32_t row, uint32_t column, uint32_t centerCount, const ChessInfo *center) const{
-    bool bInIsPalace = false;
-    if(IsPalaceCenter(row, column, centerCount, center))return true;
-    for (size_t i = 0; i < centerCount; ++i){
-        if(abs((float)row - center[i].row) < 2 && abs((float)column - center[i].column) < 2){
-            bInIsPalace = true;
-            break;
-        }
-    }
-    return bInIsPalace;
-}
-bool Chess::IsPalaceCenter(uint32_t row, uint32_t column, uint32_t centerCount, const ChessInfo *center)const{
+bool Chess::IsPalaceCenter(uint32_t centerCount, const ChessInfo *center)const{
     bool bIsPalaceCenter = false;
     for (size_t i = 0; i < centerCount; ++i){
-        if(row == center[i].row && column == center[i].column){
+        if(mInfo.row == center[i].row && mInfo.column == center[i].column){
+            // printf("%d国,%d行%d列的棋子:%d, 在中心为%d行%d列的九宫格内\n", mInfo.country, mInfo.row, mInfo.column, mInfo.chess, center[i].row, center[i].column);
             bIsPalaceCenter = true;
             break;
         }   
     }
     return bIsPalaceCenter;
 }
-void Chess::SelectChessInPalace(uint32_t centerCount, const ChessInfo *center, std::vector<ChessInfo>&canplays)const{
-    //只需要管斜线，其他位置归棋子子类管
+bool Chess::IsInPalace(uint32_t row, uint32_t column, uint32_t centerCount, const ChessInfo *center) const{
+    bool bInIsPalace = false;
+    if(IsPalaceCenter(centerCount, center))return true;
     for (size_t i = 0; i < centerCount; ++i){
-        if(!IsInPalace(mInfo.row, mInfo.column, centerCount, center))continue;
-        //上面的if已经排除了不在九宫格内的情况
-        if(center[i].row == mInfo.row && center[i].column == mInfo.column){
-            //除馬、相外, 其他棋子在中心点时，能走的肯定就是斜线边的点
-            canplays.push_back(ChessInfo(center[i].row - 1, center[i].column - 1));
-            canplays.push_back(ChessInfo(center[i].row + 1, center[i].column - 1));
-            canplays.push_back(ChessInfo(center[i].row + 1, center[i].column + 1));
-            canplays.push_back(ChessInfo(center[i].row - 1, center[i].column + 1));
+        const float uiRow = abs((float)row - center[i].row);
+        const float uiColumn = abs((float)column - center[i].column);
+        if(uiRow < 2 && uiColumn < 2){
+        // if(abs((float)row - center[i].row) < 2 && abs((float)column - center[i].column) < 2){
+            // printf("%d国, %d行%d列的棋子:%d, 行绝对值:%.0f, 列绝对值:%.0f, 属于中心位置为%d行, %d列九宫格内\n", mInfo.country, row, column, mInfo.chess, uiRow, uiColumn, center[i].row, center[i].column);
+            bInIsPalace = true;
             break;
         }
-        else if(mInfo.row != center[i].row && mInfo.column != center[i].column){
-            //在斜线边的点上时, 能走的只有中心点
-            canplays.push_back(ChessInfo(center[i].row, center[i].column));
+    }
+    return bInIsPalace;
+}
+void Chess::SelectChessInPalace(uint32_t centerCount, const ChessInfo *center, std::vector<ChessInfo>&canplays)const{
+    //只需要管斜线，其他位置归棋子子类管
+    if(IsInPalace(mInfo.row, mInfo.column, centerCount, center)){
+        for (size_t i = 0; i < centerCount; ++i){
+            //上面的if已经排除了不在九宫格内的情况
+            if(center[i].row == mInfo.row && center[i].column == mInfo.column){
+                //除馬、相外, 其他棋子在中心点时，能走的肯定就是斜线边的点
+                canplays.push_back(ChessInfo(center[i].row - 1, center[i].column - 1));
+                canplays.push_back(ChessInfo(center[i].row + 1, center[i].column - 1));
+                canplays.push_back(ChessInfo(center[i].row + 1, center[i].column + 1));
+                canplays.push_back(ChessInfo(center[i].row - 1, center[i].column + 1));
+                break;
+            }
+            else if(mInfo.row != center[i].row && mInfo.column != center[i].column){
+                //在斜线边的点上时, 能走的只有中心点
+                // printf("%d国, %d行%d列的棋子:%d, 在斜线上, 所以获得九宫格中心坐标\n", mInfo.country, mInfo.row, mInfo.column, mInfo.chess);
+                canplays.push_back(ChessInfo(center[i].row, center[i].column));
+                break;
+            }
         }
     }
 }
-Wei::Wei(const ChessInfo &info) : Chess(info)
-{
+Wei::Wei(const ChessInfo &info) : Chess(info){
     mCenter.row = 1;
     mCenter.column = 8;
 }
@@ -109,6 +116,15 @@ void Wei::Selected(const ChessInfo *pInfo, uint32_t count, std::vector<ChessInfo
         }
     }
     SelectChessInPalace(1, &mCenter, canplays);
+    //上面的函数无法排除同势力棋子, 所以在下面排除
+    const ChessInfo *pChessInfo = nullptr;
+    for (auto it = canplays.begin(); it < canplays.end(); ++it){
+        pChessInfo = GetChessInfo(pInfo, count, it->row, it->column);
+        if(pChessInfo && pChessInfo->country == mInfo.country){
+            canplays.erase(it);
+            it = canplays.begin();
+        }
+    }    
 }
 
 Shu::Shu(const ChessInfo&info):Chess(info){
@@ -130,16 +146,25 @@ void Shu::Selected(const ChessInfo *pInfo, uint32_t count, std::vector<ChessInfo
         }
     }
     SelectChessInPalace(1, &mCenter, canplays);
+    //上面的函数无法排除同势力棋子, 所以在下面排除
+    const ChessInfo *pChessInfo = nullptr;
+    for (auto it = canplays.begin(); it < canplays.end(); ++it){
+        pChessInfo = GetChessInfo(pInfo, count, it->row, it->column);
+        if(pChessInfo && pChessInfo->country == mInfo.country){
+            canplays.erase(it);
+            it = canplays.begin();
+        }
+    }
 }
 Wu::Wu(const ChessInfo&info):Chess(info){
-    mCenter.row = 15;
-    mCenter.column = 8;
+    mCenter.row = 8;
+    mCenter.column = 15;
 }
 Wu::~Wu(){
 
 }
 void Wu::Selected(const ChessInfo *pInfo, uint32_t count, std::vector<ChessInfo>&canplays){
-    const ChessInfo cInfo[] = { ChessInfo(mInfo.row, mInfo.column - 1), ChessInfo(mInfo.row + 1, mInfo.column), ChessInfo(mInfo.row - 1, mInfo.column), ChessInfo(mInfo.row, mInfo.column + 1) };
+    const ChessInfo cInfo[] = { ChessInfo(mInfo.row + 1, mInfo.column), ChessInfo(mInfo.row - 1, mInfo.column), ChessInfo(mInfo.row, mInfo.column + 1), ChessInfo(mInfo.row, mInfo.column - 1) };
     for(uint32_t i = 0; i < sizeof(cInfo) / sizeof(ChessInfo); ++i){
         if(!IsBoundary(cInfo[i].row, cInfo[i].column)){
             if(IsInPalace(cInfo[i].row, cInfo[i].column, 1, &mCenter)){
@@ -150,6 +175,15 @@ void Wu::Selected(const ChessInfo *pInfo, uint32_t count, std::vector<ChessInfo>
         }
     }
     SelectChessInPalace(1, &mCenter, canplays);
+    //上面的函数无法排除同势力棋子, 所以在下面排除
+    const ChessInfo *pChessInfo = nullptr;
+    for (auto it = canplays.begin(); it < canplays.end(); ++it){
+        pChessInfo = GetChessInfo(pInfo, count, it->row, it->column);
+        if(pChessInfo && pChessInfo->country == mInfo.country){
+            canplays.erase(it);
+            it = canplays.begin();
+        }
+    }
 }
 // void Wu::CreateFontTexture(VkDevice device, const unsigned char *fontfiledata, VkCommandPool pool, VkQueue graphics){
 //     unsigned char *bitmap = (unsigned char *)malloc(CHESS_FONT_IMAGE_WIDTH * CHESS_FONT_IMAGE_HEIGHT);
@@ -203,25 +237,25 @@ glm::vec2 Bing::GetCountryBack(uint32_t country)const{
 }
 Bing::Bing(const ChessInfo&info):Chess(info){
     if(mInfo.country == WEI_COUNTRY_INDEX){
-        mCenter[0].row = 15;
-        mCenter[0].column = 8;
+        mCenter[SHU_COUNTRY_INDEX].row = 15;
+        mCenter[SHU_COUNTRY_INDEX].column = 8;
 
-        mCenter[1].row = 8;
-        mCenter[1].column = 15;
+        mCenter[WU_COUNTRY_INDEX].row = 8;
+        mCenter[WU_COUNTRY_INDEX].column = 15;
     }
     else if(mInfo.country == SHU_COUNTRY_INDEX){
-        mCenter[0].row = 1;
-        mCenter[0].column = 8;
+        mCenter[WEI_COUNTRY_INDEX].row = 1;
+        mCenter[WEI_COUNTRY_INDEX].column = 8;
 
-        mCenter[1].row = 8;
-        mCenter[1].column = 15;
+        mCenter[WU_COUNTRY_INDEX].row = 8;
+        mCenter[WU_COUNTRY_INDEX].column = 15;
     }
     else{
-        mCenter[0].row = 1;
-        mCenter[0].column = 8;
+        mCenter[WEI_COUNTRY_INDEX].row = 1;
+        mCenter[WEI_COUNTRY_INDEX].column = 8;
 
-        mCenter[1].row = 15;
-        mCenter[1].column = 8;
+        mCenter[SHU_COUNTRY_INDEX].row = 15;
+        mCenter[SHU_COUNTRY_INDEX].column = 8;
     }
 }
 Bing::~Bing(){
@@ -242,6 +276,15 @@ void Bing::Selected(const ChessInfo *pInfo, uint32_t count, std::vector<ChessInf
         }
     }
     SelectChessInPalace(2, mCenter, canplays);
+    //上面的函数无法排除同势力棋子, 所以在下面排除
+    const ChessInfo *pChessInfo = nullptr;
+    for (auto it = canplays.begin(); it < canplays.end(); ++it){
+        pChessInfo = GetChessInfo(pInfo, count, it->row, it->column);
+        if(pChessInfo && pChessInfo->country == mInfo.country){
+            canplays.erase(it);
+            it = canplays.begin();
+        }
+    }
 }
 // void Bing::CreateFontTexture(VkDevice device, const unsigned char *fontfiledata, VkCommandPool pool, VkQueue graphics){
 //     unsigned char *bitmap = (unsigned char *)malloc(CHESS_FONT_IMAGE_WIDTH * CHESS_FONT_IMAGE_HEIGHT);
@@ -296,6 +339,21 @@ void Pao::Selected(const ChessInfo *pInfo, uint32_t count, std::vector<ChessInfo
         }
     }
     SelectChessInPalace(3, mCenter, canplays);
+    //上面的函数无法排除同势力棋子, 所以在下面排除
+    const ChessInfo *pChessInfo = nullptr;
+    for (auto it = canplays.begin(); it < canplays.end(); ++it){
+        pChessInfo = GetChessInfo(pInfo, count, it->row, it->column);
+        if(pChessInfo && pChessInfo->country == mInfo.country){
+            canplays.erase(it);
+            it = canplays.begin();
+        }
+    }
+    // //临时的检查
+    // for (size_t i = 0; i < canplays.size(); i++){
+    //     if(pInfo &&  canplays[i].row == 8 && canplays[i].column == 15){
+    //         printf("炮又跑到吴国九宫格中心\n");
+    //     }
+    // } 
 }
 // void Pao::CreateFontTexture(VkDevice device, const unsigned char *fontfiledata, VkCommandPool pool, VkQueue graphics){
 //     unsigned char *bitmap = (unsigned char *)malloc(CHESS_FONT_IMAGE_WIDTH * CHESS_FONT_IMAGE_HEIGHT);
@@ -317,8 +375,8 @@ Che::Che(const ChessInfo&info):Chess(info){
     mCenter[SHU_COUNTRY_INDEX].row = 15;
     mCenter[SHU_COUNTRY_INDEX].column = 8;
 
-    mCenter[WU_COUNTRY_INDEX].row = 15;
-    mCenter[WU_COUNTRY_INDEX].column = 8;
+    mCenter[WU_COUNTRY_INDEX].row = 8;
+    mCenter[WU_COUNTRY_INDEX].column = 15;
 }
 Che::~Che(){
     
@@ -343,6 +401,15 @@ void Che::Selected(const ChessInfo *pInfo, uint32_t count, std::vector<ChessInfo
         }
     }
     SelectChessInPalace(3, mCenter, canplays);
+    //上面的函数无法排除同势力棋子, 所以在下面排除
+    const ChessInfo *pChessInfo = nullptr;
+    for (auto it = canplays.begin(); it < canplays.end(); ++it){
+        pChessInfo = GetChessInfo(pInfo, count, it->row, it->column);
+        if(pChessInfo && pChessInfo->country == mInfo.country){
+            canplays.erase(it);
+            it = canplays.begin();
+        }
+    }
 }
 // void Che::CreateFontTexture(VkDevice device, const unsigned char *fontfiledata, VkCommandPool pool, VkQueue graphics){
 //     unsigned char *bitmap = (unsigned char *)malloc(CHESS_FONT_IMAGE_WIDTH * CHESS_FONT_IMAGE_HEIGHT);
@@ -364,8 +431,8 @@ Ma::Ma(const ChessInfo&info):Chess(info){
     mCenter[SHU_COUNTRY_INDEX].row = 15;
     mCenter[SHU_COUNTRY_INDEX].column = 8;
 
-    mCenter[WU_COUNTRY_INDEX].row = 15;
-    mCenter[WU_COUNTRY_INDEX].column = 8;
+    mCenter[WU_COUNTRY_INDEX].row = 8;
+    mCenter[WU_COUNTRY_INDEX].column = 15;
 }
 Ma::~Ma(){
     
@@ -390,6 +457,19 @@ void Ma::Selected(const ChessInfo *pInfo, uint32_t count, std::vector<ChessInfo>
 //     vkf::CreateFontImage(device, bitmap, CHESS_FONT_IMAGE_WIDTH, CHESS_FONT_IMAGE_HEIGHT, mFont, pool, graphics);
 //     free(bitmap);
 
+bool Xiang::IsAbroad(uint32_t row, uint32_t column){
+    if(mInfo.country == WEI_COUNTRY_INDEX){
+        if(row > 4 || column < 4 || column > 12)return false;
+    }
+    else if(mInfo.country == SHU_COUNTRY_INDEX){
+        if(row < 12 || column < 4 || column > 12)return false;
+    }
+    else{
+        if(column < 12 || row < 4 || row > 12)return false;
+    }
+    return true;
+}
+
 //     // if(!CreateTexture(device, CHESS_FONT_ROOT_PATH"馬.png", pool, graphics)){
 //     //     // CreateFontImage("fonts/SourceHanSerifCN-Bold.otf");
 //     //     // CreateTexture(device, CHESS_FONT_ROOT_PATH"馬.png", pool, graphics);
@@ -404,7 +484,7 @@ Xiang::~Xiang(){
 void Xiang::Selected(const ChessInfo *pInfo, uint32_t count, std::vector<ChessInfo>&canplays){
     const ChessInfo cInfo[] = { ChessInfo(mInfo.row + 2, mInfo.column + 2), ChessInfo(mInfo.row - 2, mInfo.column - 2), ChessInfo(mInfo.row - 2, mInfo.column + 2), ChessInfo(mInfo.row + 2, mInfo.column - 2) };
     for(uint32_t i = 0; i < sizeof(cInfo) / sizeof(ChessInfo); ++i){
-        if(!IsBoundary(cInfo[i].row, cInfo[i].column)){
+        if(!IsBoundary(cInfo[i].row, cInfo[i].column) && IsAbroad(cInfo[i].row, cInfo[i].column)){
             const ChessInfo *pChessInfo = GetChessInfo(pInfo, count, cInfo[i].row, cInfo[i].column);
             if(!pChessInfo || pChessInfo->country != mInfo.country)
                 canplays.push_back(ChessInfo(cInfo[i].row, cInfo[i].column));
@@ -433,8 +513,8 @@ Shi::Shi(const ChessInfo&info):Chess(info){
         mCenter.column = 8;
     }
     else{
-        mCenter.row = 15;
-        mCenter.column = 8;
+        mCenter.row = 8;
+        mCenter.column = 15;
     }
 }
 Shi::~Shi(){
@@ -442,6 +522,15 @@ Shi::~Shi(){
 }
 void Shi::Selected(const ChessInfo *pInfo, uint32_t count, std::vector<ChessInfo>&canplays){
     SelectChessInPalace(1, &mCenter, canplays);
+    //上面的函数无法排除同势力棋子, 所以在下面排除
+    const ChessInfo *pChessInfo = nullptr;
+    for (auto it = canplays.begin(); it < canplays.end(); ++it){
+        pChessInfo = GetChessInfo(pInfo, count, it->row, it->column);
+        if(pChessInfo && pChessInfo->country == mInfo.country){
+            canplays.erase(it);
+            it = canplays.begin();
+        }
+    }
 }
 // void Shi::CreateFontTexture(VkDevice device, const unsigned char *fontfiledata, VkCommandPool pool, VkQueue graphics){
 //     unsigned char *bitmap = (unsigned char *)malloc(CHESS_FONT_IMAGE_WIDTH * CHESS_FONT_IMAGE_HEIGHT);

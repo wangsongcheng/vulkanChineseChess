@@ -132,7 +132,6 @@ void Chessboard::InitChessInfo(uint32_t country){
     mChessInfo[country][JIANG_CHESS_INDEX].chess = JIANG_CHESS_INDEX;
     mChessInfo[country][JIANG_CHESS_INDEX].fontIndex = fontIndex[country];
     if(country != HAN_COUNTRY_INDEX){
-        // const 
         mChessInfo[country][MA_CHESS_INDEX_1].chess = MA_CHESS_INDEX_1;
         mChessInfo[country][MA_CHESS_INDEX_2].chess = MA_CHESS_INDEX_2;
         mChessInfo[country][SHI_CHESS_INDEX_1].chess = SHI_CHESS_INDEX_1;
@@ -240,10 +239,10 @@ void Chessboard::Cleanup(VkDevice device){
     VulkanChessboard::Cleanup(device);
 }
 void Chessboard::Selected(VkDevice device){
-    if(mSelected){
+    if(mSelected && !IsBoundary(mSelected->row, mSelected->column)){
         mCanplays.clear();
         ClearSelectWireframeUnfirom(device);
-        mChess[mSelected->country][mSelected->chess]->Selected((ChessInfo *)mChessInfo, 4 * WEI_CHESS_COUNT + 4, mCanplays);
+        mChess[mSelected->country][mSelected->chess]->Selected((ChessInfo *)mChessInfo, 4 * (WEI_CHESS_COUNT + 4), mCanplays);
     }
     else{
         printf("in function %s:mSelected is nullptr\n", __FUNCTION__);
@@ -280,9 +279,8 @@ void Chessboard::InitChess(VkDevice device){
         delete mChess[HAN_COUNTRY_INDEX][JIANG_CHESS_INDEX];
         mChess[HAN_COUNTRY_INDEX][JIANG_CHESS_INDEX] = nullptr;
     }
-    mChess[WU_COUNTRY_INDEX][JIANG_CHESS_INDEX] = new Wei(mChessInfo[WU_COUNTRY_INDEX][JIANG_CHESS_INDEX]);
-    mChess[WU_COUNTRY_INDEX][JIANG_CHESS_INDEX] = new Wei(mChessInfo[WU_COUNTRY_INDEX][JIANG_CHESS_INDEX]);
-    mChess[SHU_COUNTRY_INDEX][JIANG_CHESS_INDEX] = new Wei(mChessInfo[SHU_COUNTRY_INDEX][JIANG_CHESS_INDEX]);
+    mChess[WU_COUNTRY_INDEX][JIANG_CHESS_INDEX] = new Wu(mChessInfo[WU_COUNTRY_INDEX][JIANG_CHESS_INDEX]);
+    mChess[SHU_COUNTRY_INDEX][JIANG_CHESS_INDEX] = new Shu(mChessInfo[SHU_COUNTRY_INDEX][JIANG_CHESS_INDEX]);
     mChess[WEI_COUNTRY_INDEX][JIANG_CHESS_INDEX] = new Wei(mChessInfo[WEI_COUNTRY_INDEX][JIANG_CHESS_INDEX]);
     mChess[HAN_COUNTRY_INDEX][JIANG_CHESS_INDEX] = new Han(mChessInfo[HAN_COUNTRY_INDEX][JIANG_CHESS_INDEX]);
     for (size_t uiCountry = 0; uiCountry < 4; ++uiCountry){
@@ -405,6 +403,29 @@ void Chessboard::UpdateChess(VkDevice device){
         UpdateChessUniform(device, HAN_COUNTRY_INDEX, uiChess, mChessInfo[HAN_COUNTRY_INDEX][uiChess].row, mChessInfo[HAN_COUNTRY_INDEX][uiChess].column, mChessInfo[HAN_COUNTRY_INDEX][uiChess].fontIndex, chessSize);
     }
 }
+int32_t Chessboard::IsCanPlay(const glm::vec2&mousePos){
+    int32_t index = -1;
+    for (size_t i = 0; i < mCanplays.size(); ++i){
+        const uint32_t chessY = ROW_TO_Y(mCanplays[i].row) - CHESSBOARD_GRID_SIZE * .5;
+        const uint32_t chessX = COLUMN_TO_X(mCanplays[i].column) - CHESSBOARD_GRID_SIZE * .5;
+        if(mousePos.x > chessX && mousePos.y > chessY && mousePos.x < chessX + CHESSBOARD_GRID_SIZE && mousePos.y < chessY + CHESSBOARD_GRID_SIZE){
+            index = i;
+            break;
+        }
+    }
+    return index;
+}
+bool Chessboard::IsBoundary(uint32_t row, uint32_t column) const{
+    if(row > 16 || column > 16){
+        // printf("到达边界, row:%u, column:%u\n", row, column);
+        return true;
+    }
+    else if ((row < 4 || row > 12) && (row < 0 || column < 4 || column > 12)){
+        // printf("到达边界, row:%u, column:%u\n", row, column);
+        return true;
+    }
+    return false;
+}
 const ChessInfo *Chessboard::GetSelectInfo(const glm::vec2 &pos){
     const ChessInfo *pInfo = nullptr;
     for (size_t uiCountry = 0; uiCountry < 4; ++uiCountry){
@@ -447,7 +468,7 @@ const ChessInfo *Chessboard::GetChessInfo(uint32_t row, uint32_t column){
 const ChessInfo *Chessboard::GetChessInfo(uint32_t country, uint32_t row, uint32_t column){
     ChessInfo *pInfor = nullptr;
     for (size_t uiChess = 0; uiChess < WEI_CHESS_COUNT + 4; ++uiChess){
-        if(mChessInfo[country][uiChess].row && mChessInfo[country][uiChess].column){
+        if(mChessInfo[country][uiChess].row == row && mChessInfo[country][uiChess].column == column){
             pInfor = &mChessInfo[country][uiChess];
             break;
         }
@@ -455,32 +476,32 @@ const ChessInfo *Chessboard::GetChessInfo(uint32_t country, uint32_t row, uint32
     return pInfor;
 }
 bool Chessboard::Play(VkDevice device, const glm::vec2&mousePos, const ChessInfo *pRival){
-    bool bNext = false;
-    for (size_t i = 0; i < mCanplays.size(); ++i){
-        const uint32_t chessY = ROW_TO_Y(mCanplays[i].row) - CHESSBOARD_GRID_SIZE * .5;
-        const uint32_t chessX = COLUMN_TO_X(mCanplays[i].column) - CHESSBOARD_GRID_SIZE * .5;
-        if(mousePos.x > chessX && mousePos.y > chessY && mousePos.x < chessX + CHESSBOARD_GRID_SIZE && mousePos.y < chessY + CHESSBOARD_GRID_SIZE){
-            bNext = true;
-            if(pRival){
-                ChessInfo info = *pRival;
-                CaptureChess(mSelected->country, mSelected->chess, pRival->country, pRival->chess);
-                mSelected->row = info.row;
-                mSelected->column = info.column;
-                mChess[mSelected->country][mSelected->chess]->ResetPos(mSelected->row, mSelected->column);
-            }
-            else{
-                mSelected->row = mCanplays[i].row;
-                mSelected->column = mCanplays[i].column;                
-                mChess[mSelected->country][mSelected->chess]->ResetPos(mSelected->row, mSelected->column);
-            }
-            break;
+    int32_t index = IsCanPlay(mousePos);
+    if(index != -1){
+        const char county[][MAX_BYTE] = { "魏", "蜀", "吴", "汉" };
+        //这里用的字体顺序,修改需要注意
+        const char chess[][MAX_BYTE] = { "魏", "蜀", "吴", "漢", "兵", "炮", "車", "馬", "相", "士" };
+        if(pRival){
+            printf("%s国的%s吃掉了%s国的%s\n", county[mSelected->country], chess[mSelected->fontIndex], county[pRival->country], chess[pRival->fontIndex]);
+
+            ChessInfo info = *pRival;
+            CaptureChess(mSelected->country, mSelected->chess, pRival->country, pRival->chess);
+            mSelected->row = info.row;
+            mSelected->column = info.column;
         }
+        else{
+            mSelected->row = mCanplays[index].row;
+            mSelected->column = mCanplays[index].column;                
+         
+            // printf("%s国的%s走到了%d行%d列\n", county[mSelected->country], chess[mSelected->fontIndex], mSelected->row, mSelected->column); 
+        }
+        mChess[mSelected->country][mSelected->chess]->ResetPos(mSelected->row, mSelected->column);
     }
     mCanplays.clear();
     mSelected = nullptr;
     UpdateChess(device);
     ClearSelectWireframeUnfirom(device);
-    return bNext;
+    return index != -1;
 }
 void Chessboard::CaptureChess(uint32_t srcCountry, uint32_t srcChess, uint32_t dstCountry, uint32_t dstChess){
     if(mChessInfo[dstCountry][dstChess].chess == JIANG_CHESS_INDEX){

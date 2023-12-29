@@ -109,7 +109,7 @@ void VulkanBuffer::Destroy(VkDevice device){
 }
 VkPhysicalDevice vkf::GetPhysicalDevices(VkInstance instance, VkPhysicalDeviceType deviceType){
     uint32_t count;
-    VkPhysicalDevice physicalDevice;
+    VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;
     VkPhysicalDeviceProperties physicalDeviceProperties;
 	vkEnumeratePhysicalDevices(instance, &count, nullptr);
     if(count == 0){
@@ -171,8 +171,7 @@ const char *vkf::tool::cvmx_chip_type_to_string(VkResult type){
 	}
 	return "VK_ERROR_UNKNOWN";
 }
-void vkf::tool::GetGraphicAndPresentQueueFamiliesIndex(VkPhysicalDevice physicalDevice, VkSurfaceKHR surface, int queueFamilies[2])
-{
+void vkf::tool::GetGraphicAndPresentQueueFamiliesIndex(VkPhysicalDevice physicalDevice, VkSurfaceKHR surface, int queueFamilies[2]){
     uint32_t queueFamilyCount = 0;
 	vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueFamilyCount, nullptr);
 
@@ -533,8 +532,8 @@ void vkf::DestroyPipelineCache(VkDevice device, const std::string&cacheFile, VkP
 }
 void vkf::CreateFontImage(VkDevice device, const void *datas, uint32_t width, uint32_t height, VulkanImage &image, VkCommandPool pool, VkQueue graphics){
     VulkanBuffer tempStorageBuffer;
-	VkDeviceSize imageSize = width * height;//目前不是用的imgui
-	// VkDeviceSize imageSize = width * height * 4;//用于imgui的字体,原本没有乘4。
+	// VkDeviceSize imageSize = width * height;//目前不是用的imgui
+	VkDeviceSize imageSize = width * height * 4;//用于imgui的字体,原本没有乘4。
 	tempStorageBuffer.CreateBuffer(device, imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
     tempStorageBuffer.AllocateAndBindMemory(device, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
     tempStorageBuffer.UpdateData(device, imageSize, datas);
@@ -554,8 +553,8 @@ void vkf::CreateFontImage(VkDevice device, const VulkanBuffer&dataBuffer, uint32
     image.size.depth = 1;
     image.size.width = width;
     image.size.height = height;
-    // image.CreateImage(device, VK_IMAGE_USAGE_TRANSFER_DST_BIT|VK_IMAGE_USAGE_SAMPLED_BIT, VK_FORMAT_R8G8B8A8_UNORM);
-    image.CreateImage(device, VK_IMAGE_USAGE_TRANSFER_DST_BIT|VK_IMAGE_USAGE_SAMPLED_BIT, VK_FORMAT_R8_UNORM);
+    image.CreateImage(device, VK_IMAGE_USAGE_TRANSFER_DST_BIT|VK_IMAGE_USAGE_SAMPLED_BIT, VK_FORMAT_R8G8B8A8_UNORM);
+    // image.CreateImage(device, VK_IMAGE_USAGE_TRANSFER_DST_BIT|VK_IMAGE_USAGE_SAMPLED_BIT, VK_FORMAT_R8_UNORM);
     image.AllocateAndBindMemory(device, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 	VkCommandBuffer cmd;
 	tool::BeginSingleTimeCommands(device, pool, cmd);
@@ -569,8 +568,8 @@ void vkf::CreateFontImage(VkDevice device, const VulkanBuffer&dataBuffer, uint32
 	vkCmdCopyBufferToImage(cmd, dataBuffer.buffer, image.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &bufferCopyRegions);
     tool::SetImageLayout(cmd, image.image, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT);
 	tool::EndSingleTimeCommands(device, pool, graphics, cmd);
-	image.CreateImageView(device, VK_FORMAT_R8_UNORM);
-	// image.CreateImageView(device, VK_FORMAT_R8G8B8A8_UNORM);
+	// image.CreateImageView(device, VK_FORMAT_R8_UNORM);
+	image.CreateImageView(device, VK_FORMAT_R8G8B8A8_UNORM);
 }
 void vkf::CreateTextureImage(VkDevice device, const VulkanBuffer&dataBuffer, uint32_t width, uint32_t height, VulkanImage&image, VkCommandPool pool, VkQueue graphics){
     image.size.depth = 1;

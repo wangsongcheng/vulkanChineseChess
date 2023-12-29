@@ -63,8 +63,8 @@ public:
     void ResetPos(uint32_t row, uint32_t column);
     //返回真表示在边界上，不能下棋
     bool IsBoundary(uint32_t row, uint32_t column)const;
+    bool IsPalaceCenter(uint32_t centerCount, const ChessInfo *center)const;
     bool IsInPalace(uint32_t row, uint32_t column, uint32_t centerCount, const ChessInfo *center)const;
-    bool IsPalaceCenter(uint32_t row, uint32_t column, uint32_t centerCount, const ChessInfo *center)const;
     //该函数不考虑其他地方是否有棋子, 因此调用完后需要在判断一次
     void SelectChessInPalace(uint32_t centerCount, const ChessInfo *center, std::vector<ChessInfo>&canplays)const;
 
@@ -143,6 +143,7 @@ public:
     virtual void Selected(const ChessInfo *pInfo, uint32_t count, std::vector<ChessInfo>&canplays);
 };
 class Xiang:public Chess{
+    bool IsAbroad(uint32_t row, uint32_t column);
 public:
     Xiang(const ChessInfo&info);
     ~Xiang();

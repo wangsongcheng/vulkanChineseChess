@@ -1,15 +1,24 @@
+#include <time.h>
 #include <stdio.h>
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 
 #include "Chessboard.h"
 #include "VulkanChessboard.h"
-
-#include "imgui_impl_glfw.h"
-#include "imgui_impl_vulkan.h"
-
+#ifdef __linux__
+#include <unistd.h>
+#define MAX_BYTE 0xff
+#endif
 // #define INTERNET_MODE
+#define AI_RANDOMLY_PLAY_CHESS
 
+#ifdef AI_RANDOMLY_PLAY_CHESS
+#ifdef WIN32
+#include <Windows.h>
+#else
+#include <pthread.h>
+#endif
+#endif
 #ifdef INTERNET_MODE
 #include <array>
 #ifdef WIN32
@@ -35,7 +44,6 @@ enum GameEvent{
     PLAY_CHESS_GAMEEVENT,
     CHANGE_PLAY_INFORMATION_GAMEEVENT
 };
-//考虑一下怎么记录该程序是那国
 struct GameInfo{
     uint32_t index;
     glm::vec3 color;
@@ -84,6 +92,7 @@ HANDLE g_ServerPthreadId;
 HANDLE g_ClientPthreadId;
 #endif
 #else
+bool g_UpdateScreen;
 std::vector<VkCommandBuffer>g_CommandBuffers;
 #endif
 VulkanPool g_VulkanPool;
@@ -147,9 +156,9 @@ void setupVulkan(GLFWwindow *window){
     vkf::CreateFrameBufferForSwapchain(g_VulkanDevice.device, { g_WindowWidth, g_WindowHeight }, g_VulkanWindows);
     vkf::CreateSemaphoreAndFenceForSwapchain(g_VulkanDevice.device, 3, g_VulkanSynchronize);
 #ifdef INTERNET_MODE
-    vkf::CreateDescriptorPool(g_VulkanDevice.device, 148, g_VulkanPool.descriptorPool);
+    vkf::CreateDescriptorPool(g_VulkanDevice.device, 8, g_VulkanPool.descriptorPool);
 #else
-    vkf::CreateDescriptorPool(g_VulkanDevice.device, 147, g_VulkanPool.descriptorPool);
+    vkf::CreateDescriptorPool(g_VulkanDevice.device, 7, g_VulkanPool.descriptorPool);
 #endif
     //显示设备信息
     const char *deviceType;
@@ -199,12 +208,36 @@ void cleanupVulkan(){
     vkDestroyDevice(g_VulkanDevice.device, nullptr);
     vkDestroyInstance(g_VulkanDevice.instance, nullptr);
 }
+glm::vec2 lerp(const glm::vec2&p0, const glm::vec2&p1, float t){
+    return (1 - t) * p0 + t * p1;
+}
+void MoveChess(const glm::vec2&start, const glm::vec2&end){
+    const ChessInfo *pSelected = g_Chessboard.GetSelected();
+    VkExtent2D size;
+    size.width = CHESS_WIDTH;
+    size.height = CHESS_HEIGHT;
+    for (float t = 0; t < 1; t += .01){
+    // for (float t = 0; t < 1; t += .015){
+        const glm::vec2 pos = lerp(start, end, t);
+        // printf("pos:%f, %f\n", pos.x, pos.y);
+        g_Chessboard.UpdateChessUniform(g_VulkanDevice.device, g_CurrentCountry, pSelected->chess, pos, pSelected->fontIndex, size);
+        usleep(10000);
+    }
+}
 void Play(const glm::vec2&mousePos, const ChessInfo *pRival){
     //或者也可以在ai调用这个函数前先设置选择的棋子
-    if(g_Chessboard.Play(g_VulkanDevice.device, mousePos, pRival)){
-        if(pRival && g_Chessboard.IsDeath(pRival->country))
-            g_Chessboard.DestroyCountry(g_VulkanDevice.device, pRival->country);
-        g_CurrentCountry = NextCountry();
+    if(g_Chessboard.IsCanPlay(mousePos) != -1){
+        const ChessInfo *pSelected = g_Chessboard.GetSelected();
+        //不知道为什么，手动下棋看不到棋移动的效果
+        MoveChess(glm::vec2(COLUMN_TO_X(pSelected->column), ROW_TO_Y(pSelected->row)), mousePos);
+        if(g_Chessboard.Play(g_VulkanDevice.device, mousePos, pRival)){
+            if(pRival && g_Chessboard.IsDeath(pRival->country)){
+                const char county[][MAX_BYTE] = { "魏", "蜀", "吴", "汉" };
+                printf("%s国被%s国消灭\n", county[pRival->country], county[g_CurrentCountry]);
+                g_Chessboard.DestroyCountry(g_VulkanDevice.device, pRival->country);
+            }
+            g_CurrentCountry = NextCountry();
+        }
     }
 }
 #ifdef INTERNET_MODE
@@ -224,9 +257,9 @@ void Send(int __fd, const GameMessage *__buf, size_t __n, int __flags){
                 printf("send error:send size:%d\n", sendSize);
                 break;
             }
-            else {
-                printf("success send message %d byte, address:%p, %d byte, sizeof(GameMessage) = %d\n", sendSize, __buf + offset, __n - offset, sizeof(GameMessage));
-            }
+            // else {
+            //     printf("success send message %d byte, address:%p, %d byte, sizeof(GameMessage) = %d\n", sendSize, __buf + offset, __n - offset, sizeof(GameMessage));
+            // }
             offset += sendSize;
         } while (offset < __n);
     }
@@ -247,9 +280,9 @@ void Recv(int __fd, GameMessage *__buf, size_t __n, int __flags){
                 printf("recv error:recv size:%d\n", recvSize);
                 break;
             }
-            else {
-                printf("success recv message %d byte, address:%p, %d byte, sizeof(GameMessage) = %d\n", recvSize, __buf + offset, __n - offset, sizeof(GameMessage));
-            }
+            // else {
+            //     printf("success recv message %d byte, address:%p, %d byte, sizeof(GameMessage) = %d\n", recvSize, __buf + offset, __n - offset, sizeof(GameMessage));
+            // }
             offset += recvSize;
         } while (offset < __n);
     }
@@ -293,6 +326,7 @@ void CreateClient(const char *serverIp){
 #endif // WIN32
     if(connect(g_ClientSocket,(struct sockaddr *)&addr,sizeof(struct sockaddr)) == -1){
         perror("create client:function:connect");
+        shutdown(g_ClientSocket, SHUT_RDWR);
         return;
     }
 }
@@ -409,7 +443,10 @@ void *server_start(void *userData){
     for (size_t i = 0; i < 3; i++){
         g_ClientSockets[i] = accept(g_ServerSocket, (struct sockaddr *)&client_addr, &size);
         if(g_ClientSockets[i] == -1){
+            --i;
             perror("process_server:accept");
+            continue;
+            // shutdown(g_ClientSockets[i], SHUT_RDWR);
         }
         else{
             //客户端连接后会发送自身信息
@@ -463,16 +500,18 @@ void *process_client(void *userData){
         Recv(g_ClientSocket, &message, sizeof(GameMessage), 0);
         if(message.event == GAME_START_GAMEEVENT){
             printf("game start\n");
-            InitChessboard();
+            g_Chessboard.InitChess(g_VulkanDevice.device);
         }
         else if(message.event == JOINS_GAME_GAMEEVENT){
             g_Clients[message.index] = message.client;
         }
         else if(message.event == PLAY_CHESS_GAMEEVENT){
             //下棋和选棋的坐标不一样
-            g_Chessboard.Select(g_VulkanDevice.device, message.selectPos);
+            const ChessInfo *pRival = g_Chessboard.GetSelectInfo(message.selectPos);
+            g_Chessboard.SetSelected(pRival);
+            g_Chessboard.Selected(g_VulkanDevice.device);
             // printf("%s国下棋:位置:%f, %f\n", message.game.country, message.mousePos.x, message.mousePos.y);
-            Play(message.playPos);
+            Play(message.playPos, pRival);
             // Play(message.ranks.row, message.ranks.column);
         }
         else if(message.event == CHANGE_PLAY_INFORMATION_GAMEEVENT){
@@ -623,7 +662,8 @@ void updateImguiWidget(){
     const bool isMinimized = (draw_data->DisplaySize.x <=.0f || draw_data->DisplaySize.y <= .0f);
     if(!isMinimized)ImGui_ImplVulkan_RenderDrawData(draw_data, g_CommandBuffers);
 }
-void RecordCommand(uint32_t currentFrame){
+#endif
+void RecordCommand(VkCommandBuffer command, uint32_t currentFrame){
     std::vector<VkClearValue> clearValues(1);
     clearValues[0].color = { 0.1f , 0.1f , 0.1f , 1.0f };
     VkRenderPassBeginInfo renderPassInfo = {};
@@ -638,79 +678,176 @@ void RecordCommand(uint32_t currentFrame){
     beginInfo.pNext = nullptr;
     beginInfo.flags = VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
     beginInfo.pInheritanceInfo = nullptr;
-    vkBeginCommandBuffer(g_CommandBuffers, &beginInfo);
-    vkCmdBeginRenderPass(g_CommandBuffers, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+    vkBeginCommandBuffer(command, &beginInfo);
+    vkCmdBeginRenderPass(command, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 
-    g_Chessboard.RecordCommand(g_CommandBuffers, g_CurrentCountry);
-
+    g_Chessboard.RecordCommand(command, g_WindowWidth, g_CurrentCountry);
+#ifdef INTERNET_MODE
     updateImguiWidget();
-
-    vkCmdEndRenderPass(g_CommandBuffers);
-    vkEndCommandBuffer(g_CommandBuffers);
-}
-#else
-void RecordCommand(uint32_t currentFrame){
-    std::vector<VkClearValue> clearValues(1);
-    clearValues[0].color = { 0.1f , 0.1f , 0.1f , 1.0f };
-    VkRenderPassBeginInfo renderPassInfo = {};
-    renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-    renderPassInfo.clearValueCount = clearValues.size();
-    renderPassInfo.pClearValues = clearValues.data();
-    renderPassInfo.renderArea = { 0, 0, g_WindowWidth, g_WindowHeight };
-    renderPassInfo.renderPass = g_VulkanWindows.renderpass;
-    renderPassInfo.framebuffer = g_VulkanWindows.framebuffers[currentFrame];
-    VkCommandBufferBeginInfo beginInfo;
-    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-    beginInfo.pNext = nullptr;
-    beginInfo.flags = VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
-    beginInfo.pInheritanceInfo = nullptr;
-    vkBeginCommandBuffer(g_CommandBuffers[currentFrame], &beginInfo);
-    vkCmdBeginRenderPass(g_CommandBuffers[currentFrame], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
-
-    g_Chessboard.RecordCommand(g_CommandBuffers[currentFrame], g_WindowWidth, g_CurrentCountry);
-
-    vkCmdEndRenderPass(g_CommandBuffers[currentFrame]);
-    vkEndCommandBuffer(g_CommandBuffers[currentFrame]);
-}
 #endif
-// glm::vec2 g_SelectPos;
-void mousebutton(GLFWwindow *windows, int button, int action, int mods){
-    if(action == GLFW_RELEASE && button == GLFW_MOUSE_BUTTON_LEFT){
-        double xpos, ypos;
-        glfwGetCursorPos(windows, &xpos, &ypos);
-        const glm::vec2 mousePos = glm::vec2(xpos, ypos);
-        //单机和局域网联机差不多。无非就是要接收和发送消息
-        const ChessInfo *pSelected = g_Chessboard.GetSelected();
-        const ChessInfo *pChessInfo = g_Chessboard.GetSelectInfo(mousePos);//因为选择的地方没棋子，所以就不能获得棋子，导致无法走棋
+    vkCmdEndRenderPass(command);
+    vkEndCommandBuffer(command);
+}
+glm::vec2 g_SelectPos;
+void PlayChess(const glm::vec2&mousePos){
+    //单机和局域网联机差不多。无非就是要接收和发送消息
+    const ChessInfo *pSelected = g_Chessboard.GetSelected();
+    const ChessInfo *pChessInfo = g_Chessboard.GetSelectInfo(mousePos);//因为选择的地方没棋子，所以就不能获得棋子，导致无法走棋
+    if(pChessInfo){
+        if(pSelected && pChessInfo->country != g_CurrentCountry){
+#ifdef INTERNET_MODE
+            Play(g_Player, mousePos, g_SelectPos);
+#else
+            Play(mousePos, pChessInfo);
+#endif
+        }
+        else if(pChessInfo->country == g_CurrentCountry){
+            g_Chessboard.UnSelect(g_VulkanDevice.device);
+            if(!pSelected || (pSelected->row != pChessInfo->row || pSelected->column != pChessInfo->column)){
+                g_SelectPos = mousePos;
+                g_Chessboard.SetSelected(pChessInfo);
+                g_Chessboard.Selected(g_VulkanDevice.device);
+            }
+        }
+    }
+    else if(pSelected){
+        Play(mousePos, nullptr);
+    }
+}
+#ifdef AI_RANDOMLY_PLAY_CHESS
+#ifdef __linux
+pthread_t g_AiPlayChess;
+#endif
+#ifdef WIN32
+HANDLE g_AiPlayChess;
+#endif
+bool GameOver(){
+    uint32_t deathCount = 0;
+    for (size_t i = 0; i < 3; ++i){
+        if(g_Chessboard.IsDeath(i)){
+            ++deathCount;
+        }
+    }
+    return deathCount > 1;
+}
+bool CanPlay(const std::vector<ChessInfo>&canplays){
+    bool bCanPlay = false;
+    for (size_t i = 0; i < canplays.size(); i++){
+        const ChessInfo *pInfo = g_Chessboard.GetChessInfo(canplays[i].row, canplays[i].column);
+        // //临时的检查
+        // if(pInfo && (pInfo->chess == PAO_CHESS_INDEX_1 || pInfo->chess == PAO_CHESS_INDEX_2) && canplays[i].row == 8 && canplays[i].column == 15){
+        //     printf("炮又跑到吴国九宫格中心\n");
+        // }
+        if(!pInfo || pInfo->country != g_CurrentCountry){
+            bCanPlay = true;
+            break;
+        }
+    }
+    return bCanPlay;
+}
+const ChessInfo *GetRival(const std::vector<ChessInfo>&canplays){
+    const ChessInfo *pRival = nullptr;
+    for (size_t i = 0; i < canplays.size(); ++i){
+        pRival = g_Chessboard.GetChessInfo(canplays[i].row, canplays[i].column);
+        if(pRival && pRival->country != g_CurrentCountry){
+            break;
+        }
+    }
+    return pRival;
+}
+const ChessInfo *GetRival(uint32_t country, const ChessInfo **pChessInfo){
+    int32_t index = 0;
+    const ChessInfo *pRival = nullptr;
+    for (size_t uiChess = 0; uiChess < WEI_CHESS_COUNT + 4; ++uiChess){
+        *pChessInfo = g_Chessboard.GetInfo(g_CurrentCountry, index++);
+        if(*pChessInfo){
+            g_Chessboard.SetSelected(*pChessInfo);
+            g_Chessboard.Selected(g_VulkanDevice.device);
+            auto canPlayInfo = g_Chessboard.GetCanPlay();
+            pRival = GetRival(canPlayInfo);
+            if(pRival)break;
+        }
+    }
+    return pRival;
+}
+void aiPlayChess(const ChessInfo*pInfo, const ChessInfo *pRival){
+    if(!g_Chessboard.IsBoundary(pInfo->row, pInfo->column)){
+        glm::vec2 pos = glm::vec2(COLUMN_TO_X(pInfo->column), ROW_TO_Y(pInfo->row));
+        // glm::vec2 pos = glm::vec2(COLUMN_TO_X(pInfo->column) - CHESSBOARD_GRID_SIZE * .5, ROW_TO_Y(pInfo->row) - CHESSBOARD_GRID_SIZE * .5);
+        // const ChessInfo *pSelected = g_Chessboard.GetSelected();
+        const ChessInfo *pChessInfo = g_Chessboard.GetSelectInfo(pos);
         if(pChessInfo){
-            if(pSelected && pChessInfo->country != g_CurrentCountry){
-#ifdef INTERNET_MODE
-                Play(g_Player, mousePos, g_SelectPos);
-#else
-                Play(mousePos, pChessInfo);
-#endif
+            g_Chessboard.UnSelect(g_VulkanDevice.device);
+            if(pChessInfo->country == g_CurrentCountry){
+                g_Chessboard.SetSelected(pChessInfo);
+                g_Chessboard.Selected(g_VulkanDevice.device);
             }
-            else if(pChessInfo->country == g_CurrentCountry){
-                g_Chessboard.UnSelect(g_VulkanDevice.device);
-                if(!pSelected || (pSelected->row != pChessInfo->row || pSelected->column != pChessInfo->column)){
-                    g_Chessboard.SetSelected(pChessInfo);
-#ifdef INTERNET_MODE
-                    if(g_CurrentCountry == g_Player.color){
-                        g_SelectPos = mousePos;
-                        g_Chessboard.Select(g_VulkanDevice.device, g_SelectPos);
-                    }
-#else
-                    g_Chessboard.Selected(g_VulkanDevice.device);
-#endif
+            const ChessInfo *pSelected = nullptr;
+            auto canPlayInfo = g_Chessboard.GetCanPlay();
+            // if(canPlayInfo.empty()){
+            //     printf("canplay is empty; select row:%d, select column:%d\n", pChessInfo->row, pChessInfo->column);
+            // }
+            if(CanPlay(canPlayInfo)){
+                if(pRival){
+                    pos = glm::vec2(COLUMN_TO_X(pRival->column), ROW_TO_Y(pRival->row));
+                    Play(pos, pRival);
                 }
+                else{
+                    do{
+                        ChessInfo canplay = canPlayInfo[rand() % canPlayInfo.size()];
+                        pos = glm::vec2(COLUMN_TO_X(canplay.column), ROW_TO_Y(canplay.row));
+                        pSelected = g_Chessboard.GetSelectInfo(pos);
+                    }while(pSelected && pSelected->country == g_CurrentCountry);
+                    Play(pos, pSelected);
+                }
+                g_UpdateScreen = true;
             }
         }
-        else if(pSelected){
-            Play(mousePos, nullptr);
+    }
+}
+void aiPlay(){
+    const ChessInfo *pInfo = nullptr;
+    const ChessInfo *pRival = nullptr;
+    for (size_t i = 0; i < 3; i++){
+        pRival = GetRival(i, &pInfo);
+    }
+    if(pRival){
+        aiPlayChess(pInfo, pRival);
+    }
+    else{
+        pInfo = g_Chessboard.GetInfo(g_CurrentCountry, rand() % (WEI_CHESS_COUNT + 4));
+        aiPlayChess(pInfo, nullptr);
+    }
+}
+void *aiPlayChess(void *userData){
+    while(!GameOver()){
+        aiPlay();
+        // sleep(1);//因为下棋的时候有sleep所以这里不需要
+    }
+    return nullptr;
+}
+#endif
+void mousebutton(GLFWwindow *windows, int button, int action, int mods){
+    if(action == GLFW_RELEASE){
+        if(button == GLFW_MOUSE_BUTTON_LEFT){
+            double xpos, ypos;
+            glfwGetCursorPos(windows, &xpos, &ypos);
+            PlayChess(glm::vec2(xpos, ypos));
+            // aiPlay();//从这边调用就看不到移动效果
+#ifndef INTERNET_MODE
+            g_UpdateScreen = true;
+#endif
         }
-        vkDeviceWaitIdle(g_VulkanDevice.device);
-        for (size_t i = 0; i < g_VulkanWindows.framebuffers.size(); ++i){
-            RecordCommand(i);
+        else if(button == GLFW_MOUSE_BUTTON_RIGHT){
+#ifdef AI_RANDOMLY_PLAY_CHESS
+#ifdef WIN32
+            DWORD  threadId;
+            g_AiPlayChess = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)aiPlayChess, nullptr, 0, &threadId);
+#endif
+#ifdef __linux
+            pthread_create(&g_AiPlayChess, nullptr, aiPlayChess, nullptr);
+#endif
+#endif
         }
     }
 }
@@ -726,7 +863,14 @@ void SetupDescriptorSetLayout(VkDevice device){
     descriptorSetLayoutBindings[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     vkf::CreateDescriptorSetLayout(device, sizeof(descriptorSetLayoutBindings) / sizeof(VkDescriptorSetLayoutBinding), descriptorSetLayoutBindings, &g_SetLayout);
 }
+
 void setup(GLFWwindow *windows){
+#ifdef __linux__
+    srandom(time(nullptr));
+#endif
+#ifdef WIN32
+    srand(time(nullptr));
+#endif // WIN32
     glfwSetMouseButtonCallback(windows, mousebutton);
 
     SetupDescriptorSetLayout(g_VulkanDevice.device);
@@ -738,8 +882,9 @@ void setup(GLFWwindow *windows){
 
     g_Chessboard.UpdateBackgroundUniform(g_VulkanDevice.device, g_WindowWidth);
     g_Chessboard.UpdateUniform(g_VulkanDevice.device);
+#ifndef INTERNET_MODE
     g_Chessboard.InitChess(g_VulkanDevice.device);
-
+#endif
     //局域网联机需要imgui
     //先通过ip连接, 后面知道怎么广播再说
     //或者说，先实现简单的网络联机，在解决广播问题
@@ -787,8 +932,17 @@ void setup(GLFWwindow *windows){
     g_CommandBuffers.resize(g_VulkanWindows.framebuffers.size());
     vkf::tool::AllocateCommandBuffers(g_VulkanDevice.device, g_VulkanPool.commandPool, g_CommandBuffers.size(), g_CommandBuffers.data());
     for (size_t i = 0; i < g_VulkanWindows.framebuffers.size(); ++i){
-        RecordCommand(i);
+        RecordCommand(g_CommandBuffers[i], i);
     }
+// #ifdef AI_RANDOMLY_PLAY_CHESS
+// #ifdef WIN32
+//     DWORD  threadId;
+//     g_AiPlayChess = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)aiPlayChess, nullptr, 0, &threadId);
+// #endif
+// #ifdef __linux
+//     pthread_create(&g_AiPlayChess, nullptr, aiPlayChess, nullptr);
+// #endif
+// #endif
 #endif
 } 
 void cleanup(){
@@ -801,17 +955,15 @@ void cleanup(){
     message.event = GAME_OVER_GAMEEVENT;
     if(g_ServerAppaction)SendToAllClient(&message, sizeof(message));
     for (size_t i = 0; i < g_Clients.size(); ++i){
-        if(g_ClientSockets[i] != -1)shutdown(g_ClientSockets[i], 2);
+        if(g_ClientSockets[i] != -1)shutdown(g_ClientSockets[i], SHUT_RDWR);
     }
-    if(g_ServerSocket != -1)shutdown(g_ServerSocket, 2);
+    if(g_ServerSocket != -1)shutdown(g_ServerSocket, SHUT_RDWR);
 #ifdef WIN32
     WSACleanup();
 #endif
 #endif
     vkDestroyDescriptorSetLayout(g_VulkanDevice.device, g_SetLayout, nullptr);
     vkf::DestroyPipelineCache(g_VulkanDevice.device, "GraphicsPipelineCache", g_PipelineCache);
-
-    // g_Chessboard.Cleanup(g_VulkanDevice.device);
     
     g_Chessboard.DestroyGraphicsPipeline(g_VulkanDevice.device);
     g_Chessboard.Cleanup(g_VulkanDevice.device);
@@ -820,11 +972,18 @@ void cleanup(){
 }
 void display(GLFWwindow* window){
     static size_t currentFrame;
-    vkDeviceWaitIdle(g_VulkanDevice.device);
 #ifdef INTERNET_MODE
-    RecordCommand(currentFrame);
+    vkDeviceWaitIdle(g_VulkanDevice.device);
+    RecordCommand(g_CommandBuffers, currentFrame);
     vkf::DrawFrame(g_VulkanDevice.device, currentFrame, g_CommandBuffers, g_VulkanWindows.swapchain, g_VulkanQueue, g_VulkanSynchronize);
 #else
+    if(g_UpdateScreen){
+        g_UpdateScreen = false;
+        vkDeviceWaitIdle(g_VulkanDevice.device);
+        for (size_t i = 0; i < g_VulkanWindows.framebuffers.size(); ++i){
+            RecordCommand(g_CommandBuffers[i], i);
+        }
+    }
     vkf::DrawFrame(g_VulkanDevice.device, currentFrame, g_CommandBuffers[currentFrame], g_VulkanWindows.swapchain, g_VulkanQueue, g_VulkanSynchronize);
 #endif
     currentFrame = (currentFrame + 1) % g_VulkanWindows.framebuffers.size();

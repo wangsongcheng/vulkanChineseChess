@@ -15,7 +15,6 @@ void VulkanChessboard::CreateRectResource(VkDevice device, VkCommandPool pool, V
         0, 1, 2, 0, 3, 1,//.../
         0, 2, 3, 2, 3, 1
     };
-    const uint16_t mirrorIndices[] = {  };
     GetRectVertices(glm::vec3(1, .9, .5), vertices);
     GetRectVertices(glm::vec3(0), vertices + 4);
     mRect.indexCount = 6;
@@ -236,18 +235,19 @@ void VulkanChessboard::UpdateSelectWireframeUniform(VkDevice device, const Chess
     }
     uniforms.wireframe.selectChess.UpdateData(device, count * mMinUniformBufferOffset, model);
 }
-void VulkanChessboard::UpdateChessUniform(VkDevice device, uint32_t country, uint32_t chess, uint32_t row, uint32_t column, uint32_t fontIndex, const VkExtent2D &size){
-    glm::vec2 pos = glm::vec2(COLUMN_TO_X(column), ROW_TO_Y(row));
+void VulkanChessboard::UpdateChessUniform(VkDevice device, uint32_t country, uint32_t chess, const glm::vec2 &pos, uint32_t fontIndex, const VkExtent2D &size){
     const uint32_t countryOffset = country * (WEI_CHESS_COUNT + 4);//因为除汉外每个国家的棋子数相同,所以直接这么用
     const uint32_t offset = countryOffset + chess;
-    // printf("国家:%d, 棋子:%d, 行:%d, 列:%d, 偏移:%d, pos:%f, %f\n", country, chess, row, column, offset, pos.x, pos.y);
     VulkanChess::UpdateUniform(device, pos, size, offset);
     VkExtent2D fontSize = size;
     fontSize.width *= 1.8;
     fontSize.height *= 1.8;
-    pos.x -= CHESS_WIDTH * .65;
-    pos.y -= CHESS_HEIGHT * .9;
-    UpdateFontUniform(device, fontIndex, pos, fontSize, offset);
+    const glm::vec2 newPos = glm::vec2(pos.x - CHESS_WIDTH * .65, pos.y - CHESS_HEIGHT * .9);
+    // printf("国家:%d, 棋子:%d, 行:%d, 列:%d, 偏移:%d, pos:%f, %f\n", country, chess, row, column, offset, pos.x, pos.y);
+    UpdateFontUniform(device, fontIndex, newPos, fontSize, offset);
+}
+void VulkanChessboard::UpdateChessUniform(VkDevice device, uint32_t country, uint32_t chess, uint32_t row, uint32_t column, uint32_t fontIndex, const VkExtent2D &size){
+    UpdateChessUniform(device, country, chess, glm::vec2(COLUMN_TO_X(column), ROW_TO_Y(row)), fontIndex, size);
 }
 void VulkanChessboard::DestroyGraphicsPipeline(VkDevice device){
     pipelines.grid.DestroyLayout(device);

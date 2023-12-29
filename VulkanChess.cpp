@@ -1,6 +1,5 @@
-#include "chess.h"
+#include "Chess.h"
 #include "VulkanChess.h"
-#include "imgui_impl_vulkan.h"
 #define STB_TRUETYPE_IMPLEMENTATION
 // #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stb_truetype.h"
@@ -104,6 +103,7 @@ void VulkanChess::CreateFontResource(VkDevice device, VkCommandPool pool, VkQueu
     const uint32_t imageSize = CHESS_WIDTH * 2 * CHESS_HEIGHT * 2;
     unsigned char *datas = new unsigned char[imageSize * fontImageCount];
     const wchar_t word[] = { L'魏', L'蜀', L'吴', L'漢', L'兵', L'炮', L'車', L'馬', L'相', L'士' };
+    memset(datas, 0, imageSize * fontImageCount);
     for (size_t i = 0; i < fontImageCount; ++i){
         GetFontImageData(fontBuffer, CHESS_WIDTH * 2, CHESS_HEIGHT * 2, word[i], datas + i * imageSize);
     }

@@ -1,9 +1,10 @@
 #ifndef CHESSBOARD_INCLUDE_H
 #define CHESSBOARD_INCLUDE_H
-#include "chess.h"
+#include "Chess.h"
 #include "glm/glm.hpp"
 #include "VulkanChessboard.h"
 #include "glm/gtc/matrix_transform.hpp"
+#define MAX_BYTE 0xff
 // struct ChessboardChess{
 //     Chess *jiang;//实际上是魏蜀吴汉
 //     Chess *ma[2];
@@ -54,6 +55,9 @@ public:
     void InitChess(VkDevice device);
     //一次更新所有棋子，棋子大小也变为初始大小
     void UpdateChess(VkDevice device);
+    int32_t IsCanPlay(const glm::vec2&mousePos);
+    //返回真表示在边界上，不能下棋
+    bool IsBoundary(uint32_t row, uint32_t column)const;
     const ChessInfo *GetSelectInfo(const glm::vec2&pos);
     void DestroyCountry(VkDevice device, uint32_t country);
     const ChessInfo *GetChessInfo(uint32_t row, uint32_t column);
@@ -70,6 +74,13 @@ public:
     }
     inline void SetSelected(const ChessInfo *pInfo){
         mSelected = (ChessInfo *)pInfo;
+    }
+    //以下函数目前仅用于ai
+    inline const std::vector<ChessInfo>&GetCanPlay(){
+        return mCanplays;
+    }
+    inline const ChessInfo *GetInfo(uint32_t country, uint32_t index){
+        return &mChessInfo[country][index];
     }
     //除蜀国外，a吃掉b的将后，a获得b剩下的所有棋子
     //如果可以。去掉蜀国和吴国的2个兵(其他棋子也可以考虑)，已体现魏国的优势

@@ -1,6 +1,6 @@
 #ifndef VULKAN_CHESS_BOARD_INCLUDE_H
 #define VULKAN_CHESS_BOARD_INCLUDE_H
-#include "chess.h"
+#include "Chess.h"
 #include "VulkanChess.h"
 #define CHESSBOARD_ROW 16
 //只要绘制线框时没有加线宽偏移的话，下面的值就不应该修改。因为图形管线线宽默认1
@@ -64,6 +64,7 @@ public:
     void ClearSelectWireframeUnfirom(VkDevice device);
     void UpdateBackgroundUniform(VkDevice device, uint32_t windowWidth);
     void UpdateSelectWireframeUniform(VkDevice device, const ChessInfo *pInfo, uint32_t count);
+    void UpdateChessUniform(VkDevice device, uint32_t country, uint32_t chess, const glm::vec2&pos, uint32_t fontIndex, const VkExtent2D&size);
     //chess的期望值为0~15
     void UpdateChessUniform(VkDevice device, uint32_t country, uint32_t chess, uint32_t row, uint32_t column, uint32_t fontIndex, const VkExtent2D&size);
 
