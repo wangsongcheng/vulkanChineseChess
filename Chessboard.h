@@ -38,14 +38,15 @@
 class Chessboard:public VulkanChessboard{
     ChessInfo *mSelected;
     //原棋子数为16,因为汉需要3个車,和1个炮, 所以需要加4//汉势力只赋值一个将
-    Chess *mChess[4][WEI_CHESS_COUNT + 4];
+    Chess *mChess[4][COUNTRY_CHESS_COUNT];
     //这个或许可以和上面的变量合并, 但这些还是以后说吧
-    ChessInfo mChessInfo[4][WEI_CHESS_COUNT + 4];//因为棋子数都一样，而汉的棋子少，所以无所谓
+    ChessInfo mChessInfo[4][COUNTRY_CHESS_COUNT];//因为棋子数都一样，而汉的棋子少，所以无所谓
     std::vector<ChessInfo>mCanplays;
     void InitWuChessRowAndColumn();
     void InitShuChessRowAndColumn();
     void InitWeiChessRowAndColumn();
     void InitChessInfo(uint32_t country);
+    void GetCountryChess(uint32_t srcCountry, uint32_t dstCountry);
 public:
     Chessboard(/* args */);
     ~Chessboard();
@@ -55,6 +56,7 @@ public:
     void InitChess(VkDevice device);
     //一次更新所有棋子，棋子大小也变为初始大小
     void UpdateChess(VkDevice device);
+    void ClearCanPlay(VkDevice device);
     int32_t IsCanPlay(const glm::vec2&mousePos);
     //返回真表示在边界上，不能下棋
     bool IsBoundary(uint32_t row, uint32_t column)const;
@@ -75,7 +77,6 @@ public:
     inline void SetSelected(const ChessInfo *pInfo){
         mSelected = (ChessInfo *)pInfo;
     }
-    //以下函数目前仅用于ai
     inline const std::vector<ChessInfo>&GetCanPlay(){
         return mCanplays;
     }

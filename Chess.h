@@ -4,28 +4,33 @@
 #include "VulkanChess.h"
 #include "glm/glm.hpp"
 #include "glm/gtc/matrix_transform.hpp"
+//以下索引、魏国索引。现在变成不能随意修改了。这确实是痛点
 //除非增加新棋,否则在不包括汉棋子的情况下, 其他棋子的值应该在16以下;这些值主要用于动态偏移
 #define MA_CHESS_INDEX_1 1
 #define MA_CHESS_INDEX_2 2
 #define JIANG_CHESS_INDEX 0
-#define PAO_CHESS_INDEX_1 7
-#define PAO_CHESS_INDEX_2 8
-#define CHE_CHESS_INDEX_1 9
-#define CHE_CHESS_INDEX_2 10
-#define SHI_CHESS_INDEX_1 3
-#define SHI_CHESS_INDEX_2 4
-#define XIANG_CHESS_INDEX_1 5
-#define XIANG_CHESS_INDEX_2 6
-#define BING_CHESS_INDEX_1 11
-#define BING_CHESS_INDEX_2 12
-#define BING_CHESS_INDEX_3 13
-#define BING_CHESS_INDEX_4 14
-#define BING_CHESS_INDEX_5 15
-//因为漢也有'将'所以从1开始
+#define PAO_CHESS_INDEX_1 3
+#define PAO_CHESS_INDEX_2 4
+#define CHE_CHESS_INDEX_1 5
+#define SHI_CHESS_INDEX_1 6
+#define SHI_CHESS_INDEX_2 7
+#define CHE_CHESS_INDEX_2 8
+#define BING_CHESS_INDEX_1 9
+#define BING_CHESS_INDEX_2 10
+#define BING_CHESS_INDEX_3 11
+#define BING_CHESS_INDEX_4 12
+#define BING_CHESS_INDEX_5 13
+#define XIANG_CHESS_INDEX_1 14
+#define XIANG_CHESS_INDEX_2 15
+
 #define PAO_CHESS_INDEX_3 1
 #define CHE_CHESS_INDEX_3 2
 #define CHE_CHESS_INDEX_4 3
 #define CHE_CHESS_INDEX_5 4
+// #define PAO_CHESS_INDEX_3 16
+// #define CHE_CHESS_INDEX_3 17
+// #define CHE_CHESS_INDEX_4 18
+// #define CHE_CHESS_INDEX_5 19
 
 #define CHESS_WIDTH 20
 #define CHESS_HEIGHT CHESS_WIDTH
@@ -38,6 +43,7 @@ struct ChessInfo{
     uint32_t country;
     uint32_t fontIndex;
     ChessInfo(){
+        country = -1;//该值为-1时, chess和fontIndex无效
     }
     ChessInfo(uint32_t row, uint32_t column){
         this->row = row;
@@ -64,9 +70,9 @@ public:
     //返回真表示在边界上，不能下棋
     bool IsBoundary(uint32_t row, uint32_t column)const;
     bool IsPalaceCenter(uint32_t centerCount, const ChessInfo *center)const;
-    bool IsInPalace(uint32_t row, uint32_t column, uint32_t centerCount, const ChessInfo *center)const;
+    bool IsInPalace(uint32_t row, uint32_t column, const ChessInfo *pCenter)const;
     //该函数不考虑其他地方是否有棋子, 因此调用完后需要在判断一次
-    void SelectChessInPalace(uint32_t centerCount, const ChessInfo *center, std::vector<ChessInfo>&canplays)const;
+    void SelectChessInPalace(const ChessInfo *pInfo, uint32_t infoCount, uint32_t centerCount, const ChessInfo *center, std::vector<ChessInfo>&canplays)const;
 
         //可以通过返回mInfo.chess来得到棋子索引
 //     bool isSelect(const glm::vec2&pos);

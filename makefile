@@ -10,6 +10,6 @@ COMPILER=g++
 $(BIN):$(OBJ)
 	$(COMPILER) -g $^ $(LIB_PATH) $(LIB) -o $@
 %.o:%.cpp
-	$(COMPILER) -g -c -std=c++17 $^ $(INC_PATH) -o $@
+	$(COMPILER) -g -c -std=c++20 $^ $(INC_PATH) -o $@
 clean:
 	rm -rf $(OBJ)

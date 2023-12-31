@@ -15,7 +15,7 @@ void VulkanChessboard::CreateRectResource(VkDevice device, VkCommandPool pool, V
         0, 1, 2, 0, 3, 1,//.../
         0, 2, 3, 2, 3, 1
     };
-    GetRectVertices(glm::vec3(1, .9, .5), vertices);
+    GetRectVertices(glm::vec3(1, .8, .2), vertices);
     GetRectVertices(glm::vec3(0), vertices + 4);
     mRect.indexCount = 6;
     mRect.vertexCount = 4;
@@ -236,14 +236,14 @@ void VulkanChessboard::UpdateSelectWireframeUniform(VkDevice device, const Chess
     uniforms.wireframe.selectChess.UpdateData(device, count * mMinUniformBufferOffset, model);
 }
 void VulkanChessboard::UpdateChessUniform(VkDevice device, uint32_t country, uint32_t chess, const glm::vec2 &pos, uint32_t fontIndex, const VkExtent2D &size){
-    const uint32_t countryOffset = country * (WEI_CHESS_COUNT + 4);//因为除汉外每个国家的棋子数相同,所以直接这么用
+    const uint32_t countryOffset = country * COUNTRY_CHESS_COUNT;
     const uint32_t offset = countryOffset + chess;
     VulkanChess::UpdateUniform(device, pos, size, offset);
     VkExtent2D fontSize = size;
     fontSize.width *= 1.8;
     fontSize.height *= 1.8;
     const glm::vec2 newPos = glm::vec2(pos.x - CHESS_WIDTH * .65, pos.y - CHESS_HEIGHT * .9);
-    // printf("国家:%d, 棋子:%d, 行:%d, 列:%d, 偏移:%d, pos:%f, %f\n", country, chess, row, column, offset, pos.x, pos.y);
+    // printf("国家:%d, 棋子:%d, 行:%.0f, 列:%.0f, 偏移:%d, pos:%f, %f\n", country, chess, pos.y / CHESSBOARD_ROW, pos.x / CHESSBOARD_COLUMN , offset, pos.x, pos.y);
     UpdateFontUniform(device, fontIndex, newPos, fontSize, offset);
 }
 void VulkanChessboard::UpdateChessUniform(VkDevice device, uint32_t country, uint32_t chess, uint32_t row, uint32_t column, uint32_t fontIndex, const VkExtent2D &size){
@@ -258,7 +258,6 @@ void VulkanChessboard::DestroyGraphicsPipeline(VkDevice device){
 
     VulkanChess::DestroyGraphicsPipeline(device);
 }
-
 void VulkanChessboard::CreatePipeline(VkDevice device, VkRenderPass renderpass, VkDescriptorSetLayout setLayout, VkPipelineCache pipelineCache, uint32_t windowWidth){
     pipelines.grid.PushScissor(windowWidth, windowWidth);
     pipelines.grid.PushViewport(windowWidth, windowWidth);

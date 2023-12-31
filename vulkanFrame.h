@@ -2,6 +2,7 @@
 #define VULKAN_FRAME_H
 #include <string>
 #include <vector>
+#include <assert.h>
 #include <vulkan/vulkan.h>
 #define SWAPCHAIN_FORMAT VK_FORMAT_B8G8R8A8_UNORM
 #define VK_CHECK(x)                                                 \
@@ -54,15 +55,25 @@ struct VulkanDevice{
     VkInstance instance;
     VkPhysicalDevice physicalDevice;
 };
+struct SwapChainSupportDetails {
+    VkSurfaceCapabilitiesKHR capabilities;
+    std::vector<VkSurfaceFormatKHR> formats;
+    std::vector<VkPresentModeKHR> presentModes;
+};
+struct SwapchainInfo{
+    VkFormat format;
+    VkExtent2D extent;
+    // std::vector<VkImage>images;
+    // std::vector<VkImageView>imageViews;
+};
 struct VulkanWindows{
     VkSurfaceKHR surface;
     VulkanImage depthImage;
     VkRenderPass renderpass;
     VkSwapchainKHR swapchain;
-    VkExtent2D swapchainExtent;
-    // std::vector<VkImage>swapchainImages;
+    SwapchainInfo swapchainInfo;
     std::vector<VkFramebuffer>framebuffers;
-    std::vector<VkImageView>swapchainImageViews;
+    std::vector<VulkanImage>swapchainImages;
 };
 struct VulkanPool{
     VkCommandPool commandPool;
@@ -77,20 +88,17 @@ struct VulkanSynchronize{
     std::vector<VkSemaphore>imageAcquired;
     std::vector<VkSemaphore>renderComplete;
 };
-//不要在结构体加函数
 //vkf::device;vkf::windows;vkf::tool;vkf::initinalize;vkf::image;vk::buffer;
 namespace vkf{
-    static VkPhysicalDeviceMemoryProperties gMemoryProperties;
-
     VkPhysicalDevice GetPhysicalDevices(VkInstance instance, VkPhysicalDeviceType deviceType = VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU);
     VkResult CreateDevice(VkPhysicalDevice physicalDevice, const std::vector<const char*>& deviceExtensions, VkSurfaceKHR surface, VkDevice&device);
     VkResult CreateDebugUtilsMessenger(VkInstance instance, VkDebugUtilsMessengerEXT&messenger, PFN_vkDebugUtilsMessengerCallbackEXT debugUtilsMessenger);
     void DestoryDebugUtilsMessenger(VkInstance instance, VkDebugUtilsMessengerEXT&messenger);
     VkResult CreateInstance(const std::vector<const char*>&instanceExtensions, VkInstance&instance, bool enableValidation = true, VkApplicationInfo *pApplicationInfo = nullptr);
 
-    VkResult CreateRenderPassForSwapchain(VkDevice device, VkRenderPass&renderpass, bool useDepthImage = false);
     void CreateSemaphoreAndFenceForSwapchain(VkDevice device, uint32_t swapchainImageCount, VulkanSynchronize&vulkanWindows);
-    VkResult CreateSwapchain(VkPhysicalDevice physicalDevice, VkDevice device, VkSurfaceKHR surface, VkSwapchainKHR&swapchain);
+    VkResult CreateSwapchain(VkPhysicalDevice physicalDevice, VkDevice device, VkSurfaceKHR surface, VulkanWindows&vulkanWindows);
+    VkResult CreateRenderPassForSwapchain(VkDevice device, VkFormat swapchainFormat, VkRenderPass&renderpass, bool useDepthImage = false);
     void CreateFrameBufferForSwapchain(VkDevice device, const VkExtent2D&swapchainExtent, VulkanWindows&vulkanWindows, bool createDepthImage = false);
     VkResult CreateFrameBuffer(VkDevice device, VkRenderPass renderPass, const VkExtent2D&extent, const std::vector<VkImageView>&attachments, VkFramebuffer&frameBuffer, uint32_t layers = 1);
     VkResult CreateRenderPass(VkDevice device, const std::vector<VkSubpassDescription>&subpassDescription, const std::vector<VkSubpassDependency>&subpassDependency, const std::vector<VkAttachmentDescription>&attachmentDescriptions, VkRenderPass&renderpass);
@@ -108,13 +116,15 @@ namespace vkf{
     void CreateFontImage(VkDevice device, const VulkanBuffer&dataBuffer, uint32_t width, uint32_t height, VulkanImage&image, VkCommandPool pool, VkQueue graphics);
     void CreateTextureImage(VkDevice device, const VulkanBuffer&dataBuffer, uint32_t width, uint32_t height, VulkanImage&image, VkCommandPool pool, VkQueue graphics);
 
-    void CreateFontImageArray(VkDevice device, const void *datas, uint32_t imageCount, uint32_t width, uint32_t height, VulkanImage&image, VkCommandPool pool, VkQueue graphics);
-    void CreateFontImageArray(VkDevice device, const VulkanBuffer&dataBuffer, uint32_t imageCount, uint32_t width, uint32_t height, VulkanImage&image, VkCommandPool pool, VkQueue graphics);
+    void CreateFontImageArray(VkDevice device, const void* datas, uint32_t imageCount, uint32_t width, uint32_t height, VulkanImage& image, VkCommandPool pool, VkQueue graphics);
+    void CreateFontImageArray(VkDevice device, const VulkanBuffer& dataBuffer, uint32_t imageCount, uint32_t width, uint32_t height, VulkanImage& image, VkCommandPool pool, VkQueue graphics);
 
-    void CreateCubeImage(VkDevice device, const void * const * datas, uint32_t width, VulkanImage&image, VkCommandPool pool, VkQueue graphics);
+    void CreateCubeImage(VkDevice device, const void *datas, uint32_t width, VulkanImage&image, VkCommandPool pool, VkQueue graphics);
+    void CreateCubeImage(VkDevice device, const void*const*datas, uint32_t width, VulkanImage&image, VkCommandPool pool, VkQueue graphics);
     void CreateCubeImage(VkDevice device, const VulkanBuffer&dataBuffer, uint32_t width, VulkanImage&image, VkCommandPool pool, VkQueue graphics);
     
     void CreateImageArray(VkDevice device, const void *datas, uint32_t imageCount, uint32_t width, uint32_t height, VulkanImage&image, VkCommandPool pool, VkQueue graphics, VkImageViewType type = VK_IMAGE_VIEW_TYPE_2D_ARRAY);
+    void CreateImageArray(VkDevice device, const void*const*datas, uint32_t imageCount, uint32_t width, uint32_t height, VulkanImage&image, VkCommandPool pool, VkQueue graphics, VkImageViewType type = VK_IMAGE_VIEW_TYPE_2D_ARRAY);
     void CreateImageArray(VkDevice device, const VulkanBuffer&dataBuffer, uint32_t imageCount, uint32_t width, uint32_t height, VulkanImage&image, VkCommandPool pool, VkQueue graphics, VkImageViewType type = VK_IMAGE_VIEW_TYPE_2D_ARRAY);
 
     VkResult CreateTextureSampler(VkDevice device, VkSampler&sampler);
@@ -132,8 +142,8 @@ namespace vkf{
         bool WriteFileContent(const std::string&file, const void *data, uint32_t size);
 
         const char* cvmx_chip_type_to_string(VkResult type);
-        void GetGraphicAndPresentQueueFamiliesIndex(VkPhysicalDevice physicalDevice, VkSurfaceKHR surface, int queueFamilies[2]);
         uint32_t findMemoryTypeIndex(uint32_t typeFilter, VkMemoryPropertyFlags properties);
+        void GetGraphicAndPresentQueueFamiliesIndex(VkPhysicalDevice physicalDevice, VkSurfaceKHR surface, uint32_t queueFamilies[2]);
 
         void AllocateMemory(VkDevice device, VkDeviceSize size, uint32_t typeFilter, VkMemoryPropertyFlags properties, VkDeviceMemory&memory);
         VkResult AllocateDescriptorSets(VkDevice device, VkDescriptorPool pool, const VkDescriptorSetLayout *setlayout, uint32_t count, VkDescriptorSet *pDescriptorSet);
