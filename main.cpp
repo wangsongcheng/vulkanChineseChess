@@ -118,7 +118,6 @@ VkSampler g_TextureSampler;
 VkPipelineCache g_PipelineCache;
 VkDescriptorSetLayout g_SetLayout;
 bool IsDangerous(uint32_t country, uint32_t rivalCountry, uint32_t chessIndex);
-bool IsDangerous(uint32_t currentCountry, uint32_t nextCountry, uint32_t chessIndex);
 // uint32_t jiang(uint32_t nextCounrty, const ChessInfo *pChess){
 //     uint32_t countty = nextCounrty;
 //     if(pChess){
@@ -138,7 +137,7 @@ bool IsDangerous(uint32_t currentCountry, uint32_t nextCountry, uint32_t chessIn
 //     }
 //     return countty;
 // }
-uint32_t NextCountry(uint32_t currentCountry){
+uint32_t GetNextCountry(uint32_t currentCountry){
     do{
         currentCountry = (currentCountry + 1) % g_DefaultCountryCount;
     } while (g_Chessboard.IsDeath(currentCountry));
@@ -236,28 +235,31 @@ void setupVulkan(GLFWwindow *window){
 	printf("gpu name:%s, gpu type:%s\n", physicalDeviceProperties.deviceName, deviceType);
 }
 void cleanupVulkan(){
+    vkDeviceWaitIdle(g_VulkanDevice.device);
     for (size_t i = 0; i < g_VulkanSynchronize.fences.size(); ++i){
-        vkDestroyFence(g_VulkanDevice.device, g_VulkanSynchronize.fences[i], nullptr);
-        vkDestroySemaphore(g_VulkanDevice.device, g_VulkanSynchronize.imageAcquired[i], nullptr);
-        vkDestroySemaphore(g_VulkanDevice.device, g_VulkanSynchronize.renderComplete[i], nullptr);
+        vkDestroyFence(g_VulkanDevice.device, g_VulkanSynchronize.fences[i], VK_NULL_HANDLE);
+        vkDestroySemaphore(g_VulkanDevice.device, g_VulkanSynchronize.imageAcquired[i], VK_NULL_HANDLE);
+        vkDestroySemaphore(g_VulkanDevice.device, g_VulkanSynchronize.renderComplete[i], VK_NULL_HANDLE);
     }
     for (size_t i = 0; i < g_VulkanWindows.framebuffers.size(); ++i){
+        g_VulkanWindows.swapchainImages[i].image = VK_NULL_HANDLE;
         g_VulkanWindows.swapchainImages[i].Destroy(g_VulkanDevice.device);
+        vkDestroyFramebuffer(g_VulkanDevice.device, g_VulkanWindows.framebuffers[i], VK_NULL_HANDLE);
     }
     g_VulkanWindows.depthImage.Destroy(g_VulkanDevice.device);
     
-    vkDestroyCommandPool(g_VulkanDevice.device, g_VulkanPool.commandPool, nullptr);
-    vkDestroyDescriptorPool(g_VulkanDevice.device, g_VulkanPool.descriptorPool, nullptr);
+    vkDestroyCommandPool(g_VulkanDevice.device, g_VulkanPool.commandPool, VK_NULL_HANDLE);
+    vkDestroyDescriptorPool(g_VulkanDevice.device, g_VulkanPool.descriptorPool, VK_NULL_HANDLE);
 
-    vkDestroyRenderPass(g_VulkanDevice.device, g_VulkanWindows.renderpass, nullptr);
-    vkDestroySwapchainKHR(g_VulkanDevice.device, g_VulkanWindows.swapchain, nullptr);
+    vkDestroyRenderPass(g_VulkanDevice.device, g_VulkanWindows.renderpass, VK_NULL_HANDLE);
+    vkDestroySwapchainKHR(g_VulkanDevice.device, g_VulkanWindows.swapchain, VK_NULL_HANDLE);
 
-    vkDestroySurfaceKHR(g_VulkanDevice.instance, g_VulkanWindows.surface, nullptr);
+    vkDestroySurfaceKHR(g_VulkanDevice.instance, g_VulkanWindows.surface, VK_NULL_HANDLE);
 
     vkf::DestoryDebugUtilsMessenger(g_VulkanDevice.instance, g_VulkanMessenger);
 
-    vkDestroyDevice(g_VulkanDevice.device, nullptr);
-    vkDestroyInstance(g_VulkanDevice.instance, nullptr);
+    vkDestroyDevice(g_VulkanDevice.device, VK_NULL_HANDLE);
+    vkDestroyInstance(g_VulkanDevice.instance, VK_NULL_HANDLE);
 }
 glm::vec2 lerp(const glm::vec2&p0, const glm::vec2&p1, float t){
     return (1 - t) * p0 + t * p1;
@@ -289,7 +291,7 @@ void Play(const glm::vec2&mousePos, const ChessInfo *pRival){
                 printf("%s国被%s国消灭\n", county[pRival->country], county[g_CurrentCountry]);
                 g_Chessboard.DestroyCountry(g_VulkanDevice.device, pRival->country);
             }
-            g_CurrentCountry = NextCountry(g_CurrentCountry);
+            g_CurrentCountry = GetNextCountry(g_CurrentCountry);
         }
     }
 }
@@ -811,7 +813,7 @@ bool GameOver(){
 const ChessInfo *GetRival(const std::vector<ChessInfo>&canplays, auto condition){
     const ChessInfo *pRival = nullptr;
     for (size_t i = 0; i < canplays.size(); ++i){
-        pRival = g_Chessboard.GetChessInfo(canplays[i].row, canplays[i].column);
+        pRival = g_Chessboard.GetChessInfos(canplays[i].row, canplays[i].column);
         if(pRival && condition(pRival)){
             break;
         }
@@ -824,7 +826,7 @@ const ChessInfo *GetRival(const std::vector<ChessInfo>&canplays, auto condition)
 bool CanPlay(const std::vector<ChessInfo>&canplays){
     bool bCanPlay = false;
     for (size_t i = 0; i < canplays.size(); ++i){
-        const ChessInfo *pRival = g_Chessboard.GetChessInfo(canplays[i].row, canplays[i].column);
+        const ChessInfo *pRival = g_Chessboard.GetChessInfos(canplays[i].row, canplays[i].column);
         if(!pRival || pRival->country != g_CurrentCountry){
             bCanPlay = true;
             break;
@@ -832,35 +834,42 @@ bool CanPlay(const std::vector<ChessInfo>&canplays){
     }
     return bCanPlay;
 }
-//返回rivalCountry中能吃到country的chessIndex的棋子
+//返回rivalCountry中能吃到country的chessIndex棋子
 const ChessInfo *GetRival(uint32_t country, uint32_t rivalCountry, uint32_t chessIndex){
-    const ChessInfo *pRival = nullptr;
+    const ChessInfo *pChessInfo = nullptr;
     for (size_t uiChess = 0; uiChess < COUNTRY_CHESS_COUNT; ++uiChess){
-        const ChessInfo *pChessInfo = g_Chessboard.GetInfo(rivalCountry, uiChess);
-        if(pChessInfo->row > CHESSBOARD_ROW || pChessInfo->column > CHESSBOARD_COLUMN)continue;
-        g_Chessboard.SetSelected(pChessInfo);
-        g_Chessboard.Selected(VK_NULL_HANDLE);
-        auto canPlayInfo = g_Chessboard.GetCanPlay();
-        pRival = GetRival(canPlayInfo, [country, chessIndex](const ChessInfo *r){return r->country == country && r->chess == chessIndex;});
-        g_Chessboard.ClearCanPlay(VK_NULL_HANDLE);
-        if(pRival)break;
+        const ChessInfo *pRival = nullptr;
+        pChessInfo = g_Chessboard.GetChessInfo(rivalCountry, uiChess);
+        if(pChessInfo->row <= CHESSBOARD_ROW && pChessInfo->column <= CHESSBOARD_COLUMN){
+            g_Chessboard.SetSelected(pChessInfo);
+            g_Chessboard.Selected(VK_NULL_HANDLE);
+            auto canPlayInfo = g_Chessboard.GetCanPlay();
+            pRival = GetRival(canPlayInfo, [country, chessIndex](const ChessInfo *r){return r->country == country && r->chess == chessIndex;});
+            g_Chessboard.ClearCanPlay(VK_NULL_HANDLE);
+        }
+        if(pRival){
+            break;
+        }
+        else{
+            pChessInfo = nullptr;
+        }
     }
-    return pRival;
+    return pChessInfo;
 }
-//返回所有国家中, 是否有棋子能吃到country的chessIndex
+//返回所有国家中, 能吃到country的chessIndex的棋子
 const ChessInfo *GetRival(uint32_t country, uint32_t chessIndex){
-    const ChessInfo *pRival = nullptr;
+    const ChessInfo *pChessInfo = nullptr;
     for (size_t i = 0; i < g_DefaultCountryCount; i++){
-        pRival = GetRival(country, i, chessIndex);
-        if(pRival)break;
+        pChessInfo = GetRival(country, i, chessIndex);
+        if(pChessInfo)break;
     }
-    return pRival;
+    return pChessInfo;
 }
 //返回currentCountry的第一个敌人
 const ChessInfo *GetRival(uint32_t currentCountry, const ChessInfo **pChessInfo){
     const ChessInfo *pRival = nullptr;
     for (size_t uiChess = 0; uiChess < COUNTRY_CHESS_COUNT; ++uiChess){
-        *pChessInfo = g_Chessboard.GetInfo(currentCountry, uiChess);
+        *pChessInfo = g_Chessboard.GetChessInfo(currentCountry, uiChess);
         if(*pChessInfo && (*pChessInfo)->row <= CHESSBOARD_ROW && (*pChessInfo)->column <= CHESSBOARD_COLUMN){
             g_Chessboard.SetSelected(*pChessInfo);
             g_Chessboard.Selected(VK_NULL_HANDLE);
@@ -872,21 +881,21 @@ const ChessInfo *GetRival(uint32_t currentCountry, const ChessInfo **pChessInfo)
     }
     return pRival;
 }
-//返回currentCountry是否有能被nextCountry吃的棋子;
+//返回currentCountry的chessIndex是否能被nextCountry棋子吃;
 bool IsDangerous(uint32_t currentCountry, uint32_t nextCountry, uint32_t chessIndex){
     return GetRival(currentCountry, nextCountry, chessIndex);
 }
-//返回所有国家中, 是否有棋子能吃到country的chessIndex
-bool IsDangerous(uint32_t country, uint32_t chessIndex){
-    bool bDangerous = false;
-    for (size_t i = 0; i < g_DefaultCountryCount; ++i){
-        if(country != i){
-            bDangerous = IsDangerous(country, i, chessIndex);
-            if(bDangerous)break;
-        }
-    }
-    return bDangerous;
-}
+// //返回所有国家中, 是否有棋子能吃到country的chessIndex
+// bool IsDangerous(uint32_t country, uint32_t chessIndex){
+//     bool bDangerous = false;
+//     for (size_t i = 0; i < g_DefaultCountryCount; ++i){
+//         if(country != i){
+//             bDangerous = IsDangerous(country, i, chessIndex);
+//             if(bDangerous)break;
+//         }
+//     }
+//     return bDangerous;
+// }
 void aiPlayChess(const ChessInfo*pInfo, const ChessInfo *pRival){
     if(!g_Chessboard.IsBoundary(pInfo->row, pInfo->column)){
         glm::vec2 pos = glm::vec2(COLUMN_TO_X(pInfo->column), ROW_TO_Y(pInfo->row));
@@ -921,53 +930,82 @@ void aiPlayChess(const ChessInfo*pInfo, const ChessInfo *pRival){
         }
     }
 }
-void aiPlay(){
-    const ChessInfo *pInfo = nullptr;
-    const ChessInfo *pRival = nullptr;
-    // static uint32_t bPaoCanCapture = 0;
-    // if(pInfo->chess == PAO_CHESS_INDEX_1 || pInfo->chess == PAO_CHESS_INDEX_2)++bPaoCanCapture;
+/*
+    将
+        面临被吃的危险
+            1,有其他棋子(包括自身)可以解则解
+            2.没路走就走其他棋子,不然要死循环了
+            3.没路、没其他棋走则直接跳过。反正这种情况少见
+    其他棋子:
+        可以先找敌人
+        找不到的话则说明没有保护的棋子
+        面临被吃的危险
+            1.有其他棋子(包括自身)可以解则解
+            2.没有的话如果有保护的棋子，也可以不走
+            3.都没有就而且没路的话就参考上面
     //除将外，其他棋子均可以在有保护的情况下不走
-    //如果某个棋子面临被吃问题, 如果有棋子可以解则解，无再逃走
-    if(IsDangerous(g_CurrentCountry, JIANG_CHESS_INDEX)){
-        pInfo = g_Chessboard.GetInfo(g_CurrentCountry, JIANG_CHESS_INDEX);
-        g_Chessboard.SetSelected(pInfo);
-        g_Chessboard.Selected(VK_NULL_HANDLE);
-        if(!CanPlay(g_Chessboard.GetCanPlay())){
-            //看看有什么棋子能让将不被吃
-        }
-        g_Chessboard.ClearCanPlay(VK_NULL_HANDLE);
-    }
-    else{
-        pRival = GetRival(g_CurrentCountry, &pInfo);
-        if(!pRival){
-            do{
-                pInfo = g_Chessboard.GetInfo(g_CurrentCountry, rand() % (COUNTRY_CHESS_COUNT));
-            }while(pInfo->row > CHESSBOARD_ROW || pInfo->column > CHESSBOARD_COLUMN);
-        }
-    }
-    // else{
-    //     for (uint32_t uiChess = 1; uiChess < COUNTRY_CHESS_COUNT; ++uiChess){
-    //         pRival = GetRival(g_CurrentCountry, NextCountry(g_CurrentCountry), uiChess);
-    //         // pInfo = g_Chessboard.GetInfo(g_CurrentCountry, uiChess);
-    //         // if(pInfo->row > CHESSBOARD_ROW)continue;
-    //         // if(IsDangerous(g_CurrentCountry, pInfo)){
-    //         //     break;
-    //         // }
-    //     }
-    //     auto canPlayInfo = g_Chessboard.GetCanPlay();
-    //     if(!pRival || canPlayInfo.empty()){
-    //         do{
-    //             pInfo = g_Chessboard.GetInfo(g_CurrentCountry, rand() % (COUNTRY_CHESS_COUNT));
-    //         }while(pInfo->row > CHESSBOARD_ROW || pInfo->column > CHESSBOARD_COLUMN);
-    //         aiPlayChess(pInfo, nullptr);
-    //     }
-    // }
-    if(!pInfo){
-        printf("error:pInfo is nullptr\n");
+*/
+void Dangerous(const ChessInfo **pDangerous, const ChessInfo **pRival){
+    if((*pDangerous)->chess == SHI_CHESS_INDEX_1 || (*pDangerous)->chess == SHI_CHESS_INDEX_2){
+        *pDangerous = nullptr;
+        *pRival = nullptr;
         return;
     }
-    //想下的棋子，和敌人统统上面设置
-    aiPlayChess(pInfo, pRival);
+    // g_Chessboard.SetSelected(*pDangerous);
+    // g_Chessboard.Selected(VK_NULL_HANDLE);
+    //找一个解围的棋子
+    const ChessInfo *pChess = GetRival((*pRival)->country, (*pDangerous)->country, (*pRival)->chess);
+    if(pChess){
+        *pDangerous = pChess;
+    }
+    else{
+        if((*pDangerous)->chess != JIANG_CHESS_INDEX){
+            //找一个可以保护pDangerous的棋子
+            pChess = GetRival((*pDangerous)->country, (*pDangerous)->country, (*pDangerous)->chess);
+            if(pChess){
+                //如果找到就别管了
+                *pDangerous = nullptr;
+                *pRival = nullptr;
+                return;
+            }
+        }
+        if(!CanPlay(g_Chessboard.GetCanPlay())){
+            *pDangerous = nullptr;//其实应该重新设置
+            *pRival = nullptr;
+        }
+    }   
+    // g_Chessboard.ClearCanPlay(VK_NULL_HANDLE);
+}
+void aiPlay(){
+    const ChessInfo *pSelect = nullptr, *pSwapch = nullptr;
+    const uint32_t nextCountry = GetNextCountry(g_CurrentCountry);
+    const ChessInfo *pRival = GetRival(g_CurrentCountry, (uint32_t)JIANG_CHESS_INDEX);
+    if(pRival){
+        pSelect = g_Chessboard.GetChessInfo(g_CurrentCountry, JIANG_CHESS_INDEX);
+        Dangerous(&pSelect, &pRival);
+    }
+    else{
+        pRival = GetRival(g_CurrentCountry, &pSelect);
+        if(!pRival){
+            pSelect = nullptr;
+            //如果某个棋子面临被吃问题, 如果有棋子可以解则解，无再逃走
+            for (uint32_t uiChess = 1; uiChess < COUNTRY_CHESS_COUNT; ++uiChess){
+                pRival = GetRival(g_CurrentCountry, nextCountry, uiChess);
+                if(pRival){
+                    pSelect = g_Chessboard.GetChessInfo(g_CurrentCountry, uiChess);
+                    Dangerous(&pSelect, &pRival);
+                    break;
+                }
+            }
+        }
+    }
+    if(!pSelect){
+        do{
+            pSelect = g_Chessboard.GetChessInfo(g_CurrentCountry, rand() % (COUNTRY_CHESS_COUNT));
+        }while(pSelect->row > CHESSBOARD_ROW || pSelect->column > CHESSBOARD_COLUMN);
+    }
+    //想下的棋子、敌人上面设置
+    aiPlayChess(pSelect, pRival);
 }
 void *AiPlayChess(void *userData){
     while(!GameOver()){

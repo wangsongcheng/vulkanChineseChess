@@ -422,16 +422,16 @@ void Chessboard::DestroyCountry(VkDevice device, uint32_t country){
     }
     UpdateChess(device);
 }
-const ChessInfo *Chessboard::GetChessInfo(uint32_t row, uint32_t column){
+const ChessInfo *Chessboard::GetChessInfos(uint32_t row, uint32_t column){
     const ChessInfo *pInfor = nullptr;
     for (size_t uiCountry = 0; uiCountry < 4; ++uiCountry){
-        if(pInfor = GetChessInfo(uiCountry, row, column)){
+        if(pInfor = GetChessInfos(uiCountry, row, column)){
             break;
         }
     }
     return pInfor;
 }
-const ChessInfo *Chessboard::GetChessInfo(uint32_t country, uint32_t row, uint32_t column){
+const ChessInfo *Chessboard::GetChessInfos(uint32_t country, uint32_t row, uint32_t column){
     ChessInfo *pInfor = nullptr;
     for (size_t uiChess = 0; uiChess < COUNTRY_CHESS_COUNT; ++uiChess){
         if(mChessInfo[country][uiChess].row == row && mChessInfo[country][uiChess].column == column){

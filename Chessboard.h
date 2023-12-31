@@ -62,8 +62,8 @@ public:
     bool IsBoundary(uint32_t row, uint32_t column)const;
     const ChessInfo *GetSelectInfo(const glm::vec2&pos);
     void DestroyCountry(VkDevice device, uint32_t country);
-    const ChessInfo *GetChessInfo(uint32_t row, uint32_t column);
-    const ChessInfo *GetChessInfo(uint32_t country, uint32_t row, uint32_t column);
+    const ChessInfo *GetChessInfos(uint32_t row, uint32_t column);
+    const ChessInfo *GetChessInfos(uint32_t country, uint32_t row, uint32_t column);
     //如果返回真表示该玩家操作完毕，应该让下一位玩家操作
     bool Play(VkDevice device, const glm::vec2&mousePos, const ChessInfo *pRival);
     void CaptureChess(uint32_t srcCountry, uint32_t srcChess, uint32_t dstCountry, uint32_t destChess);
@@ -80,8 +80,8 @@ public:
     inline const std::vector<ChessInfo>&GetCanPlay(){
         return mCanplays;
     }
-    inline const ChessInfo *GetInfo(uint32_t country, uint32_t index){
-        return &mChessInfo[country][index];
+    inline const ChessInfo *GetChessInfo(uint32_t country, uint32_t chessIndex){
+        return &mChessInfo[country][chessIndex];
     }
     //除蜀国外，a吃掉b的将后，a获得b剩下的所有棋子
     //如果可以。去掉蜀国和吴国的2个兵(其他棋子也可以考虑)，已体现魏国的优势
