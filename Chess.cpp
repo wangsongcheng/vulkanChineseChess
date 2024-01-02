@@ -8,19 +8,31 @@
 // #include "stb_truetype.h"
 // #include "stb_image_write.h"
 
-const ChessInfo *Chess::GetChessInfo(const ChessInfo *pInfo, uint32_t count, uint32_t row, uint32_t column)const{
+const ChessInfo *Chess::GetChessInfo(uint32_t row, uint32_t column, const Chess *pChess[4][COUNTRY_CHESS_COUNT])const{
     const ChessInfo *pChessInfo = nullptr;
-    for (size_t i = 0; i < count; ++i){
-        // printf("i = %d, country = %d, row = %d, column = %d\n", i, pInfo[i].country, pInfo[i].row, pInfo[i].column);
-        if(pInfo[i].row == row && pInfo[i].column == column){
-            pChessInfo = &pInfo[i];
-            break;
+    for (uint32_t uiCountry = 0; uiCountry < 4; ++uiCountry){
+        pChessInfo = GetChessInfo(uiCountry, row, column, pChess);
+        if(pChessInfo)break;
+    }
+    return pChessInfo;
+}
+const ChessInfo *Chess::GetChessInfo(uint32_t country, uint32_t row, uint32_t column, const Chess *pChess[4][COUNTRY_CHESS_COUNT])const{
+    const ChessInfo *pChessInfo = nullptr;
+    for (uint32_t uiChess = 0; uiChess < COUNTRY_CHESS_COUNT; ++uiChess){
+        const Chess *pC = pChess[country][uiChess];
+        if(pC){
+            pChessInfo = pC->GetInfo();
+            if(pChessInfo->row == row && pChessInfo->column == column){
+                break;
+            }
+            else{
+                pChessInfo = nullptr;
+            }
         }
     }
     // printf("-------------\n");
-    return pChessInfo;
+    return pChessInfo;    
 }
-
 // #include "Chessboard.h"
 Chess::Chess(const ChessInfo&info){
     mInfo = info;
@@ -68,7 +80,7 @@ bool Chess::IsInPalace(uint32_t row, uint32_t column, const ChessInfo *pCenter) 
     }
     return bInIsPalace;
 }
-void Chess::SelectChessInPalace(const ChessInfo *pInfo, uint32_t infoCount, uint32_t centerCount, const ChessInfo *center, std::vector<ChessInfo>&canplays)const{
+void Chess::SelectChessInPalace(const Chess *pChess[4][COUNTRY_CHESS_COUNT], uint32_t centerCount, const ChessInfo *center, std::vector<ChessInfo>&canplays)const{
     //只需要管斜线，其他位置归棋子子类管
     //因为我们确实在自己的九宫格内，所以该条件直接通过，后面就是想去谁的九宫格都行
     const ChessInfo *pChessInfo = nullptr;
@@ -84,7 +96,7 @@ void Chess::SelectChessInPalace(const ChessInfo *pInfo, uint32_t infoCount, uint
                     glm::vec2(center[i].column + 1, center[i].row + 1)
                 };
                 for (size_t i = 0; i < sizeof(pos) / sizeof(glm::vec2); ++i){
-                    pChessInfo = GetChessInfo(pInfo, infoCount, pos[i].y, pos[i].x);
+                    pChessInfo = GetChessInfo(pos[i].y, pos[i].x, pChess);
                     if(!pChessInfo || pChessInfo->country != mInfo.country){
                         canplays.push_back(ChessInfo(pos[i].y, pos[i].x));
                     }
@@ -93,7 +105,7 @@ void Chess::SelectChessInPalace(const ChessInfo *pInfo, uint32_t infoCount, uint
             }
             else if((mInfo.row == center[i].row - 1 || mInfo.row == center[i].row + 1) && (mInfo.column == center[i].column - 1 || mInfo.column == center[i].column + 1)){
                 //在斜线边的点上时, 能走的只有中心点
-                pChessInfo = GetChessInfo(pInfo, infoCount, center[i].row, center[i].column);
+                pChessInfo = GetChessInfo(center[i].row, center[i].column, pChess);
                 if(!pChessInfo || pChessInfo->country != mInfo.country)canplays.push_back(ChessInfo(center[i].row, center[i].column));
                 break;
             }
@@ -107,20 +119,21 @@ Wei::Wei(const ChessInfo &info) : Chess(info){
 Wei::~Wei(){
 
 }
-void Wei::Selected(const ChessInfo *pInfo, uint32_t count, std::vector<ChessInfo>&canplays){
+void Wei::Selected(const Chess *pChess[4][COUNTRY_CHESS_COUNT], std::vector<ChessInfo>&canplays)const{
     //需要知道某个地方有没有棋子，该棋子的信息
     const ChessInfo cInfo[] = { ChessInfo(mInfo.row + 1, mInfo.column), ChessInfo(mInfo.row - 1, mInfo.column), ChessInfo(mInfo.row, mInfo.column + 1), ChessInfo(mInfo.row, mInfo.column - 1) };
     for(uint32_t i = 0; i < sizeof(cInfo) / sizeof(ChessInfo); ++i){
         if(!IsBoundary(cInfo[i].row, cInfo[i].column)){
             if(IsInPalace(cInfo[i].row, cInfo[i].column, &mCenter)){//将不能出九宫格
-                const ChessInfo *pChessInfo = GetChessInfo(pInfo, count, cInfo[i].row, cInfo[i].column);
+                const ChessInfo *pChessInfo = GetChessInfo(cInfo[i].row, cInfo[i].column, pChess);
                 if(!pChessInfo || pChessInfo->country != mInfo.country){
                     canplays.push_back(ChessInfo(cInfo[i].row, cInfo[i].column));
                 }
             }
         }
     }
-    SelectChessInPalace(pInfo, count, 1, &mCenter, canplays);}
+    SelectChessInPalace(pChess, 1, &mCenter, canplays);
+}
 
 Shu::Shu(const ChessInfo&info):Chess(info){
     mCenter.row = 15;
@@ -129,18 +142,18 @@ Shu::Shu(const ChessInfo&info):Chess(info){
 Shu::~Shu(){
 
 }
-void Shu::Selected(const ChessInfo *pInfo, uint32_t count, std::vector<ChessInfo>&canplays){
+void Shu::Selected(const Chess *pChess[4][COUNTRY_CHESS_COUNT], std::vector<ChessInfo>&canplays)const{
     const ChessInfo cInfo[] = { ChessInfo(mInfo.row + 1, mInfo.column), ChessInfo(mInfo.row - 1, mInfo.column), ChessInfo(mInfo.row, mInfo.column + 1), ChessInfo(mInfo.row, mInfo.column - 1) };
     for(uint32_t i = 0; i < sizeof(cInfo) / sizeof(ChessInfo); ++i){
         if(!IsBoundary(cInfo[i].row, cInfo[i].column)){
             if(IsInPalace(cInfo[i].row, cInfo[i].column, &mCenter)){
-                const ChessInfo *pChessInfo = GetChessInfo(pInfo, count, cInfo[i].row, cInfo[i].column);
+                const ChessInfo *pChessInfo = GetChessInfo(cInfo[i].row, cInfo[i].column, pChess);
                 if(!pChessInfo || pChessInfo->country != mInfo.country)
                     canplays.push_back(ChessInfo(cInfo[i].row, cInfo[i].column));
             }
         }
     }
-    SelectChessInPalace(pInfo, count, 1, &mCenter, canplays);
+    SelectChessInPalace(pChess, 1, &mCenter, canplays);
 }
 Wu::Wu(const ChessInfo&info):Chess(info){
     mCenter.row = 8;
@@ -149,18 +162,18 @@ Wu::Wu(const ChessInfo&info):Chess(info){
 Wu::~Wu(){
 
 }
-void Wu::Selected(const ChessInfo *pInfo, uint32_t count, std::vector<ChessInfo>&canplays){
+void Wu::Selected(const Chess *pChess[4][COUNTRY_CHESS_COUNT], std::vector<ChessInfo>&canplays)const{
     const ChessInfo cInfo[] = { ChessInfo(mInfo.row + 1, mInfo.column), ChessInfo(mInfo.row - 1, mInfo.column), ChessInfo(mInfo.row, mInfo.column + 1), ChessInfo(mInfo.row, mInfo.column - 1) };
     for(uint32_t i = 0; i < sizeof(cInfo) / sizeof(ChessInfo); ++i){
         if(!IsBoundary(cInfo[i].row, cInfo[i].column)){
             if(IsInPalace(cInfo[i].row, cInfo[i].column, &mCenter)){
-                const ChessInfo *pChessInfo = GetChessInfo(pInfo, count, cInfo[i].row, cInfo[i].column);
+                const ChessInfo *pChessInfo = GetChessInfo(cInfo[i].row, cInfo[i].column, pChess);
                 if(!pChessInfo || pChessInfo->country != mInfo.country)
                     canplays.push_back(ChessInfo(cInfo[i].row, cInfo[i].column));
             }
         }
     }
-    SelectChessInPalace(pInfo, count, 1, &mCenter, canplays);    
+    SelectChessInPalace(pChess, 1, &mCenter, canplays);    
 }
 // void Wu::CreateFontTexture(VkDevice device, const unsigned char *fontfiledata, VkCommandPool pool, VkQueue graphics){
 //     unsigned char *bitmap = (unsigned char *)malloc(CHESS_FONT_IMAGE_WIDTH * CHESS_FONT_IMAGE_HEIGHT);
@@ -181,7 +194,7 @@ Han::Han(const ChessInfo&info):Chess(info){
 Han::~Han(){
 
 }
-void Han::Selected(const ChessInfo *pInfo, uint32_t count, std::vector<ChessInfo>&canplays){
+void Han::Selected(const Chess *pChess[4][COUNTRY_CHESS_COUNT], std::vector<ChessInfo>&canplays)const{
     //漢不能被选择
 }
 // void Han::CreateFontTexture(VkDevice device, const unsigned char *fontfiledata, VkCommandPool pool, VkQueue graphics){
@@ -245,7 +258,7 @@ Bing::Bing(const ChessInfo&info):Chess(info){
 Bing::~Bing(){
 
 }
-void Bing::Selected(const ChessInfo *pInfo, uint32_t count, std::vector<ChessInfo>&canplays){
+void Bing::Selected(const Chess *pChess[4][COUNTRY_CHESS_COUNT], std::vector<ChessInfo>&canplays)const{
     //windows下兵不能吃，一吃就delete 崩溃
     //兵不能后退
     const glm::vec2 back = GetCountryBack(mInfo.country);
@@ -255,12 +268,12 @@ void Bing::Selected(const ChessInfo *pInfo, uint32_t count, std::vector<ChessInf
         if(cInfo[i].x == back.x && cInfo[i].y == back.y)continue;
         const glm::vec2 currentPos = glm::vec2(mInfo.column, mInfo.row) + cInfo[i];
         if(!IsBoundary(currentPos.y, currentPos.x)){
-            const ChessInfo *pChessInfo = GetChessInfo(pInfo, count, currentPos.y, currentPos.x);
+            const ChessInfo *pChessInfo = GetChessInfo(currentPos.y, currentPos.x, pChess);
             if(!pChessInfo || pChessInfo->country != mInfo.country)
                 canplays.push_back(ChessInfo(currentPos.y, currentPos.x));
         }
     }
-    SelectChessInPalace(pInfo, count, 2, mCenter, canplays);
+    SelectChessInPalace(pChess, 2, mCenter, canplays);
 }
 // void Bing::CreateFontTexture(VkDevice device, const unsigned char *fontfiledata, VkCommandPool pool, VkQueue graphics){
 //     unsigned char *bitmap = (unsigned char *)malloc(CHESS_FONT_IMAGE_WIDTH * CHESS_FONT_IMAGE_HEIGHT);
@@ -288,18 +301,18 @@ Pao::Pao(const ChessInfo&info):Chess(info){
 Pao::~Pao(){
     
 }
-void Pao::Selected(const ChessInfo *pInfo, uint32_t count, std::vector<ChessInfo>&canplays){
+void Pao::Selected(const Chess *pChess[4][COUNTRY_CHESS_COUNT], std::vector<ChessInfo>&canplays)const{
     // bool bCapture = false;
     const glm::vec2 direction[] = { glm::vec2(1, 0), glm::vec2(-1, 0), glm::vec2(0, 1), glm::vec2(0, -1) };
     for(uint32_t i = 0; i < sizeof(direction) / sizeof(glm::vec2); ++i){
         const glm::vec2 currentPos = glm::vec2(mInfo.column, mInfo.row);
         glm::vec2 pos = currentPos + direction[i];
         while(!IsBoundary(pos.y, pos.x)){
-            const ChessInfo *pChessInfo = GetChessInfo(pInfo, count, pos.y, pos.x);
+            const ChessInfo *pChessInfo = GetChessInfo(pos.y, pos.x, pChess);
             if(pChessInfo){
                 pos += direction[i];
                 while(!IsBoundary(pos.y, pos.x)){
-                    pChessInfo = GetChessInfo(pInfo, count, pos.y, pos.x);
+                    pChessInfo = GetChessInfo(pos.y, pos.x, pChess);
                     if(pChessInfo && pChessInfo->country != mInfo.country){
                         canplays.push_back(ChessInfo(pos.y, pos.x));
                         break;
@@ -341,13 +354,13 @@ Che::Che(const ChessInfo&info):Chess(info){
 Che::~Che(){
     
 }
-void Che::Selected(const ChessInfo *pInfo, uint32_t count, std::vector<ChessInfo>&canplays){
+void Che::Selected(const Chess *pChess[4][COUNTRY_CHESS_COUNT], std::vector<ChessInfo>&canplays)const{
     const glm::vec2 direction[] = { glm::vec2(1, 0), glm::vec2(-1, 0), glm::vec2(0, 1), glm::vec2(0, -1) };
     for(uint32_t i = 0; i < sizeof(direction) / sizeof(glm::vec2); ++i){
         const glm::vec2 currentPos = glm::vec2(mInfo.column, mInfo.row);
         glm::vec2 pos = currentPos + direction[i];
         while(!IsBoundary(pos.y, pos.x)){
-            const ChessInfo *pChessInfo = GetChessInfo(pInfo, count, pos.y, pos.x);
+            const ChessInfo *pChessInfo = GetChessInfo(pos.y, pos.x, pChess);
             if(pChessInfo){
                 if(pChessInfo->country != mInfo.country){
                     canplays.push_back(ChessInfo(pos.y, pos.x));
@@ -360,7 +373,7 @@ void Che::Selected(const ChessInfo *pInfo, uint32_t count, std::vector<ChessInfo
             pos += direction[i];
         }
     }
-    SelectChessInPalace(pInfo, count, 3, mCenter, canplays);
+    SelectChessInPalace(pChess, 3, mCenter, canplays);
 }
 // void Che::CreateFontTexture(VkDevice device, const unsigned char *fontfiledata, VkCommandPool pool, VkQueue graphics){
 //     unsigned char *bitmap = (unsigned char *)malloc(CHESS_FONT_IMAGE_WIDTH * CHESS_FONT_IMAGE_HEIGHT);
@@ -388,14 +401,14 @@ Ma::Ma(const ChessInfo&info):Chess(info){
 Ma::~Ma(){
     
 }
-void Ma::Selected(const ChessInfo *pInfo, uint32_t count, std::vector<ChessInfo>&canplays){
+void Ma::Selected(const Chess *pChess[4][COUNTRY_CHESS_COUNT], std::vector<ChessInfo>&canplays)const{
     const ChessInfo cInfo[] = {
         ChessInfo(mInfo.row - 1, mInfo.column - 2), ChessInfo(mInfo.row - 2, mInfo.column - 1), ChessInfo(mInfo.row - 2, mInfo.column + 1), ChessInfo(mInfo.row - 1, mInfo.column + 2),
         ChessInfo(mInfo.row + 1, mInfo.column + 2), ChessInfo(mInfo.row + 2, mInfo.column + 1), ChessInfo(mInfo.row + 2, mInfo.column - 1), ChessInfo(mInfo.row + 1, mInfo.column - 2)
     };
     for(uint32_t i = 0; i < sizeof(cInfo) / sizeof(ChessInfo); ++i){
         if(!IsBoundary(cInfo[i].row, cInfo[i].column)){//这里的马和相不会被"蹩马腿",所以不需要判断
-            const ChessInfo *pChessInfo = GetChessInfo(pInfo, count, cInfo[i].row, cInfo[i].column);
+            const ChessInfo *pChessInfo = GetChessInfo(cInfo[i].row, cInfo[i].column, pChess);
             if(!pChessInfo || pChessInfo->country != mInfo.country)
                 canplays.push_back(ChessInfo(cInfo[i].row, cInfo[i].column));
         }
@@ -408,7 +421,7 @@ void Ma::Selected(const ChessInfo *pInfo, uint32_t count, std::vector<ChessInfo>
 //     vkf::CreateFontImage(device, bitmap, CHESS_FONT_IMAGE_WIDTH, CHESS_FONT_IMAGE_HEIGHT, mFont, pool, graphics);
 //     free(bitmap);
 
-bool Xiang::IsAbroad(uint32_t row, uint32_t column){
+bool Xiang::IsAbroad(uint32_t row, uint32_t column)const{
     if(mInfo.country == WEI_COUNTRY_INDEX){
         if(row > 4 || column < 4 || column > 12)return false;
     }
@@ -432,11 +445,11 @@ Xiang::Xiang(const ChessInfo&info):Chess(info){
 Xiang::~Xiang(){
     
 }
-void Xiang::Selected(const ChessInfo *pInfo, uint32_t count, std::vector<ChessInfo>&canplays){
+void Xiang::Selected(const Chess *pChess[4][COUNTRY_CHESS_COUNT], std::vector<ChessInfo>&canplays)const{
     const ChessInfo cInfo[] = { ChessInfo(mInfo.row + 2, mInfo.column + 2), ChessInfo(mInfo.row - 2, mInfo.column - 2), ChessInfo(mInfo.row - 2, mInfo.column + 2), ChessInfo(mInfo.row + 2, mInfo.column - 2) };
     for(uint32_t i = 0; i < sizeof(cInfo) / sizeof(ChessInfo); ++i){
         if(!IsBoundary(cInfo[i].row, cInfo[i].column) && IsAbroad(cInfo[i].row, cInfo[i].column)){
-            const ChessInfo *pChessInfo = GetChessInfo(pInfo, count, cInfo[i].row, cInfo[i].column);
+            const ChessInfo *pChessInfo = GetChessInfo(cInfo[i].row, cInfo[i].column, pChess);
             if(!pChessInfo || pChessInfo->country != mInfo.country)
                 canplays.push_back(ChessInfo(cInfo[i].row, cInfo[i].column));
         }
@@ -472,8 +485,8 @@ Shi::~Shi(){
     
 }
 //从视频可以看出, 蜀国的棋当时认为自己在吴国九宫格中心点
-void Shi::Selected(const ChessInfo *pInfo, uint32_t count, std::vector<ChessInfo>&canplays){
-    SelectChessInPalace(pInfo, count, 1, &mCenter, canplays);
+void Shi::Selected(const Chess *pChess[4][COUNTRY_CHESS_COUNT], std::vector<ChessInfo>&canplays)const{
+    SelectChessInPalace(pChess, 1, &mCenter, canplays);
 }
 // void Shi::CreateFontTexture(VkDevice device, const unsigned char *fontfiledata, VkCommandPool pool, VkQueue graphics){
 //     unsigned char *bitmap = (unsigned char *)malloc(CHESS_FONT_IMAGE_WIDTH * CHESS_FONT_IMAGE_HEIGHT);

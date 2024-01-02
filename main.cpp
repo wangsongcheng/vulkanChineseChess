@@ -264,8 +264,8 @@ void cleanupVulkan(){
 glm::vec2 lerp(const glm::vec2&p0, const glm::vec2&p1, float t){
     return (1 - t) * p0 + t * p1;
 }
-void MoveChess(const glm::vec2&start, const glm::vec2&end){
-    const ChessInfo *pSelected = g_Chessboard.GetSelected();
+void MoveChess(uint32_t country, uint32_t chess, const glm::vec2&start, const glm::vec2&end){
+    const ChessInfo *pInfo = g_Chessboard.GetChessInfo(country, chess);
     VkExtent2D size;
     size.width = CHESS_WIDTH;
     size.height = CHESS_HEIGHT;
@@ -273,28 +273,17 @@ void MoveChess(const glm::vec2&start, const glm::vec2&end){
     // for (float t = 0; t < 1; t += .015){
         const glm::vec2 pos = lerp(start, end, t);
         // printf("pos:%f, %f\n", pos.x, pos.y);
-        g_Chessboard.UpdateChessUniform(g_VulkanDevice.device, g_CurrentCountry, pSelected->chess, pos, pSelected->fontIndex, size);
+        g_Chessboard.UpdateChessUniform(g_VulkanDevice.device, country, chess, pos, pInfo->fontIndex, size);
         usleep(10000);
     }
 }
-void Play(const glm::vec2&mousePos, const ChessInfo *pRival){
-    //或者也可以在ai调用这个函数前先设置选择的棋子
-    if(g_Chessboard.IsCanPlay(mousePos) != -1){
-        const ChessInfo *pSelected = g_Chessboard.GetSelected();
-        //不知道为什么，手动下棋看不到棋移动的效果
-#ifdef AI_RANDOMLY_PLAY_CHESS
-        MoveChess(glm::vec2(COLUMN_TO_X(pSelected->column), ROW_TO_Y(pSelected->row)), mousePos);
-#endif
-        if(g_Chessboard.Play(g_VulkanDevice.device, mousePos, pRival)){
-            const char county[][MAX_BYTE] = { "魏", "蜀", "吴", "汉" };
-            if(pRival && g_Chessboard.IsDeath(pRival->country)){
-                printf("%s国被%s国消灭\n", county[pRival->country], county[g_CurrentCountry]);
-                g_Chessboard.DestroyCountry(g_VulkanDevice.device, pRival->country);
-            }
-            g_CurrentCountry = GetNextCountry(g_CurrentCountry);
-        }
-    }
-}
+// void Play(const glm::vec2&mousePos, const ChessInfo *pRival){
+//     //或者也可以在ai调用这个函数前先设置选择的棋子
+//     if(g_Chessboard.IsCanPlay(mousePos) != -1){
+
+
+//     }
+// }
 #ifdef INTERNET_MODE
 void Send(int __fd, const GameMessage *__buf, size_t __n, int __flags){
     int sendSize, offset;
@@ -743,38 +732,116 @@ void RecordCommand(VkCommandBuffer command, uint32_t currentFrame){
     vkCmdEndRenderPass(command);
     vkEndCommandBuffer(command);
 }
-glm::vec2 g_SelectPos;
-void PlayChess(const glm::vec2&mousePos){
-    //单机和局域网联机差不多。无非就是要接收和发送消息
-    const ChessInfo *pSelected = g_Chessboard.GetSelected();
-    const ChessInfo *pChessInfo = g_Chessboard.GetSelectInfo(mousePos);//因为选择的地方没棋子，所以就不能获得棋子，导致无法走棋
-    if(pChessInfo){
-        if(pSelected && pChessInfo->country != g_CurrentCountry){
-#ifdef INTERNET_MODE
-            Play(g_Player, mousePos, g_SelectPos);
-#else
-            Play(mousePos, pChessInfo);
-#endif
-        }
-        else if(pChessInfo->country == g_CurrentCountry){
-            g_Chessboard.UnSelect(g_VulkanDevice.device);
-            if(!pSelected || (pSelected->row != pChessInfo->row || pSelected->column != pChessInfo->column)){
-                g_SelectPos = mousePos;
-                g_Chessboard.SetSelected(pChessInfo);
-                g_Chessboard.Selected(g_VulkanDevice.device);
-            }
+int32_t GetCanPlay(const glm::vec2&mousePos, const std::vector<ChessInfo>&canplays){
+    int32_t index = -1;
+    for (size_t i = 0; i < canplays.size(); ++i){
+        const uint32_t chessY = ROW_TO_Y(canplays[i].row) - CHESSBOARD_GRID_SIZE * .5;
+        const uint32_t chessX = COLUMN_TO_X(canplays[i].column) - CHESSBOARD_GRID_SIZE * .5;
+        if(mousePos.x > chessX && mousePos.y > chessY && mousePos.x < chessX + CHESSBOARD_GRID_SIZE && mousePos.y < chessY + CHESSBOARD_GRID_SIZE){
+            index = i;
+            break;
         }
     }
-    else if(pSelected){
-        Play(mousePos, nullptr);
+    return index;    
+}
+int32_t GetCanPlay(uint32_t row, uint32_t column, const std::vector<ChessInfo>&canplays){
+    int32_t index = -1;
+    for (size_t i = 0; i < canplays.size(); ++i){
+        if(row == canplays[i].row && column == canplays[i].column){
+            index = i;
+            break;
+        }
+    }
+    return index;
+}
+glm::vec2 g_SelectPos;
+//走子
+void PlayChess(uint32_t country, uint32_t chess, const glm::vec2&mousePos){
+    std::vector<ChessInfo>canplays;
+    const Chess *pChess = g_Chessboard.GetChess(country, chess);
+    pChess->Selected((const Chess* (*)[21])g_Chessboard.GetChess(), canplays);
+    const int32_t index = GetCanPlay(mousePos, canplays);
+    if(index != -1){
+        const ChessInfo *pChessInfo = pChess->GetInfo();
+        //不知道为什么，手动下棋看不到棋移动的效果
+#ifdef AI_RANDOMLY_PLAY_CHESS
+        MoveChess(pChessInfo->country, pChessInfo->chess, glm::vec2(COLUMN_TO_X(pChessInfo->column), ROW_TO_Y(pChessInfo->row)), mousePos);
+#endif
+        g_Chessboard.Move(g_VulkanDevice.device, country, chess, canplays[index].row, canplays[index].column);
+        g_CurrentCountry = GetNextCountry(g_CurrentCountry);
     }
 }
-
+//吃子
+void PlayChess(uint32_t srcCountry, uint32_t srcChess, uint32_t dstCountry, uint32_t dstChess){
+    std::vector<ChessInfo>canplays;
+    const char county[][MAX_BYTE] = { "魏", "蜀", "吴", "汉" };
+    const Chess *pSrcChess = g_Chessboard.GetChess(srcCountry, srcChess);
+    const ChessInfo *pSrcChessInfo = pSrcChess->GetInfo(), *pDstChessInfo = g_Chessboard.GetChessInfo(dstCountry, dstChess);
+    pSrcChess->Selected((const Chess* (*)[21])g_Chessboard.GetChess(), canplays);
+    if(GetCanPlay(pDstChessInfo->row, pDstChessInfo->column, canplays) != -1){
+//         //不知道为什么，手动下棋看不到棋移动的效果
+#ifdef AI_RANDOMLY_PLAY_CHESS
+        MoveChess(pSrcChessInfo->country, pSrcChessInfo->chess, glm::vec2(COLUMN_TO_X(pSrcChessInfo->column), ROW_TO_Y(pSrcChessInfo->row)), glm::vec2(COLUMN_TO_X(pDstChessInfo->column), ROW_TO_Y(pDstChessInfo->row)));
+#endif
+        g_Chessboard.Play(g_VulkanDevice.device, srcCountry, srcChess, dstCountry, dstChess);
+        if(g_Chessboard.IsDeath(pDstChessInfo->country)){
+            printf("%s国被%s国消灭\n", county[pDstChessInfo->country], county[g_CurrentCountry]);
+            g_Chessboard.DestroyCountry(g_VulkanDevice.device, pDstChessInfo->country);
+        }
+        g_CurrentCountry = GetNextCountry(g_CurrentCountry);
+    } 
+//     const ChessInfo *pChessInfo = g_Chessboard.GetSelectInfo(mousePos);//因为选择的地方没棋子，所以就不能获得棋子，导致无法走棋
+//     if(pChessInfo){
+//         if(pSelected && pChessInfo->country != g_CurrentCountry){
+// #ifdef INTERNET_MODE
+//             Play(g_Player, mousePos, g_SelectPos);
+// #else
+//             Play(mousePos, pChessInfo);
+// #endif
+//         }
+//         else if(pChessInfo->country == g_CurrentCountry){
+//             g_Chessboard.UnSelect(g_VulkanDevice.device);
+//             if(!pSelected || (pSelected->row != pChessInfo->row || pSelected->column != pChessInfo->column)){
+//                 g_SelectPos = mousePos;
+//                 g_Chessboard.SetSelected(pChessInfo);
+//                 g_Chessboard.Selected(g_VulkanDevice.device);
+//             }
+//         }
+//     }
+//     else if(pSelected){
+//         Play(mousePos, nullptr);
+//     }
+}
+const ChessInfo *g_Selected = nullptr;
 void mousebutton(GLFWwindow *windows, int button, int action, int mods){
     if(action == GLFW_RELEASE && button == GLFW_MOUSE_BUTTON_LEFT){
+        //单机和局域网联机差不多。无非就是要接收和发送消息
         double xpos, ypos;
         glfwGetCursorPos(windows, &xpos, &ypos);
-        PlayChess(glm::vec2(xpos, ypos));
+        const glm::vec2 mousePos = glm::vec2(xpos, ypos);
+        if(g_Selected){
+            g_Chessboard.UnSelect(g_VulkanDevice.device, g_Selected->country, g_Selected->chess);
+            const ChessInfo *pSelected = g_Chessboard.GetChessInfos(mousePos);
+            if(pSelected){
+                if(pSelected->country != g_CurrentCountry)
+                    PlayChess(g_CurrentCountry, g_Selected->chess, pSelected->country, pSelected->chess);
+            }
+            else{
+                PlayChess(g_CurrentCountry, g_Selected->chess, mousePos);
+            }
+        }
+        else{
+            g_Selected = g_Chessboard.GetChessInfos(g_CurrentCountry, mousePos);
+            if(g_Selected){
+                g_Chessboard.Select(g_VulkanDevice.device, g_CurrentCountry, g_Selected->chess);
+            }
+        }
+        // int32_t canplayIndex = g_Chessboard.IsCanPlay(mousePos);
+        // if(-1 != canplayIndex){
+
+        //     const ChessInfo *pChessInfo = g_Chessboard.GetChessInfos(g_CurrentCountry, );
+        // }
+        // PlayChess();
         // aiPlay();//从这边调用就看不到移动效果
 #ifndef INTERNET_MODE
         g_UpdateScreen = true;
@@ -809,203 +876,231 @@ bool GameOver(){
     }
     return deathCount > 1;
 }
-//返回第一个满足条件的敌人
-const ChessInfo *GetRival(const std::vector<ChessInfo>&canplays, auto condition){
-    const ChessInfo *pRival = nullptr;
-    for (size_t i = 0; i < canplays.size(); ++i){
-        pRival = g_Chessboard.GetChessInfos(canplays[i].row, canplays[i].column);
-        if(pRival && condition(pRival)){
-            break;
-        }
-        else{
-            pRival = nullptr;
-        }
-    }
-    return pRival;
-}
-bool CanPlay(const std::vector<ChessInfo>&canplays){
-    bool bCanPlay = false;
-    for (size_t i = 0; i < canplays.size(); ++i){
-        const ChessInfo *pRival = g_Chessboard.GetChessInfos(canplays[i].row, canplays[i].column);
-        if(!pRival || pRival->country != g_CurrentCountry){
-            bCanPlay = true;
-            break;
-        }
-    }
-    return bCanPlay;
-}
-//返回rivalCountry中能吃到country的chessIndex棋子
-const ChessInfo *GetRival(uint32_t country, uint32_t rivalCountry, uint32_t chessIndex){
-    const ChessInfo *pChessInfo = nullptr;
-    for (size_t uiChess = 0; uiChess < COUNTRY_CHESS_COUNT; ++uiChess){
-        const ChessInfo *pRival = nullptr;
-        pChessInfo = g_Chessboard.GetChessInfo(rivalCountry, uiChess);
-        if(pChessInfo->row <= CHESSBOARD_ROW && pChessInfo->column <= CHESSBOARD_COLUMN){
-            g_Chessboard.SetSelected(pChessInfo);
-            g_Chessboard.Selected(VK_NULL_HANDLE);
-            auto canPlayInfo = g_Chessboard.GetCanPlay();
-            pRival = GetRival(canPlayInfo, [country, chessIndex](const ChessInfo *r){return r->country == country && r->chess == chessIndex;});
-            g_Chessboard.ClearCanPlay(VK_NULL_HANDLE);
-        }
-        if(pRival){
-            break;
-        }
-        else{
-            pChessInfo = nullptr;
-        }
-    }
-    return pChessInfo;
-}
-//返回所有国家中, 能吃到country的chessIndex的棋子
-const ChessInfo *GetRival(uint32_t country, uint32_t chessIndex){
-    const ChessInfo *pChessInfo = nullptr;
-    for (size_t i = 0; i < g_DefaultCountryCount; i++){
-        pChessInfo = GetRival(country, i, chessIndex);
-        if(pChessInfo)break;
-    }
-    return pChessInfo;
-}
-//返回currentCountry的第一个敌人
-const ChessInfo *GetRival(uint32_t currentCountry, const ChessInfo **pChessInfo){
-    const ChessInfo *pRival = nullptr;
-    for (size_t uiChess = 0; uiChess < COUNTRY_CHESS_COUNT; ++uiChess){
-        *pChessInfo = g_Chessboard.GetChessInfo(currentCountry, uiChess);
-        if(*pChessInfo && (*pChessInfo)->row <= CHESSBOARD_ROW && (*pChessInfo)->column <= CHESSBOARD_COLUMN){
-            g_Chessboard.SetSelected(*pChessInfo);
-            g_Chessboard.Selected(VK_NULL_HANDLE);
-            auto canPlayInfo = g_Chessboard.GetCanPlay();
-            pRival = GetRival(canPlayInfo, [](const ChessInfo *){return true;});
-            g_Chessboard.ClearCanPlay(VK_NULL_HANDLE);
-            if(pRival)break;
-        }
-    }
-    return pRival;
-}
-//返回currentCountry的chessIndex是否能被nextCountry棋子吃;
-bool IsDangerous(uint32_t currentCountry, uint32_t nextCountry, uint32_t chessIndex){
-    return GetRival(currentCountry, nextCountry, chessIndex);
-}
-// //返回所有国家中, 是否有棋子能吃到country的chessIndex
-// bool IsDangerous(uint32_t country, uint32_t chessIndex){
-//     bool bDangerous = false;
-//     for (size_t i = 0; i < g_DefaultCountryCount; ++i){
-//         if(country != i){
-//             bDangerous = IsDangerous(country, i, chessIndex);
-//             if(bDangerous)break;
+// //返回第一个满足条件的敌人
+// const ChessInfo *GetRival(const std::vector<ChessInfo>&canplays, auto condition){
+//     const ChessInfo *pRival = nullptr;
+//     for (size_t i = 0; i < canplays.size(); ++i){
+//         pRival = g_Chessboard.GetChessInfos(canplays[i].row, canplays[i].column);
+//         if(pRival && condition(pRival)){
+//             break;
+//         }
+//         else{
+//             pRival = nullptr;
 //         }
 //     }
-//     return bDangerous;
+//     return pRival;
 // }
-void aiPlayChess(const ChessInfo*pInfo, const ChessInfo *pRival){
-    if(!g_Chessboard.IsBoundary(pInfo->row, pInfo->column)){
-        glm::vec2 pos = glm::vec2(COLUMN_TO_X(pInfo->column), ROW_TO_Y(pInfo->row));
-        // glm::vec2 pos = glm::vec2(COLUMN_TO_X(pInfo->column) - CHESSBOARD_GRID_SIZE * .5, ROW_TO_Y(pInfo->row) - CHESSBOARD_GRID_SIZE * .5);
-        // const ChessInfo *pSelected = g_Chessboard.GetSelected();
-        const ChessInfo *pChessInfo = g_Chessboard.GetSelectInfo(pos);
-        if(pChessInfo){
-            g_Chessboard.UnSelect(g_VulkanDevice.device);
-            if(pChessInfo->country == g_CurrentCountry){
-                g_Chessboard.SetSelected(pChessInfo);
-                g_Chessboard.Selected(g_VulkanDevice.device);
-            }
-            const ChessInfo *pSelected = nullptr;
-            auto canPlayInfo = g_Chessboard.GetCanPlay();
-            // if(canPlayInfo.empty()){
-            //     printf("canplay is empty; select row:%d, select column:%d\n", pChessInfo->row, pChessInfo->column);
-            // }
-            if(CanPlay(canPlayInfo)){
-                if(pRival){
-                    pos = glm::vec2(COLUMN_TO_X(pRival->column), ROW_TO_Y(pRival->row));
-                    Play(pos, pRival);
-                }
-                else{
-                    ChessInfo canplay = canPlayInfo[rand() % canPlayInfo.size()];
-                    pos = glm::vec2(COLUMN_TO_X(canplay.column), ROW_TO_Y(canplay.row));
-                    pSelected = g_Chessboard.GetSelectInfo(pos);
-                    Play(pos, pSelected);
-                }
-                g_UpdateScreen = true;
-            }
-            g_Chessboard.ClearCanPlay(g_VulkanDevice.device);
+int32_t CanPlay(const std::vector<ChessInfo>&canplays){
+    int32_t index = -1;
+    for (size_t i = 0; i < canplays.size(); ++i){
+        const ChessInfo *pInfo = g_Chessboard.GetChessInfos(canplays[i].row, canplays[i].column);
+        if(!pInfo || pInfo->country != g_CurrentCountry){
+            index = i;
+            break;
         }
     }
+    return index;
 }
-/*
-    将
-        面临被吃的危险
-            1,有其他棋子(包括自身)可以解则解
-            2.没路走就走其他棋子,不然要死循环了
-            3.没路、没其他棋走则直接跳过。反正这种情况少见
-    其他棋子:
-        可以先找敌人
-        找不到的话则说明没有保护的棋子
-        面临被吃的危险
-            1.有其他棋子(包括自身)可以解则解
-            2.没有的话如果有保护的棋子，也可以不走
-            3.都没有就而且没路的话就参考上面
-    //除将外，其他棋子均可以在有保护的情况下不走
-*/
-void Dangerous(const ChessInfo **pDangerous, const ChessInfo **pRival){
-    if((*pDangerous)->chess == SHI_CHESS_INDEX_1 || (*pDangerous)->chess == SHI_CHESS_INDEX_2){
-        *pDangerous = nullptr;
-        *pRival = nullptr;
-        return;
-    }
-    // g_Chessboard.SetSelected(*pDangerous);
-    // g_Chessboard.Selected(VK_NULL_HANDLE);
-    //找一个解围的棋子
-    const ChessInfo *pChess = GetRival((*pRival)->country, (*pDangerous)->country, (*pRival)->chess);
-    if(pChess){
-        *pDangerous = pChess;
-    }
-    else{
-        if((*pDangerous)->chess != JIANG_CHESS_INDEX){
-            //找一个可以保护pDangerous的棋子
-            pChess = GetRival((*pDangerous)->country, (*pDangerous)->country, (*pDangerous)->chess);
-            if(pChess){
-                //如果找到就别管了
-                *pDangerous = nullptr;
-                *pRival = nullptr;
-                return;
-            }
-        }
-        if(!CanPlay(g_Chessboard.GetCanPlay())){
-            *pDangerous = nullptr;//其实应该重新设置
-            *pRival = nullptr;
-        }
-    }   
-    // g_Chessboard.ClearCanPlay(VK_NULL_HANDLE);
-}
+// //返回rivalCountry中能吃到country的chessIndex棋子
+// const ChessInfo *GetRival(uint32_t country, uint32_t rivalCountry, uint32_t chessIndex){
+//     const ChessInfo *pChessInfo = nullptr;
+//     for (size_t uiChess = 0; uiChess < COUNTRY_CHESS_COUNT; ++uiChess){
+//         const ChessInfo *pRival = nullptr;
+//         pChessInfo = g_Chessboard.GetChessInfo(rivalCountry, uiChess);
+//         if(pChessInfo->row <= CHESSBOARD_ROW && pChessInfo->column <= CHESSBOARD_COLUMN){
+//             g_Chessboard.SetSelected(pChessInfo);
+//             g_Chessboard.Select(VK_NULL_HANDLE);
+//             auto canPlayInfo = g_Chessboard.GetCanPlay();
+//             pRival = GetRival(canPlayInfo, [country, chessIndex](const ChessInfo *r){return r->country == country && r->chess == chessIndex;});
+//             g_Chessboard.ClearCanPlay(VK_NULL_HANDLE);
+//         }
+//         if(pRival){
+//             break;
+//         }
+//         else{
+//             pChessInfo = nullptr;
+//         }
+//     }
+//     return pChessInfo;
+// }
+// //返回所有国家中, 能吃到country的chessIndex的棋子
+// const ChessInfo *GetRival(uint32_t country, uint32_t chessIndex){
+//     const ChessInfo *pChessInfo = nullptr;
+//     for (size_t i = 0; i < g_DefaultCountryCount; i++){
+//         pChessInfo = GetRival(country, i, chessIndex);
+//         if(pChessInfo)break;
+//     }
+//     return pChessInfo;
+// }
+// //返回country的第一个敌人
+// const ChessInfo *GetRival(uint32_t country, const ChessInfo **pChessInfo){
+//     const Chess *pRival = nullptr;
+//     for (size_t uiChess = 0; uiChess < COUNTRY_CHESS_COUNT; ++uiChess){
+//         *pChessInfo = g_Chessboard.GetChess(country, uiChess);
+//         if(*pChessInfo && (*pChessInfo)->row <= CHESSBOARD_ROW && (*pChessInfo)->column <= CHESSBOARD_COLUMN){
+//             g_Chessboard.SetSelected(*pChessInfo);
+//             g_Chessboard.Select(VK_NULL_HANDLE);
+//             auto canPlayInfo = g_Chessboard.GetCanPlay();
+//             pRival = GetRival(canPlayInfo, [](const ChessInfo *){return true;});
+//             g_Chessboard.ClearCanPlay(VK_NULL_HANDLE);
+//             if(pRival)break;
+//         }
+//     }
+//     return pRival;
+// }
+// //返回cCountry的chessIndex是否能被nextCountry棋子吃;
+// bool IsDangerous(uint32_t cCountry, uint32_t nextCountry, uint32_t chessIndex){
+//     return GetRival(cCountry, nextCountry, chessIndex);
+// }
+// // //返回所有国家中, 是否有棋子能吃到country的chessIndex
+// // bool IsDangerous(uint32_t country, uint32_t chessIndex){
+// //     bool bDangerous = false;
+// //     for (size_t i = 0; i < g_DefaultCountryCount; ++i){
+// //         if(country != i){
+// //             bDangerous = IsDangerous(country, i, chessIndex);
+// //             if(bDangerous)break;
+// //         }
+// //     }
+// //     return bDangerous;
+// // }
+// void aiPlayChess(const ChessInfo*pInfo, const ChessInfo *pRival){
+//     if(!g_Chessboard.IsBoundary(pInfo->row, pInfo->column)){
+//         glm::vec2 pos = glm::vec2(COLUMN_TO_X(pInfo->column), ROW_TO_Y(pInfo->row));
+//         // glm::vec2 pos = glm::vec2(COLUMN_TO_X(pInfo->column) - CHESSBOARD_GRID_SIZE * .5, ROW_TO_Y(pInfo->row) - CHESSBOARD_GRID_SIZE * .5);
+//         // const ChessInfo *pSelected = g_Chessboard.GetSelected();
+//         const ChessInfo *pChessInfo = g_Chessboard.GetSelectInfo(pos);
+//         if(pChessInfo){
+//             g_Chessboard.UnSelect(g_VulkanDevice.device);
+//             if(pChessInfo->country == g_CurrentCountry){
+//                 g_Chessboard.SetSelected(pChessInfo);
+//             }
+//             const ChessInfo *pSelected = nullptr;
+//             auto canPlayInfo = g_Chessboard.GetCanPlay();
+//             // if(canPlayInfo.empty()){
+//             //     printf("canplay is empty; select row:%d, select column:%d\n", pChessInfo->row, pChessInfo->column);
+//             // }
+//             if(CanPlay(canPlayInfo)){
+//                 if(pRival){
+//                     pos = glm::vec2(COLUMN_TO_X(pRival->column), ROW_TO_Y(pRival->row));
+//                     Play(pos, pRival);
+//                 }
+//                 else{
+//                     ChessInfo canplay = canPlayInfo[rand() % canPlayInfo.size()];
+//                     pos = glm::vec2(COLUMN_TO_X(canplay.column), ROW_TO_Y(canplay.row));
+//                     pSelected = g_Chessboard.GetSelectInfo(pos);
+//                     Play(pos, pSelected);
+//                 }
+//                 g_UpdateScreen = true;
+//             }
+//             g_Chessboard.ClearCanPlay(g_VulkanDevice.device);
+//         }
+//     }
+// }
+// /*
+//     将
+//         面临被吃的危险
+//             1,有其他棋子(包括自身)可以解则解
+//             2.没路走就走其他棋子,不然要死循环了
+//             3.没路、没其他棋走则直接跳过。反正这种情况少见
+//     其他棋子:
+//         可以先找敌人
+//         找不到的话则说明没有保护的棋子
+//         面临被吃的危险
+//             1.有其他棋子(包括自身)可以解则解
+//             2.没有的话如果有保护的棋子，也可以不走
+//             3.都没有就而且没路的话就参考上面
+//     //除将外，其他棋子均可以在有保护的情况下不走
+// */
+// void Dangerous(const ChessInfo **pDangerous, const ChessInfo **pRival){
+//     if((*pDangerous)->chess == SHI_CHESS_INDEX_1 || (*pDangerous)->chess == SHI_CHESS_INDEX_2){
+//         *pDangerous = nullptr;
+//         *pRival = nullptr;
+//         return;
+//     }
+//     // g_Chessboard.SetSelected(*pDangerous);
+//     // g_Chessboard.Selected(VK_NULL_HANDLE);
+//     //找一个解围的棋子
+//     const ChessInfo *pChess = GetRival((*pRival)->country, (*pDangerous)->country, (*pRival)->chess);
+//     if(pChess){
+//         *pDangerous = pChess;
+//     }
+//     else{
+//         if((*pDangerous)->chess != JIANG_CHESS_INDEX){
+//             //找一个可以保护pDangerous的棋子
+//             pChess = GetRival((*pDangerous)->country, (*pDangerous)->country, (*pDangerous)->chess);
+//             if(pChess){
+//                 //如果找到就别管了
+//                 *pDangerous = nullptr;
+//                 *pRival = nullptr;
+//                 return;
+//             }
+//         }
+//         if(!CanPlay(g_Chessboard.GetCanPlay())){
+//             *pDangerous = nullptr;//其实应该重新设置
+//             *pRival = nullptr;
+//         }
+//     }   
+//     // g_Chessboard.ClearCanPlay(VK_NULL_HANDLE);
+// }
 void aiPlay(){
-    const ChessInfo *pSelect = nullptr, *pSwapch = nullptr;
-    const uint32_t nextCountry = GetNextCountry(g_CurrentCountry);
-    const ChessInfo *pRival = GetRival(g_CurrentCountry, (uint32_t)JIANG_CHESS_INDEX);
-    if(pRival){
-        pSelect = g_Chessboard.GetChessInfo(g_CurrentCountry, JIANG_CHESS_INDEX);
-        Dangerous(&pSelect, &pRival);
-    }
-    else{
-        pRival = GetRival(g_CurrentCountry, &pSelect);
-        if(!pRival){
-            pSelect = nullptr;
-            //如果某个棋子面临被吃问题, 如果有棋子可以解则解，无再逃走
-            for (uint32_t uiChess = 1; uiChess < COUNTRY_CHESS_COUNT; ++uiChess){
-                pRival = GetRival(g_CurrentCountry, nextCountry, uiChess);
-                if(pRival){
-                    pSelect = g_Chessboard.GetChessInfo(g_CurrentCountry, uiChess);
-                    Dangerous(&pSelect, &pRival);
-                    break;
-                }
-            }
-        }
-    }
+    const Chess *pChess = nullptr;
+    std::vector<ChessInfo>canplays;
+    const ChessInfo *pSelect = nullptr, *pRival = nullptr;
+    // const uint32_t nextCountry = GetNextCountry(g_CurrentCountry);
+    // const ChessInfo * = GetRival(g_CurrentCountry, (uint32_t)JIANG_CHESS_INDEX);
+    // if(pRival){
+    //     pSelect = g_Chessboard.GetChessInfo(g_CurrentCountry, JIANG_CHESS_INDEX);
+    //     Dangerous(&pSelect, &pRival);
+    // }
+    // else{
+    //     pRival = GetRival(g_CurrentCountry, &pSelect);
+    //     if(!pRival){
+    //         pSelect = nullptr;
+    //         //如果某个棋子面临被吃问题, 如果有棋子可以解则解，无再逃走
+    //         for (uint32_t uiChess = 1; uiChess < COUNTRY_CHESS_COUNT; ++uiChess){
+    //             pRival = GetRival(g_CurrentCountry, nextCountry, uiChess);
+    //             if(pRival){
+    //                 pSelect = g_Chessboard.GetChessInfo(g_CurrentCountry, uiChess);
+    //                 Dangerous(&pSelect, &pRival);
+    //                 break;
+    //             }
+    //         }
+    //     }
+    // }
     if(!pSelect){
         do{
             pSelect = g_Chessboard.GetChessInfo(g_CurrentCountry, rand() % (COUNTRY_CHESS_COUNT));
-        }while(pSelect->row > CHESSBOARD_ROW || pSelect->column > CHESSBOARD_COLUMN);
+            if(pSelect){
+                canplays.clear();
+                pChess = g_Chessboard.GetChess(g_CurrentCountry, pSelect->chess);
+                pChess->Selected((const Chess* (*)[21])g_Chessboard.GetChess(), canplays);
+            }
+        }while(!pSelect || -1 == CanPlay(canplays));//不用担心判断pSelect后死循环,因为"将"肯定会存在,否则就输了
     }
     //想下的棋子、敌人上面设置
-    aiPlayChess(pSelect, pRival);
+    if(pRival){
+        PlayChess(g_CurrentCountry, pSelect->chess, pRival->country, pRival->chess);
+    }
+    else{
+        //这个分支也有吃子的可能, 只不过是随机的
+        canplays.clear();
+        pChess = g_Chessboard.GetChess(g_CurrentCountry, pSelect->chess);
+        pChess->Selected((const Chess* (*)[21])g_Chessboard.GetChess(), canplays);
+        uint32_t index = 0;
+        const ChessInfo *pInfo = nullptr;
+        do{
+            index = rand() % canplays.size();
+            pInfo = g_Chessboard.GetChessInfos(canplays[index].row, canplays[index].column);
+        } while (pInfo && pInfo->country == g_CurrentCountry);
+        g_Chessboard.Select(g_VulkanDevice.device, g_CurrentCountry, pSelect->chess);
+        if(pInfo){
+            PlayChess(g_CurrentCountry, pSelect->chess, pInfo->country, pInfo->chess);
+        }
+        else{
+            PlayChess(g_CurrentCountry, pSelect->chess, glm::vec2(COLUMN_TO_X(canplays[index].column), ROW_TO_Y(canplays[index].row)));
+        }
+        g_Chessboard.UnSelect(g_VulkanDevice.device, g_CurrentCountry, pSelect->chess);
+    }
 }
 void *AiPlayChess(void *userData){
     while(!GameOver()){
