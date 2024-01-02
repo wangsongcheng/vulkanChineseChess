@@ -8,13 +8,13 @@ void Chessboard::GetCountryChess(uint32_t srcCountry, uint32_t dstCountry){
                 chessInfo = *mChess[dstCountry][uiChess]->GetInfo();
                 chessInfo.country = srcCountry;
                 chessInfo.chess = MAX_CHESS_INDEX + uiChess;
-                mChess[srcCountry][chessInfo.chess]->ResetInfo(chessInfo);
                 if(uiChess == PAO_CHESS_INDEX_3){
                     mChess[srcCountry][chessInfo.chess] = new Pao(chessInfo);
                 }
                 else if(uiChess == CHE_CHESS_INDEX_3 || uiChess == CHE_CHESS_INDEX_4 || uiChess == CHE_CHESS_INDEX_5){
                     mChess[srcCountry][chessInfo.chess] = new Che(chessInfo);
                 }
+                mChess[srcCountry][chessInfo.chess]->ResetInfo(chessInfo);
                 //下面是获得其他势力的牌
                 // if(uiChess == MA_CHESS_INDEX_1 || uiChess == MA_CHESS_INDEX_2){
                 //     mChess[srcCountry][chessInfo.chess] = new Ma(chessInfo);

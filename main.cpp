@@ -812,54 +812,6 @@ void PlayChess(uint32_t srcCountry, uint32_t srcChess, uint32_t dstCountry, uint
 //         Play(mousePos, nullptr);
 //     }
 }
-const ChessInfo *g_Selected = nullptr;
-void mousebutton(GLFWwindow *windows, int button, int action, int mods){
-    if(action == GLFW_RELEASE && button == GLFW_MOUSE_BUTTON_LEFT){
-        //单机和局域网联机差不多。无非就是要接收和发送消息
-        double xpos, ypos;
-        glfwGetCursorPos(windows, &xpos, &ypos);
-        const glm::vec2 mousePos = glm::vec2(xpos, ypos);
-        if(g_Selected){
-            g_Chessboard.UnSelect(g_VulkanDevice.device, g_Selected->country, g_Selected->chess);
-            const ChessInfo *pSelected = g_Chessboard.GetChessInfos(mousePos);
-            if(pSelected){
-                if(pSelected->country != g_CurrentCountry)
-                    PlayChess(g_CurrentCountry, g_Selected->chess, pSelected->country, pSelected->chess);
-            }
-            else{
-                PlayChess(g_CurrentCountry, g_Selected->chess, mousePos);
-            }
-        }
-        else{
-            g_Selected = g_Chessboard.GetChessInfos(g_CurrentCountry, mousePos);
-            if(g_Selected){
-                g_Chessboard.Select(g_VulkanDevice.device, g_CurrentCountry, g_Selected->chess);
-            }
-        }
-        // int32_t canplayIndex = g_Chessboard.IsCanPlay(mousePos);
-        // if(-1 != canplayIndex){
-
-        //     const ChessInfo *pChessInfo = g_Chessboard.GetChessInfos(g_CurrentCountry, );
-        // }
-        // PlayChess();
-        // aiPlay();//从这边调用就看不到移动效果
-#ifndef INTERNET_MODE
-        g_UpdateScreen = true;
-#endif
-    }
-}
-void SetupDescriptorSetLayout(VkDevice device){
-    VkDescriptorSetLayoutBinding descriptorSetLayoutBindings[2] = {};
-    // descriptorSetLayoutBindings[0].binding = 0;
-    descriptorSetLayoutBindings[0].descriptorCount = 1;
-    descriptorSetLayoutBindings[0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-    descriptorSetLayoutBindings[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
-    descriptorSetLayoutBindings[1].binding = 1;
-    descriptorSetLayoutBindings[1].descriptorCount = 1;
-    descriptorSetLayoutBindings[1].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-    descriptorSetLayoutBindings[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    vkf::CreateDescriptorSetLayout(device, sizeof(descriptorSetLayoutBindings) / sizeof(VkDescriptorSetLayoutBinding), descriptorSetLayoutBindings, &g_SetLayout);
-}
 #ifdef AI_RANDOMLY_PLAY_CHESS
 #ifdef __linux
 pthread_t g_AiPlayChess;
@@ -1110,6 +1062,60 @@ void *AiPlayChess(void *userData){
     return nullptr;
 }
 #endif
+const ChessInfo *g_Selected = nullptr;
+void mousebutton(GLFWwindow *windows, int button, int action, int mods){
+    if(action == GLFW_RELEASE && button == GLFW_MOUSE_BUTTON_LEFT){
+        //单机和局域网联机差不多。无非就是要接收和发送消息
+        double xpos, ypos;
+        glfwGetCursorPos(windows, &xpos, &ypos);
+        const glm::vec2 mousePos = glm::vec2(xpos, ypos);
+        if(g_Selected){
+            g_Chessboard.UnSelect(g_VulkanDevice.device, g_Selected->country, g_Selected->chess);
+            const ChessInfo *pSelected = g_Chessboard.GetChessInfos(mousePos);
+            if(pSelected){
+                if(pSelected->country != g_CurrentCountry)
+                    PlayChess(g_CurrentCountry, g_Selected->chess, pSelected->country, pSelected->chess);
+            }
+            else{
+                PlayChess(g_CurrentCountry, g_Selected->chess, mousePos);
+            }
+        }
+        else{
+            g_Selected = g_Chessboard.GetChessInfos(g_CurrentCountry, mousePos);
+            if(g_Selected){
+                g_Chessboard.Select(g_VulkanDevice.device, g_CurrentCountry, g_Selected->chess);
+            }
+        }
+        // aiPlay();//从这边调用就看不到移动效果
+#ifndef INTERNET_MODE
+        g_UpdateScreen = true;
+#endif
+    }
+//     if(action == GLFW_RELEASE){
+// #ifdef AI_RANDOMLY_PLAY_CHESS
+// #ifdef WIN32
+//         DWORD  threadId;
+//         g_AiPlayChess = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)AiPlayChess, nullptr, 0, &threadId);
+// #endif
+// #ifdef __linux
+//         pthread_create(&g_AiPlayChess, nullptr, AiPlayChess, nullptr);
+// #endif
+// #endif
+//     }
+}
+void SetupDescriptorSetLayout(VkDevice device){
+    VkDescriptorSetLayoutBinding descriptorSetLayoutBindings[2] = {};
+    // descriptorSetLayoutBindings[0].binding = 0;
+    descriptorSetLayoutBindings[0].descriptorCount = 1;
+    descriptorSetLayoutBindings[0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+    descriptorSetLayoutBindings[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
+    descriptorSetLayoutBindings[1].binding = 1;
+    descriptorSetLayoutBindings[1].descriptorCount = 1;
+    descriptorSetLayoutBindings[1].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    descriptorSetLayoutBindings[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    vkf::CreateDescriptorSetLayout(device, sizeof(descriptorSetLayoutBindings) / sizeof(VkDescriptorSetLayoutBinding), descriptorSetLayoutBindings, &g_SetLayout);
+}
+
 void setup(GLFWwindow *windows){
 #ifdef __linux__
     srandom(time(nullptr));
