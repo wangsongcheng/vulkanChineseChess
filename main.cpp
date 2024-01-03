@@ -1011,7 +1011,7 @@ void aiPlay(){
     // }
     if(!pSelect){
         do{
-            pSelect = g_Chessboard.GetChessInfo(g_CurrentCountry, rand() % (COUNTRY_CHESS_COUNT));
+            pSelect = g_Chessboard.GetChessInfo(g_CurrentCountry, rand() % COUNTRY_CHESS_COUNT);
             if(pSelect){
                 canplays.clear();
                 pChess = g_Chessboard.GetChess(g_CurrentCountry, pSelect->chess);
@@ -1216,6 +1216,11 @@ void cleanup(){
     vkDestroySampler(g_VulkanDevice.device, g_TextureSampler, nullptr);
 }
 void RecreateSwapchain(void *userData){
+    GLFWwindow* window = (GLFWwindow*)userData;
+    int32_t width, height;
+    glfwGetWindowSize(window, &width, &height);
+    //windows下最小化后无法复原//调试显示, 在等待currentFrame为2的栏杆对象后得不到回复
+    if (width < 1 || height < 1)return;
     //想不调用vkDeviceWaitIdle重建交换链也行, 在重新创建交换链时, VkSwapchainCreateInfoKHR的结构体中oldSwapChain设置为原来的交换链
     CleanupSwapchain(g_VulkanDevice.device, g_VulkanWindows);
    const VkExtent2D swapchainExtent = g_VulkanWindows.swapchainInfo.extent;
@@ -1254,7 +1259,7 @@ void display(GLFWwindow* window){
         }
     }
 #endif
-    if(VK_ERROR_OUT_OF_DATE_KHR == vkf::DrawFrame(g_VulkanDevice.device, currentFrame, g_CommandBuffers[currentFrame], g_VulkanWindows.swapchain, g_VulkanQueue, g_VulkanSynchronize, RecreateSwapchain)){
+    if(VK_ERROR_OUT_OF_DATE_KHR == vkf::DrawFrame(g_VulkanDevice.device, currentFrame, g_CommandBuffers[currentFrame], g_VulkanWindows.swapchain, g_VulkanQueue, g_VulkanSynchronize, RecreateSwapchain, window)){
         //重建交换链后, 即使currentFrame不为0, 获取的交换链图片索引不一定和currentFrame相同
         currentFrame = 0;
         //那重建交换链后, 那重建后有没有可能得到的索引不是0?

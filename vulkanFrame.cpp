@@ -547,7 +547,7 @@ VkResult vkf::SubmitFrame(VkDevice device, uint32_t imageIndex, VkSwapchainKHR s
     return vkQueuePresentKHR(present, &presentInfo);
 }
 VkResult vkf::DrawFrame(VkDevice device, uint32_t currentFrame, const VkCommandBuffer& commandbuffers, VkSwapchainKHR swapchain, const VulkanQueue&vulkanQueue, const VulkanSynchronize&vulkanSynchronize, void(*recreateSwapchain)(void* userData), void* userData){
-    vkWaitForFences(device, 1, &vulkanSynchronize.fences[currentFrame], VK_TRUE, UINT16_MAX);
+    vkWaitForFences(device, 1, &vulkanSynchronize.fences[currentFrame], VK_TRUE, UINT64_MAX);
     vkResetFences(device, 1, &vulkanSynchronize.fences[currentFrame]);
     uint32_t imageIndex = PrepareFrame(device, swapchain, vulkanSynchronize.imageAcquired[currentFrame], recreateSwapchain, userData);
     
@@ -555,7 +555,8 @@ VkResult vkf::DrawFrame(VkDevice device, uint32_t currentFrame, const VkCommandB
     VkResult result = SubmitFrame(device, imageIndex, swapchain, vulkanQueue.present, vulkanSynchronize.renderComplete[currentFrame], recreateSwapchain, userData);
 	if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR) {
         vkDeviceWaitIdle(device);
-		vkResetFences(device, 1, &vulkanSynchronize.fences[currentFrame]);
+        //如果在结果等于VK_SUBOPTIMAL_KHR(一般发生在窗口最小化后)时重置栏杆, 会导致得不到回复栏杆对象的解锁
+		if(result != VK_SUBOPTIMAL_KHR)vkResetFences(device, 1, &vulkanSynchronize.fences[currentFrame]);
         if(recreateSwapchain)recreateSwapchain(userData);
 	}
 	else if(VK_SUCCESS != result){
