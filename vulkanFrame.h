@@ -97,9 +97,9 @@ namespace vkf{
     VkResult CreateInstance(const std::vector<const char*>&instanceExtensions, VkInstance&instance, bool enableValidation = true, VkApplicationInfo *pApplicationInfo = nullptr);
 
     void CreateSemaphoreAndFenceForSwapchain(VkDevice device, uint32_t swapchainImageCount, VulkanSynchronize&vulkanWindows);
-    VkResult CreateSwapchain(VkPhysicalDevice physicalDevice, VkDevice device, VkSurfaceKHR surface, VulkanWindows&vulkanWindows);
+    VkResult CreateSwapchain(VkPhysicalDevice physicalDevice, VkDevice device, VulkanWindows&vulkanWindows);
     VkResult CreateRenderPassForSwapchain(VkDevice device, VkFormat swapchainFormat, VkRenderPass&renderpass, bool useDepthImage = false);
-    void CreateFrameBufferForSwapchain(VkDevice device, const VkExtent2D&swapchainExtent, VulkanWindows&vulkanWindows, bool createDepthImage = false);
+    void CreateFrameBufferForSwapchain(VkDevice device, VulkanWindows&vulkanWindows, bool createDepthImage = false);
     VkResult CreateFrameBuffer(VkDevice device, VkRenderPass renderPass, const VkExtent2D&extent, const std::vector<VkImageView>&attachments, VkFramebuffer&frameBuffer, uint32_t layers = 1);
     VkResult CreateRenderPass(VkDevice device, const std::vector<VkSubpassDescription>&subpassDescription, const std::vector<VkSubpassDependency>&subpassDependency, const std::vector<VkAttachmentDescription>&attachmentDescriptions, VkRenderPass&renderpass);
 
@@ -134,7 +134,8 @@ namespace vkf{
     VkResult RenderFrame(VkDevice device, const VkCommandBuffer&commandbuffers, VkQueue graphics, const VkSemaphore&imageAcquired, const VkSemaphore&renderComplete, const VkFence&fence = VK_NULL_HANDLE);
     uint32_t PrepareFrame(VkDevice device, VkSwapchainKHR swapchain, const VkSemaphore&imageAcquired, void(*recreateSwapchain)(void* userData) = nullptr, void* userData = nullptr);
     VkResult SubmitFrame(VkDevice device, uint32_t imageIndex, VkSwapchainKHR swapchain, const VkQueue present, const VkSemaphore&renderComplete, void(*recreateSwapchain)(void* userData) = nullptr, void* userData = nullptr);
-    void DrawFrame(VkDevice device, uint32_t currentFrame, const VkCommandBuffer& commandbuffers, VkSwapchainKHR swapchain, const VulkanQueue&vulkanQueue, const VulkanSynchronize&vulkanSynchronize, void(*recreateSwapchain)(void* userData) = nullptr, void* userData = nullptr);
+    //返回vkQueuePresentKHR的执行结果
+    VkResult DrawFrame(VkDevice device, uint32_t currentFrame, const VkCommandBuffer& commandbuffers, VkSwapchainKHR swapchain, const VulkanQueue&vulkanQueue, const VulkanSynchronize&vulkanSynchronize, void(*recreateSwapchain)(void* userData) = nullptr, void* userData = nullptr);
 
     namespace tool{
         uint32_t GetFileSize(FILE *fp);

@@ -104,7 +104,7 @@ VulkanWindows g_VulkanWindows;
 VulkanSynchronize g_VulkanSynchronize;
 VkDebugUtilsMessengerEXT g_VulkanMessenger;
 //                              163 * 2 + 400 + 11
-const uint32_t g_WindowWidth = CHESSBOARD_BIG_GRID_SIZE * 2 + 10 * CHESSBOARD_GRID_SIZE + 11 * CHESSBOARD_LINE_WIDTH, g_WindowHeight = g_WindowWidth;
+uint32_t g_WindowWidth = CHESSBOARD_BIG_GRID_SIZE * 2 + 10 * CHESSBOARD_GRID_SIZE + 11 * CHESSBOARD_LINE_WIDTH, g_WindowHeight = g_WindowWidth;
 
 Chessboard g_Chessboard;
 uint32_t g_CurrentCountry;
@@ -201,16 +201,12 @@ void setupVulkan(GLFWwindow *window){
     vkf::tool::GetGraphicAndPresentQueueFamiliesIndex(g_VulkanDevice.physicalDevice, g_VulkanWindows.surface, queueFamilies);
     vkGetDeviceQueue(g_VulkanDevice.device, queueFamilies[0], 0, &g_VulkanQueue.graphics);
     vkGetDeviceQueue(g_VulkanDevice.device, queueFamilies[1], 0, &g_VulkanQueue.present);
-    vkf::CreateSwapchain(g_VulkanDevice.physicalDevice, g_VulkanDevice.device, g_VulkanWindows.surface, g_VulkanWindows);
+    vkf::CreateSwapchain(g_VulkanDevice.physicalDevice, g_VulkanDevice.device, g_VulkanWindows);
     vkf::CreateRenderPassForSwapchain(g_VulkanDevice.device, g_VulkanWindows.swapchainInfo.format, g_VulkanWindows.renderpass);
     vkf::CreateCommandPool(g_VulkanDevice.physicalDevice, g_VulkanDevice.device, g_VulkanPool.commandPool, VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
-    vkf::CreateFrameBufferForSwapchain(g_VulkanDevice.device, { g_WindowWidth, g_WindowHeight }, g_VulkanWindows);
+    vkf::CreateFrameBufferForSwapchain(g_VulkanDevice.device, g_VulkanWindows);
     vkf::CreateSemaphoreAndFenceForSwapchain(g_VulkanDevice.device, 3, g_VulkanSynchronize);
-#ifdef INTERNET_MODE
     vkf::CreateDescriptorPool(g_VulkanDevice.device, 8, g_VulkanPool.descriptorPool);
-#else
-    vkf::CreateDescriptorPool(g_VulkanDevice.device, 7, g_VulkanPool.descriptorPool);
-#endif
     //显示设备信息
     const char *deviceType;
     VkPhysicalDeviceProperties physicalDeviceProperties;
@@ -233,6 +229,17 @@ void setupVulkan(GLFWwindow *window){
         break;
     }
 	printf("gpu name:%s, gpu type:%s\n", physicalDeviceProperties.deviceName, deviceType);
+}
+void CleanupSwapchain(VkDevice device, VulkanWindows&vulkanWindow){
+    for (size_t i = 0; i < vulkanWindow.framebuffers.size(); ++i){
+        vulkanWindow.swapchainImages[i].image = VK_NULL_HANDLE;
+        vulkanWindow.swapchainImages[i].Destroy(device);
+        vkDestroyFramebuffer(device, vulkanWindow.framebuffers[i], nullptr);
+    }
+    vulkanWindow.depthImage.Destroy(device);
+
+    vkDestroyRenderPass(device, vulkanWindow.renderpass, nullptr);
+    vkDestroySwapchainKHR(device, vulkanWindow.swapchain, nullptr);
 }
 void cleanupVulkan(){
     vkDeviceWaitIdle(g_VulkanDevice.device);
@@ -1208,12 +1215,36 @@ void cleanup(){
 
     vkDestroySampler(g_VulkanDevice.device, g_TextureSampler, nullptr);
 }
+void RecreateSwapchain(void *userData){
+    //想不调用vkDeviceWaitIdle重建交换链也行, 在重新创建交换链时, VkSwapchainCreateInfoKHR的结构体中oldSwapChain设置为原来的交换链
+    CleanupSwapchain(g_VulkanDevice.device, g_VulkanWindows);
+   const VkExtent2D swapchainExtent = g_VulkanWindows.swapchainInfo.extent;
+   vkf::CreateSwapchain(g_VulkanDevice.physicalDevice, g_VulkanDevice.device, g_VulkanWindows);
+    g_WindowWidth = g_VulkanWindows.swapchainInfo.extent.width;
+    g_WindowHeight = g_VulkanWindows.swapchainInfo.extent.height;
+#ifdef DRAW_CUBE
+    vkf::CreateRenderPassForSwapchain(g_VulkanDevice.device, g_VulkanWindows.swapchainInfo.format, g_VulkanWindows.renderpass, true);
+    vkf::CreateFrameBufferForSwapchain(g_VulkanDevice.device, g_VulkanWindows, true);
+#else
+    vkf::CreateRenderPassForSwapchain(g_VulkanDevice.device, g_VulkanWindows.swapchainInfo.format, g_VulkanWindows.renderpass);
+    vkf::CreateFrameBufferForSwapchain(g_VulkanDevice.device, g_VulkanWindows);
+#endif
+    if(swapchainExtent.width != g_WindowWidth || swapchainExtent.height != g_WindowHeight){
+        g_Chessboard.DestroyGraphicsPipeline(g_VulkanDevice.device);
+        g_Chessboard.CreatePipeline(g_VulkanDevice.device, g_VulkanWindows.renderpass, g_SetLayout, g_PipelineCache, g_WindowWidth);
+    }
+
+    vkFreeCommandBuffers(g_VulkanDevice.device, g_VulkanPool.commandPool, g_CommandBuffers.size(), g_CommandBuffers.data());
+    vkf::tool::AllocateCommandBuffers(g_VulkanDevice.device, g_VulkanPool.commandPool, g_CommandBuffers.size(), g_CommandBuffers.data());
+    for (size_t i = 0; i < g_VulkanWindows.framebuffers.size(); ++i){
+        RecordCommand(g_CommandBuffers[i], i);
+    }
+}
 void display(GLFWwindow* window){
     static size_t currentFrame;
 #ifdef INTERNET_MODE
     vkDeviceWaitIdle(g_VulkanDevice.device);
     RecordCommand(g_CommandBuffers, currentFrame);
-    vkf::DrawFrame(g_VulkanDevice.device, currentFrame, g_CommandBuffers, g_VulkanWindows.swapchain, g_VulkanQueue, g_VulkanSynchronize);
 #else
     if(g_UpdateScreen){
         g_UpdateScreen = false;
@@ -1222,9 +1253,15 @@ void display(GLFWwindow* window){
             RecordCommand(g_CommandBuffers[i], i);
         }
     }
-    vkf::DrawFrame(g_VulkanDevice.device, currentFrame, g_CommandBuffers[currentFrame], g_VulkanWindows.swapchain, g_VulkanQueue, g_VulkanSynchronize);
 #endif
-    currentFrame = (currentFrame + 1) % g_VulkanWindows.framebuffers.size();
+    if(VK_ERROR_OUT_OF_DATE_KHR == vkf::DrawFrame(g_VulkanDevice.device, currentFrame, g_CommandBuffers[currentFrame], g_VulkanWindows.swapchain, g_VulkanQueue, g_VulkanSynchronize, RecreateSwapchain)){
+        //重建交换链后, 即使currentFrame不为0, 获取的交换链图片索引不一定和currentFrame相同
+        currentFrame = 0;
+        //那重建交换链后, 那重建后有没有可能得到的索引不是0?
+    }
+    else{
+        currentFrame = (currentFrame + 1) % g_VulkanWindows.framebuffers.size();
+    }
 }
 // void createSurface(VkInstance instance, VkSurfaceKHR&surface, void* userData){
 //     glfwCreateWindowSurface(instance, (GLFWwindow *)userData, nullptr, &surface);

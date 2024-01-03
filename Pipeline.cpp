@@ -100,7 +100,6 @@ Pipeline::Pipeline(){
 
 }
 Pipeline::~Pipeline(){
-    cleanup();
 }
 /*
     着色器各种信息，一般用在描述符集布局上
@@ -331,7 +330,6 @@ GraphicsPipeline::GraphicsPipeline(const GraphicsPipelineStateInfo&stateInfo){
     mState = stateInfo;
 }
 GraphicsPipeline::~GraphicsPipeline(){
-    cleanup();
 }
 // VkResult GraphicsPipeline::CreatePipeline(){
 
@@ -443,6 +441,9 @@ VkResult GraphicsPipeline::CreatePipeline(VkDevice device, VkRenderPass renderPa
     for (auto it = ShaderBegin(); it != ShaderEnd(); ++it) {
         vkDestroyShaderModule(device, it->mModule, nullptr);
     }
+    mShaders.clear();
+    mPushConstants.clear();
+    ClearGraphicsPipelineStateInfo();
     return ret;
     // if(pDynamicState)delete pDynamicState;
 }

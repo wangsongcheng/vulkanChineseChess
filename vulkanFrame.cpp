@@ -110,7 +110,7 @@ void VulkanBuffer::Destroy(VkDevice device){
 }
 VkPhysicalDevice vkf::GetPhysicalDevices(VkInstance instance, VkPhysicalDeviceType deviceType){
     uint32_t count;
-    VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;
+    VkPhysicalDevice physicalDevice;
     VkPhysicalDeviceProperties physicalDeviceProperties;
 	vkEnumeratePhysicalDevices(instance, &count, nullptr);
     if(count == 0){
@@ -321,8 +321,8 @@ VkPresentModeKHR chooseSwapPresentMode(const std::vector<VkPresentModeKHR>& avai
 
     return VK_PRESENT_MODE_FIFO_KHR;
 }
-VkResult vkf::CreateSwapchain(VkPhysicalDevice physicalDevice, VkDevice device, VkSurfaceKHR surface, VulkanWindows&vulkanWindows){
-    SwapChainSupportDetails swapChainSupport = querySwapChainSupport(physicalDevice, surface);
+VkResult vkf::CreateSwapchain(VkPhysicalDevice physicalDevice, VkDevice device, VulkanWindows&vulkanWindows){
+    SwapChainSupportDetails swapChainSupport = querySwapChainSupport(physicalDevice, vulkanWindows.surface);
 
     VkSurfaceFormatKHR surfaceFormat = chooseSwapSurfaceFormat(swapChainSupport.formats);
     VkPresentModeKHR presentMode = chooseSwapPresentMode(swapChainSupport.presentModes);
@@ -338,7 +338,7 @@ VkResult vkf::CreateSwapchain(VkPhysicalDevice physicalDevice, VkDevice device, 
 
     VkSwapchainCreateInfoKHR createInfo{};
     createInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
-    createInfo.surface = surface;
+    createInfo.surface = vulkanWindows.surface;
 
     createInfo.minImageCount = imageCount;
     createInfo.imageFormat = surfaceFormat.format;
@@ -348,7 +348,7 @@ VkResult vkf::CreateSwapchain(VkPhysicalDevice physicalDevice, VkDevice device, 
     createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 
     uint32_t queueFamilyIndices[2];
-    tool::GetGraphicAndPresentQueueFamiliesIndex(physicalDevice, surface, queueFamilyIndices);
+    tool::GetGraphicAndPresentQueueFamiliesIndex(physicalDevice, vulkanWindows.surface, queueFamilyIndices);
 
     if (queueFamilyIndices[0] != queueFamilyIndices[1]) {
         createInfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
@@ -440,7 +440,7 @@ VkResult vkf::CreateRenderPass(VkDevice device, const std::vector<VkSubpassDescr
     info.pSubpasses = subpassDescription.data();
     return vkCreateRenderPass(device, &info, nullptr, &renderpass);
 }
-void vkf::CreateFrameBufferForSwapchain(VkDevice device, const VkExtent2D&swapchainExtent, VulkanWindows&vulkanWindows, bool createDepthImage){
+void vkf::CreateFrameBufferForSwapchain(VkDevice device, VulkanWindows&vulkanWindows, bool createDepthImage){
     uint32_t count;
 	vkGetSwapchainImagesKHR(device, vulkanWindows.swapchain, &count, nullptr);
 	std::vector<VkImage>swapchainImages(count);
@@ -449,20 +449,15 @@ void vkf::CreateFrameBufferForSwapchain(VkDevice device, const VkExtent2D&swapch
 	vulkanWindows.framebuffers.resize(swapchainImages.size());
 	std::vector<VkImageView>frameBufferAttachments(1);
 	if(createDepthImage){
-        CreateDepthImage(device, swapchainExtent, vulkanWindows.depthImage);
-        // VkCommandBuffer cmd;//不变换图片布局绘制后也看不出问题
-        // tool::BeginSingleTimeCommands(device, pool, cmd);
-        // tool::SetImageLayout(cmd, vulkanWindows.depthImage.image, VK_IMAGE_ASPECT_DEPTH_BIT|VK_IMAGE_ASPECT_STENCIL_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT);
-        // tool::EndSingleTimeCommands(device, pool, graphics, cmd);
+        CreateDepthImage(device, vulkanWindows.swapchainInfo.extent, vulkanWindows.depthImage);
         frameBufferAttachments.push_back(vulkanWindows.depthImage.view);
     }
-    // VkImageViewCreateInfo imageViewInfo = {};
 	for (size_t i = 0; i < vulkanWindows.framebuffers.size(); ++i){
         vulkanWindows.swapchainImages[i].image = swapchainImages[i];
         // vulkanWindows.swapchainImages[i].AllocateAndBindMemory(device, VK_MEMORY_HEAP_DEVICE_LOCAL_BIT);
         vulkanWindows.swapchainImages[i].CreateImageView(device, vulkanWindows.swapchainInfo.format);
 		frameBufferAttachments[0] = vulkanWindows.swapchainImages[i].view;
-        CreateFrameBuffer(device, vulkanWindows.renderpass, swapchainExtent, frameBufferAttachments, vulkanWindows.framebuffers[i]);
+        CreateFrameBuffer(device, vulkanWindows.renderpass, vulkanWindows.swapchainInfo.extent, frameBufferAttachments, vulkanWindows.framebuffers[i]);
 	}
 }
 VkResult vkf::CreateFrameBuffer(VkDevice device, VkRenderPass renderPass, const VkExtent2D&extent, const std::vector<VkImageView>&attachments, VkFramebuffer&frameBuffer, uint32_t layers){
@@ -529,8 +524,9 @@ VkResult vkf::RenderFrame(VkDevice device, const VkCommandBuffer&commandbuffers,
 uint32_t vkf::PrepareFrame(VkDevice device, VkSwapchainKHR swapchain, const VkSemaphore&imageAcquired, void(*recreateSwapchain)(void* userData), void* userData){
     uint32_t imageIndex;
     VkResult result = vkAcquireNextImageKHR(device, swapchain, UINT64_MAX, imageAcquired, VK_NULL_HANDLE, &imageIndex);
-    if (recreateSwapchain && result == VK_ERROR_OUT_OF_DATE_KHR) {
-        recreateSwapchain(userData);
+    if (result == VK_ERROR_OUT_OF_DATE_KHR) {
+        vkDeviceWaitIdle(device);
+        if(recreateSwapchain)recreateSwapchain(userData);
         return result;
     }
     else if(result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR){
@@ -550,20 +546,22 @@ VkResult vkf::SubmitFrame(VkDevice device, uint32_t imageIndex, VkSwapchainKHR s
 	presentInfo.pWaitSemaphores = &renderComplete;
     return vkQueuePresentKHR(present, &presentInfo);
 }
-void vkf::DrawFrame(VkDevice device, uint32_t currentFrame, const VkCommandBuffer& commandbuffers, VkSwapchainKHR swapchain, const VulkanQueue&vulkanQueue, const VulkanSynchronize&vulkanSynchronize, void(*recreateSwapchain)(void* userData), void* userData){
-    vkWaitForFences(device, 1, &vulkanSynchronize.fences[currentFrame], VK_TRUE, UINT64_MAX);
+VkResult vkf::DrawFrame(VkDevice device, uint32_t currentFrame, const VkCommandBuffer& commandbuffers, VkSwapchainKHR swapchain, const VulkanQueue&vulkanQueue, const VulkanSynchronize&vulkanSynchronize, void(*recreateSwapchain)(void* userData), void* userData){
+    vkWaitForFences(device, 1, &vulkanSynchronize.fences[currentFrame], VK_TRUE, UINT16_MAX);
     vkResetFences(device, 1, &vulkanSynchronize.fences[currentFrame]);
     uint32_t imageIndex = PrepareFrame(device, swapchain, vulkanSynchronize.imageAcquired[currentFrame], recreateSwapchain, userData);
     
     RenderFrame(device, commandbuffers, vulkanQueue.graphics, vulkanSynchronize.imageAcquired[currentFrame], vulkanSynchronize.renderComplete[currentFrame], vulkanSynchronize.fences[currentFrame]);
     VkResult result = SubmitFrame(device, imageIndex, swapchain, vulkanQueue.present, vulkanSynchronize.renderComplete[currentFrame], recreateSwapchain, userData);
-	if (recreateSwapchain && (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR)) {
+	if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR) {
+        vkDeviceWaitIdle(device);
 		vkResetFences(device, 1, &vulkanSynchronize.fences[currentFrame]);
-		recreateSwapchain(userData);
+        if(recreateSwapchain)recreateSwapchain(userData);
 	}
 	else if(VK_SUCCESS != result){
 		printf("failed to acquire swap chain image!\n");
 	}
+    return result;
 }
 
 uint32_t vkf::tool::findMemoryTypeIndex(uint32_t typeFilter, VkMemoryPropertyFlags properties) {
@@ -581,17 +579,15 @@ void vkf::CreateDepthImage(VkDevice device, const VkExtent2D&swapchainExtent, Vu
 }
 VkResult vkf::CreatePipelineCache(VkDevice device, const std::string&cacheFile, VkPipelineCache &cache){
     std::vector<uint32_t>cacheData;
+    VkPipelineCacheCreateInfo cacheInfo = {};
+    cacheInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO;
     if(vkf::tool::GetFileContent(cacheFile.c_str(), cacheData)){
-        VkPipelineCacheCreateInfo cacheInfo = {};
-        cacheInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO;
         cacheInfo.initialDataSize = cacheData.size() * sizeof(uint32_t);
         cacheInfo.pInitialData = cacheData.data();
-        return vkCreatePipelineCache(device, &cacheInfo, nullptr, &cache);
     }
-    return VK_ERROR_UNKNOWN;
+    return vkCreatePipelineCache(device, &cacheInfo, nullptr, &cache);
 }
 void vkf::DestroyPipelineCache(VkDevice device, const std::string&cacheFile, VkPipelineCache &cache){
-    if(cache == VK_NULL_HANDLE)return;
     if(cacheFile != ""){
         size_t cacheDataSize;
         std::vector<uint32_t>cacheData;
@@ -600,7 +596,7 @@ void vkf::DestroyPipelineCache(VkDevice device, const std::string&cacheFile, VkP
         vkGetPipelineCacheData(device, cache, &cacheDataSize, cacheData.data());
         vkf::tool::WriteFileContent(cacheFile, cacheData.data(), cacheData.size() * sizeof(uint32_t));
     }
-    vkDestroyPipelineCache(device, cache, nullptr);
+    if(cache != VK_NULL_HANDLE)vkDestroyPipelineCache(device, cache, nullptr);
 }
 void vkf::CreateFontImage(VkDevice device, const void *datas, uint32_t width, uint32_t height, VulkanImage &image, VkCommandPool pool, VkQueue graphics){
     VulkanBuffer tempStorageBuffer;

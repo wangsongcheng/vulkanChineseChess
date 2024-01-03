@@ -69,12 +69,6 @@ protected:
 public:
     Pipeline();
     ~Pipeline();
-    void cleanup(){
-        mShaders.clear();
-        mPushConstants.clear();
-        // mSetLayoutBindings.clear();
-        // mSetLayoutBindingIndex.clear();
-    }
     virtual void BindDescriptorSet(VkCommandBuffer cmd, VkDescriptorSet&set, uint32_t firstSet = 0, uint32_t descriptorSetCount = 1)const;
     virtual void BindDescriptorSet(VkCommandBuffer cmd, VkDescriptorSet&set, uint32_t dynamicOffsetCount, const uint32_t *pDynamicOffsets, uint32_t descriptorSetCount = 1)const;
     virtual void BindDescriptorSet(VkCommandBuffer cmd, VkPipelineBindPoint pipelineBindPoint, VkDescriptorSet&set, uint32_t firstSet = 0, uint32_t dynamicOffsetCount = 0, const uint32_t *pDynamicOffsets = nullptr, uint32_t descriptorSetCount = 1)const;
@@ -142,7 +136,8 @@ struct GraphicsPipelineStateInfo{
     VkPipelineTessellationStateCreateInfo mTessellation{};
     VkPipelineRasterizationStateCreateInfo mRasterization{};
     VkPipelineInputAssemblyStateCreateInfo mInputAssembly{};
-    GraphicsPipelineStateInfo(){
+    void InitInfo(){
+        memset(this, 0, sizeof(GraphicsPipelineStateInfo));
         mRasterization.lineWidth = 1.0f;
         mMultisample.minSampleShading = 1.0f;
         mMultisample.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
@@ -153,6 +148,9 @@ struct GraphicsPipelineStateInfo{
         mRasterization.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
         mInputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
         mColorBlend.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+    }
+    GraphicsPipelineStateInfo(){
+        InitInfo();
     }
     ~GraphicsPipelineStateInfo(){
 
@@ -172,17 +170,20 @@ class GraphicsPipeline:public Pipeline{
     std::vector<SpecializationInfo>mSpecializationInfo;
     std::vector<VkVertexInputBindingDescription>mBindingDescriptions;
     std::vector<VkVertexInputAttributeDescription>mVertexInputAttributeDescription;
+    void ClearGraphicsPipelineStateInfo(){
+        mState.InitInfo();
+
+        mScissor.clear();
+        mViewport.clear();
+        mDynamics.clear();
+        mSpecializationInfo.clear();
+        mBindingDescriptions.clear();
+        mVertexInputAttributeDescription.clear();
+    }
 public:
     GraphicsPipeline();
     GraphicsPipeline(const GraphicsPipelineStateInfo&stateInfo);
     ~GraphicsPipeline();
-    void cleanup(){
-        mScissor.clear();
-        mViewport.clear();
-        mVertexInputAttributeDescription.clear();
-
-        Pipeline::cleanup();
-    }
     //layout (constant_id = 0) const int enablePCF = 0;
     void PushSpecializationMapEntry(VkShaderStageFlagBits stage, const VkSpecializationMapEntry&specializationMapEntry){
         bool bNeedPush = true;
@@ -263,17 +264,10 @@ public:
         viewport.minDepth = minDepth;
         PushViewport(&viewport);
     }
-    //VK_DYNAMIC_STATE_SCISSOR和VK_DYNAMIC_STATE_VIEWPORT在推送了null的视角后自动添加。也可以不推送视角然后直接从这里添加
+    //VK_DYNAMIC_STATE_SCISSOR和VK_DYNAMIC_STATE_VIEWPORT会自动添加
     inline void PushDynamic(const VkDynamicState&dynamicState){
         mDynamics.push_back(dynamicState);
     }
-
-    // virtual bool operator==(const GraphicsPipeline&pipeline);
-    //uiSet为0
-    // void BindDescriptorSets(VkCommandBuffer cmd, const VkDescriptorSet *pDescriptorSets, uint32_t descriptorSetCount = 1);
-    // void BindDescriptorSets(VkCommandBuffer cmd, uint32_t uiSet, const VkDescriptorSet *pDescriptorSets, uint32_t descriptorSetCount = 1);
-    // void PushConstant(VkCommandBuffer cmd);
-    // void PushConstant(VkCommandBuffer cmd, const std::vector<glm::mat4>&data);
 
     // virtual void DrawUI();
     // virtual void DrawShaderUI(const ShaderInfo&shader);
