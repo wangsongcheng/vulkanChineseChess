@@ -193,7 +193,7 @@ void setupVulkan(GLFWwindow *window){
     const char** instanceExtension = glfwGetRequiredInstanceExtensions(&count);
     std::vector<const char*> extensions(instanceExtension, instanceExtension + count);
     vkf::CreateInstance(extensions, g_VulkanDevice.instance);
-    g_VulkanDevice.physicalDevice = vkf::GetPhysicalDevices(g_VulkanDevice.instance);
+    g_VulkanDevice.physicalDevice = vkf::GetPhysicalDevices(g_VulkanDevice.instance, VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU);
     vkf::CreateDebugUtilsMessenger(g_VulkanDevice.instance, g_VulkanMessenger, debugUtilsMessenger);
     glfwCreateWindowSurface(g_VulkanDevice.instance, window, nullptr, &g_VulkanWindows.surface);
     vkf::CreateDevice(g_VulkanDevice.physicalDevice, {}, g_VulkanWindows.surface, g_VulkanDevice.device);
@@ -274,7 +274,11 @@ void MoveChess(uint32_t country, uint32_t chess, const glm::vec2&start, const gl
         const glm::vec2 pos = lerp(start, end, t);
         // printf("pos:%f, %f\n", pos.x, pos.y);
         g_Chessboard.UpdateChessUniform(g_VulkanDevice.device, country, chess, pos, pInfo->fontIndex, size);
+#ifdef WIN32
+        Sleep(1);
+#else
         usleep(10000);
+#endif
     }
 }
 // void Play(const glm::vec2&mousePos, const ChessInfo *pRival){
@@ -779,38 +783,17 @@ void PlayChess(uint32_t srcCountry, uint32_t srcChess, uint32_t dstCountry, uint
     const ChessInfo *pSrcChessInfo = pSrcChess->GetInfo(), *pDstChessInfo = g_Chessboard.GetChessInfo(dstCountry, dstChess);
     pSrcChess->Selected((const Chess* (*)[21])g_Chessboard.GetChess(), canplays);
     if(GetCanPlay(pDstChessInfo->row, pDstChessInfo->column, canplays) != -1){
-//         //不知道为什么，手动下棋看不到棋移动的效果
+        //不知道为什么，手动下棋看不到棋移动的效果
 #ifdef AI_RANDOMLY_PLAY_CHESS
         MoveChess(pSrcChessInfo->country, pSrcChessInfo->chess, glm::vec2(COLUMN_TO_X(pSrcChessInfo->column), ROW_TO_Y(pSrcChessInfo->row)), glm::vec2(COLUMN_TO_X(pDstChessInfo->column), ROW_TO_Y(pDstChessInfo->row)));
 #endif
         g_Chessboard.Play(g_VulkanDevice.device, srcCountry, srcChess, dstCountry, dstChess);
-        if(g_Chessboard.IsDeath(pDstChessInfo->country)){
-            printf("%s国被%s国消灭\n", county[pDstChessInfo->country], county[g_CurrentCountry]);
-            g_Chessboard.DestroyCountry(g_VulkanDevice.device, pDstChessInfo->country);
+        if(g_Chessboard.IsDeath(dstCountry)){
+            printf("%s国被%s国消灭\n", county[dstCountry], county[g_CurrentCountry]);
+            g_Chessboard.DestroyCountry(g_VulkanDevice.device, dstCountry);
         }
         g_CurrentCountry = GetNextCountry(g_CurrentCountry);
-    } 
-//     const ChessInfo *pChessInfo = g_Chessboard.GetSelectInfo(mousePos);//因为选择的地方没棋子，所以就不能获得棋子，导致无法走棋
-//     if(pChessInfo){
-//         if(pSelected && pChessInfo->country != g_CurrentCountry){
-// #ifdef INTERNET_MODE
-//             Play(g_Player, mousePos, g_SelectPos);
-// #else
-//             Play(mousePos, pChessInfo);
-// #endif
-//         }
-//         else if(pChessInfo->country == g_CurrentCountry){
-//             g_Chessboard.UnSelect(g_VulkanDevice.device);
-//             if(!pSelected || (pSelected->row != pChessInfo->row || pSelected->column != pChessInfo->column)){
-//                 g_SelectPos = mousePos;
-//                 g_Chessboard.SetSelected(pChessInfo);
-//                 g_Chessboard.Selected(g_VulkanDevice.device);
-//             }
-//         }
-//     }
-//     else if(pSelected){
-//         Play(mousePos, nullptr);
-//     }
+    }
 }
 #ifdef AI_RANDOMLY_PLAY_CHESS
 #ifdef __linux
@@ -1079,6 +1062,7 @@ void mousebutton(GLFWwindow *windows, int button, int action, int mods){
             else{
                 PlayChess(g_CurrentCountry, g_Selected->chess, mousePos);
             }
+            g_Selected = nullptr;
         }
         else{
             g_Selected = g_Chessboard.GetChessInfos(g_CurrentCountry, mousePos);

@@ -478,6 +478,8 @@ const ChessInfo *Chessboard::GetChessInfos(uint32_t country, uint32_t row, uint3
 }
 void Chessboard::Move(VkDevice device, uint32_t country, uint32_t chess, uint32_t row, uint32_t column){
     mChess[country][chess]->ResetPos(row, column);
+    UpdateChess(device);
+    ClearCanPlay(device);
 }
 void Chessboard::CaptureChess(uint32_t srcCountry, uint32_t srcChess, uint32_t dstCountry, uint32_t dstChess){
     if(mChess[dstCountry][dstChess]){

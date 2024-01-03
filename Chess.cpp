@@ -228,6 +228,18 @@ glm::vec2 Bing::GetCountryBack(uint32_t country)const{
     }
     return back;
 }
+bool Bing::IsAbroad(uint32_t row, uint32_t column)const{
+    if(mInfo.country == WEI_COUNTRY_INDEX){
+        if(row > 4 || column < 4 || column > 12)return true;
+    }
+    else if(mInfo.country == SHU_COUNTRY_INDEX){
+        if(row < 12 || column < 4 || column > 12)return true;
+    }
+    else{
+        if(column < 12 || row < 4 || row > 12)return true;
+    }
+    return false;
+}
 Bing::Bing(const ChessInfo&info):Chess(info){
     if(mInfo.country == WEI_COUNTRY_INDEX){
         //重新设定索引是为了不越界, 因为WU_COUNTRY_INDEX是2而mCenter只有2个
@@ -260,12 +272,13 @@ Bing::~Bing(){
 }
 void Bing::Selected(const Chess *pChess[4][COUNTRY_CHESS_COUNT], std::vector<ChessInfo>&canplays)const{
     //windows下兵不能吃，一吃就delete 崩溃
-    //兵不能后退
+    //兵在自身境内不能后退
     const glm::vec2 back = GetCountryBack(mInfo.country);
+    const bool bAbroad = IsAbroad(mInfo.row, mInfo.column);
     // const const ChessInfo *pChessInfo[] = { ChessInfo(mRow + 1, mColumn), ChessInfo(mRow - 1, mColumn), ChessInfo(mRow, mColumn + 1), ChessInfo(mRow, mColumn - 1) };
     const glm::vec2 cInfo[] = { glm::vec2(0, 1), glm::vec2(0, -1), glm::vec2(1, 0), glm::vec2(-1, 0) };
     for(uint32_t i = 0; i < sizeof(cInfo) / sizeof(glm::vec2); ++i){
-        if(cInfo[i].x == back.x && cInfo[i].y == back.y)continue;
+        if(!bAbroad && cInfo[i].x == back.x && cInfo[i].y == back.y)continue;
         const glm::vec2 currentPos = glm::vec2(mInfo.column, mInfo.row) + cInfo[i];
         if(!IsBoundary(currentPos.y, currentPos.x)){
             const ChessInfo *pChessInfo = GetChessInfo(currentPos.y, currentPos.x, pChess);
@@ -423,15 +436,15 @@ void Ma::Selected(const Chess *pChess[4][COUNTRY_CHESS_COUNT], std::vector<Chess
 
 bool Xiang::IsAbroad(uint32_t row, uint32_t column)const{
     if(mInfo.country == WEI_COUNTRY_INDEX){
-        if(row > 4 || column < 4 || column > 12)return false;
+        if(row > 4 || column < 4 || column > 12)return true;
     }
     else if(mInfo.country == SHU_COUNTRY_INDEX){
-        if(row < 12 || column < 4 || column > 12)return false;
+        if(row < 12 || column < 4 || column > 12)return true;
     }
     else{
-        if(column < 12 || row < 4 || row > 12)return false;
+        if(column < 12 || row < 4 || row > 12)return true;
     }
-    return true;
+    return false;
 }
 
 //     // if(!CreateTexture(device, CHESS_FONT_ROOT_PATH"馬.png", pool, graphics)){
@@ -448,7 +461,7 @@ Xiang::~Xiang(){
 void Xiang::Selected(const Chess *pChess[4][COUNTRY_CHESS_COUNT], std::vector<ChessInfo>&canplays)const{
     const ChessInfo cInfo[] = { ChessInfo(mInfo.row + 2, mInfo.column + 2), ChessInfo(mInfo.row - 2, mInfo.column - 2), ChessInfo(mInfo.row - 2, mInfo.column + 2), ChessInfo(mInfo.row + 2, mInfo.column - 2) };
     for(uint32_t i = 0; i < sizeof(cInfo) / sizeof(ChessInfo); ++i){
-        if(!IsBoundary(cInfo[i].row, cInfo[i].column) && IsAbroad(cInfo[i].row, cInfo[i].column)){
+        if(!IsBoundary(cInfo[i].row, cInfo[i].column) && !IsAbroad(cInfo[i].row, cInfo[i].column)){
             const ChessInfo *pChessInfo = GetChessInfo(cInfo[i].row, cInfo[i].column, pChess);
             if(!pChessInfo || pChessInfo->country != mInfo.country)
                 canplays.push_back(ChessInfo(cInfo[i].row, cInfo[i].column));

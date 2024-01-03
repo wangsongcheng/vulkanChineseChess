@@ -110,7 +110,7 @@ void VulkanBuffer::Destroy(VkDevice device){
 }
 VkPhysicalDevice vkf::GetPhysicalDevices(VkInstance instance, VkPhysicalDeviceType deviceType){
     uint32_t count;
-    VkPhysicalDevice physicalDevice;
+    VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;
     VkPhysicalDeviceProperties physicalDeviceProperties;
 	vkEnumeratePhysicalDevices(instance, &count, nullptr);
     if(count == 0){
@@ -551,7 +551,7 @@ VkResult vkf::SubmitFrame(VkDevice device, uint32_t imageIndex, VkSwapchainKHR s
     return vkQueuePresentKHR(present, &presentInfo);
 }
 void vkf::DrawFrame(VkDevice device, uint32_t currentFrame, const VkCommandBuffer& commandbuffers, VkSwapchainKHR swapchain, const VulkanQueue&vulkanQueue, const VulkanSynchronize&vulkanSynchronize, void(*recreateSwapchain)(void* userData), void* userData){
-    vkWaitForFences(device, 1, &vulkanSynchronize.fences[currentFrame], VK_TRUE, UINT16_MAX);
+    vkWaitForFences(device, 1, &vulkanSynchronize.fences[currentFrame], VK_TRUE, UINT64_MAX);
     vkResetFences(device, 1, &vulkanSynchronize.fences[currentFrame]);
     uint32_t imageIndex = PrepareFrame(device, swapchain, vulkanSynchronize.imageAcquired[currentFrame], recreateSwapchain, userData);
     

@@ -126,6 +126,7 @@ public:
 class Bing:public Chess{
     ChessInfo mCenter[2];//九宫格中心
     glm::vec2 GetCountryBack(uint32_t country)const;
+    bool IsAbroad(uint32_t row, uint32_t column)const;
 public:
     Bing(const ChessInfo&info);
     ~Bing();
