@@ -29,6 +29,7 @@
 #include <WS2tcpip.h>
 #include <WinSock2.h>
 #pragma comment(lib, "ws2_32.lib")
+#define SHUT_RDWR 2
 #else
 #include <netdb.h>
 #include <unistd.h>
@@ -47,6 +48,7 @@ enum GameEvent{
     GAME_START_GAMEEVENT,
     JOINS_GAME_GAMEEVENT,
     PLAY_CHESS_GAMEEVENT,
+    CURRENT_COUNTRY_GAMEEVENT,
     SELF_PLAYER_INFORMATION_GAMEEVENT,
     CHANGE_PLAYER_INFORMATION_GAMEEVENT
 };
@@ -111,7 +113,7 @@ VkDebugUtilsMessengerEXT g_VulkanMessenger;
 uint32_t g_WindowWidth = CHESSBOARD_BIG_GRID_SIZE * 2 + 10 * CHESSBOARD_GRID_SIZE + 11 * CHESSBOARD_LINE_WIDTH, g_WindowHeight = g_WindowWidth;
 
 Chessboard g_Chessboard;
-uint32_t g_CurrentCountry;
+uint32_t g_CurrentCountry = -1;
 #ifdef HAN_CAN_PLAY
 const uint32_t g_DefaultCountryCount = 4;
 #else
@@ -296,49 +298,45 @@ void MoveChess(uint32_t country, uint32_t chess, const glm::vec2&start, const gl
 }
 #ifdef INTERNET_MODE
 void Send(int __fd, const GameMessage *__buf, size_t __n, int __flags){
-    int sendSize, offset;
-    if(__fd != -1){
+    int sendSize, offset = 0;
+    if(__fd != INVALID_SOCKET){
         do{
-            offset = 0;
-            sendSize = 0;
 #ifdef WIN32
             sendSize = send(__fd, (const char *)__buf + offset, __n - offset, __flags);
 #else
-            sendSize = send(__fd, __buf + offset, __n - offset, __flags);
+            sendSize = send(__fd, (const char *)__buf + offset, __n - offset, __flags);
 #endif
             if(sendSize == -1){
                 perror("send error");
-                printf("send error:send size:%d\n", sendSize);
                 break;
             }
-            // else {
-            //     printf("success send message %d byte, address:%p, %d byte, sizeof(GameMessage) = %d\n", sendSize, __buf + offset, __n - offset, sizeof(GameMessage));
-            // }
+            else {
+                printf("success send message %d byte, residue:%d, offset = %d, __n = %d\n", sendSize, __n - offset - sendSize, offset + sendSize, __n);
+            }
             offset += sendSize;
         } while (offset < __n);
+        printf("send end\n");
     }
 }
 void Recv(int __fd, GameMessage *__buf, size_t __n, int __flags){
-    int recvSize, offset;
-    if(__fd != -1){
+    int recvSize, offset = 0;
+    if(__fd != INVALID_SOCKET){
         do{
-            offset = 0;
-            recvSize = 0;
 #ifdef WIN32
             recvSize = recv(__fd, (char *)__buf + offset, __n - offset, __flags);
 #else
-            recvSize = recv(__fd, __buf + offset, __n - offset, __flags);
+            recvSize = recv(__fd, (char *)__buf + offset, __n - offset, __flags);
 #endif
             if(recvSize == -1){
                 perror("recv error");
-                printf("recv error:recv size:%d\n", recvSize);
                 break;
             }
-            // else {
-            //     printf("success recv message %d byte, address:%p, %d byte, sizeof(GameMessage) = %d\n", recvSize, __buf + offset, __n - offset, sizeof(GameMessage));
-            // }
+            else {
+                printf("success recv message %d byte, residue:%d, offset = %d, __n = %d\n", recvSize, __n - offset - recvSize, offset + recvSize, __n);
+            }
             offset += recvSize;
         } while (offset < __n);
+        printf("recv end\n");
     }
 }
 void SendToAllClient(const GameMessage *__buf, size_t __n){
@@ -514,7 +512,7 @@ void SendAllInfoation(uint32_t count){
         SendToAllClient(&message, sizeof(message));
     }
 }
-void SendAllPlayersInfoation(){
+void SendPlayersInfoation(){
     GameMessage message;
     message.event = CHANGE_PLAYER_INFORMATION_GAMEEVENT;
     for (uint32_t uiPlayer = 0; uiPlayer < g_Players.size(); ++uiPlayer){
@@ -524,6 +522,13 @@ void SendAllPlayersInfoation(){
         strcpy(message.game.country, g_Players[uiPlayer].country);
         SendToAllClient(&message, sizeof(message));
     }
+}
+void SendCurrentCountry(){
+    GameMessage message;
+    message.event = CURRENT_COUNTRY_GAMEEVENT;
+    // message.index = WEI_COUNTRY_INDEX;
+    message.index = rand() % g_DefaultCountryCount;
+    SendToAllClient(&message, sizeof(message));
 }
 void *server_start(void *userData){
     GameMessage message;
@@ -548,8 +553,9 @@ void *server_start(void *userData){
             // shutdown(g_ClientSockets[i], SHUT_RDWR);
         }
     }
+    SendCurrentCountry();
     RandomCountry();
-    SendAllPlayersInfoation();
+    SendPlayersInfoation();
 #ifdef WIN32
     DWORD  threadId;
     for (size_t i = 0; i < 3; i++){
@@ -589,9 +595,22 @@ void *process_client(void *userData){
             printf("game start\n");
             g_Chessboard.InitChess(g_VulkanDevice.device);
         }
+        else if(message.event == SELF_PLAYER_INFORMATION_GAMEEVENT){
+            g_PlayerIndex = message.index;
+        }
+        else if(message.event == CURRENT_COUNTRY_GAMEEVENT){
+            g_CurrentCountry = message.index;
+        }
         else if(message.event == JOINS_GAME_GAMEEVENT){
-            printf("玩家加入, 索引:%d, 名字:%s, ip:%s\n", message.index, message.client.name, message.client.ip);
+            printf("joins game, index:%d, name:%s, ip:%s\n", message.index, message.client.name, message.client.ip);
             g_Clients[message.index] = message.client;
+        }
+        else if(message.event == CHANGE_PLAYER_INFORMATION_GAMEEVENT){
+            const uint32_t index = message.index, playerIndex = message.game.index;
+            glm::vec3 countryColor[] = { WEI_CHESS_COUNTRY_COLOR, SHU_CHESS_COUNTRY_COLOR, WU_CHESS_COUNTRY_COLOR };
+            strcpy(g_Players[index].name, message.game.name);
+            g_Players[index].color = countryColor[playerIndex];
+            strcpy(g_Players[index].country, message.game.country);
         }
         else if(message.event == PLAY_CHESS_GAMEEVENT){
             //这里应该真正下棋而不是发消息
@@ -609,18 +628,6 @@ void *process_client(void *userData){
             else{
                 printf("pSelect is nullptr;client index is %d;play chess pos:%.0f, %.0f;select chess pos:%.0f, %.0f\n", message.index, message.playChessPos.x, message.playChessPos.y, message.selectChessPos.x, message.selectChessPos.y);
             }
-        }
-        else if(message.event == CHANGE_PLAYER_INFORMATION_GAMEEVENT){
-            const uint32_t index = message.index, playerIndex = message.game.index;
-            glm::vec3 countryColor[] = { WEI_CHESS_COUNTRY_COLOR, SHU_CHESS_COUNTRY_COLOR, WU_CHESS_COUNTRY_COLOR };
-            strcpy(g_Players[index].name, message.game.name);
-            g_Players[index].color = countryColor[playerIndex];
-            strcpy(g_Players[index].country, message.game.country);
-            printf("CHANGE_PLAYER_INFORMATION_GAMEEVENT:\nindex is %d, country:%d, name:%s, country:%s\n", index, playerIndex, g_Players[index].name, g_Players[index].country);
-        }
-        else if(message.event == SELF_PLAYER_INFORMATION_GAMEEVENT){
-            g_PlayerIndex = message.index;
-            printf("SELF_PLAYER_INFORMATION_GAMEEVENT:player index is %d\n", g_PlayerIndex);
         }
     }while(message.event != GAME_OVER_GAMEEVENT);
     return nullptr;
@@ -672,6 +679,10 @@ void updateImguiWidget(){
         static char name[MAX_NAME];
         //在非广播模式下，直接显示本机ip。(或许广播模式下也可以显示)
         ImGui::Text("本机ip:%s", g_ServerIp);
+        const char *countryName[] = { "魏", "蜀", "吴" };
+        if(g_CurrentCountry != -1){
+            ImGui::Text("该%s国下棋\n", countryName[g_CurrentCountry]);
+        }
         ImGui::InputText("用户名", name, sizeof(name));
         if(strcmp(name, g_Client.name)){
             memcpy(g_Client.name, name, MAX_NAME);
@@ -1101,6 +1112,8 @@ void *AiPlayChess(void *userData){
 const ChessInfo *g_Selected = nullptr;
 void mousebutton(GLFWwindow *windows, int button, int action, int mods){
     if(action == GLFW_RELEASE && button == GLFW_MOUSE_BUTTON_LEFT){
+        //这里判断了国家是否为-1
+        if(g_CurrentCountry == -1)return;
         //单机和局域网联机差不多。无非就是要接收和发送消息
         double xpos, ypos;
         glfwGetCursorPos(windows, &xpos, &ypos);
@@ -1201,7 +1214,8 @@ void setup(GLFWwindow *windows){
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGuiIO&io = ImGui::GetIO();
-    // io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;//启用手柄    ImGui::StyleColorsDark();
+    // io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;//启用手柄
+    ImGui::StyleColorsDark();
 
     ImGui_ImplGlfw_InitForVulkan(windows, true);
     uint32_t queueFamily;
@@ -1232,9 +1246,6 @@ void setup(GLFWwindow *windows){
     }
 #endif
     GetLocalIp(g_ServerIp);
-    g_ClientSockets[0] = -1;
-    g_ClientSockets[1] = -1;
-    g_ClientSockets[2] = -1;
 #else
     g_CommandBuffers.resize(g_VulkanWindows.framebuffers.size());
     vkf::tool::AllocateCommandBuffers(g_VulkanDevice.device, g_VulkanPool.commandPool, g_CommandBuffers.size(), g_CommandBuffers.data());
@@ -1262,9 +1273,9 @@ void cleanup(){
     message.event = GAME_OVER_GAMEEVENT;
     if(g_ServerAppaction)SendToAllClient(&message, sizeof(message));
     for (size_t i = 0; i < g_Clients.size(); ++i){
-        if(g_ClientSockets[i] != -1)shutdown(g_ClientSockets[i], SHUT_RDWR);
+        if(g_ClientSockets[i] != INVALID_SOCKET)shutdown(g_ClientSockets[i], SHUT_RDWR);
     }
-    if(g_ServerSocket != -1)shutdown(g_ServerSocket, SHUT_RDWR);
+    if(g_ServerSocket != INVALID_SOCKET)shutdown(g_ServerSocket, SHUT_RDWR);
 #ifdef WIN32
     WSACleanup();
 #endif
