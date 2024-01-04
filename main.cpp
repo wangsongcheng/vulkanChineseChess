@@ -301,11 +301,7 @@ void Send(int __fd, const GameMessage *__buf, size_t __n, int __flags){
     int sendSize, offset = 0;
     if(__fd != INVALID_SOCKET){
         do{
-#ifdef WIN32
             sendSize = send(__fd, (const char *)__buf + offset, __n - offset, __flags);
-#else
-            sendSize = send(__fd, (const char *)__buf + offset, __n - offset, __flags);
-#endif
             if(sendSize == -1){
                 perror("send error");
                 break;
@@ -322,11 +318,7 @@ void Recv(int __fd, GameMessage *__buf, size_t __n, int __flags){
     int recvSize, offset = 0;
     if(__fd != INVALID_SOCKET){
         do{
-#ifdef WIN32
             recvSize = recv(__fd, (char *)__buf + offset, __n - offset, __flags);
-#else
-            recvSize = recv(__fd, (char *)__buf + offset, __n - offset, __flags);
-#endif
             if(recvSize == -1){
                 perror("recv error");
                 break;
