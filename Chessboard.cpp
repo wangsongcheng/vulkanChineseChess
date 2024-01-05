@@ -423,15 +423,6 @@ const ChessInfo *Chessboard::GetChessInfos(const glm::vec2 &mousePos){
     }
     return pInfor;
 }
-const ChessInfo *Chessboard::GetChessInfos(uint32_t row, uint32_t column){
-    const ChessInfo *pInfor = nullptr;
-    for (size_t uiCountry = 0; uiCountry < MAX_COUNTRY_INDEX; ++uiCountry){
-        if(pInfor = GetChessInfos(uiCountry, row, column)){
-            break;
-        }
-    }
-    return pInfor;
-}
 void Chessboard::Select(VkDevice device, uint32_t country, uint32_t chess){
     std::vector<ChessInfo>canplays;
     const ChessInfo *pChessInfo = GetChessInfo(country, chess);
@@ -451,7 +442,16 @@ void Chessboard::UnSelect(VkDevice device, uint32_t country, uint32_t chess){
     UpdateChess(device);
     ClearCanPlay(device);
 }
-const ChessInfo *Chessboard::GetChessInfos(uint32_t country, const glm::vec2 &mousePos){
+const ChessInfo *Chessboard::GetChessInfos(uint32_t row, uint32_t column)const{
+    const ChessInfo *pInfor = nullptr;
+    for (size_t uiCountry = 0; uiCountry < MAX_COUNTRY_INDEX; ++uiCountry){
+        if(pInfor = GetChessInfos(uiCountry, row, column)){
+            break;
+        }
+    }
+    return pInfor;
+}
+const ChessInfo *Chessboard::GetChessInfos(uint32_t country, const glm::vec2 &mousePos)const{
     const ChessInfo *pInfor = nullptr;
     for (size_t uiChess = 0; uiChess < COUNTRY_CHESS_COUNT; ++uiChess){
         if(mChess[country][uiChess] && mChess[country][uiChess]->IsSelect(mousePos)){
@@ -461,16 +461,18 @@ const ChessInfo *Chessboard::GetChessInfos(uint32_t country, const glm::vec2 &mo
     }
     return pInfor;
 }
-const ChessInfo *Chessboard::GetChessInfos(uint32_t country, uint32_t row, uint32_t column){
+const ChessInfo *Chessboard::GetChessInfos(uint32_t country, uint32_t row, uint32_t column)const{
     const ChessInfo *pInfor = nullptr;
-    for (size_t uiChess = 0; uiChess < COUNTRY_CHESS_COUNT; ++uiChess){
-        if(mChess[country][uiChess]){
-            pInfor = mChess[country][uiChess]->GetInfo();
-            if(pInfor->row == row && pInfor->column == column){
-                break;
-            }
-            else{
-                pInfor = nullptr;
+    if(country < MAX_COUNTRY_INDEX){
+        for (size_t uiChess = 0; uiChess < COUNTRY_CHESS_COUNT; ++uiChess){
+            if(mChess[country][uiChess]){
+                pInfor = mChess[country][uiChess]->GetInfo();
+                if(pInfor->row == row && pInfor->column == column){
+                    break;
+                }
+                else{
+                    pInfor = nullptr;
+                }
             }
         }
     }

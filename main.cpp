@@ -12,7 +12,7 @@
 //目前的问题是:获取棋子的时候, 汉和其他势力棋子偏移出现冲突问题
 // #define HAN_CAN_PLAY
 #define INTERNET_MODE
-// #define AI_RANDOMLY_PLAY_CHESS
+#define AI_RANDOMLY_PLAY_CHESS
 
 #ifdef AI_RANDOMLY_PLAY_CHESS
 #ifdef WIN32
@@ -36,13 +36,13 @@
 #include <pthread.h>
 #include <arpa/inet.h>
 #include <sys/socket.h>
-typedef unsigned int SOCKET;
+typedef unsigned long long SOCKET;
 #endif
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_vulkan.h"
 #define INTERNET_PORT 10086
-#define MAX_NAME 0x255
-#define INVALID_SOCKET 1000
+#define MAX_NAME 0xff
+#define INVALID_SOCKET 100000
 enum GameEvent{
     GAME_OVER_GAMEEVENT = 0,
     GAME_START_GAMEEVENT,
@@ -55,42 +55,40 @@ enum GameEvent{
 struct GameInfo{
     uint32_t index;
     glm::vec3 color;
-    char name[MAX_NAME];//角色名//如果有
-    char country[MAX_NAME];
+    char name[MAX_BYTE];//角色名//如果有
+    char country[MAX_BYTE];
 };
 //记录服务端的房间名称密码(如果有)等。
 struct ServerInfo{
-    char name[MAX_NAME];//房间名
+    SOCKET sockset;
+    char name[MAX_BYTE];//房间名
 };
 struct ClientInfo{
-    char ip[MAX_NAME];
-    char name[MAX_NAME];//用户名
-    char serverIp[MAX_NAME];
+    SOCKET socket;
+    char name[MAX_BYTE];//用户名
 };
 struct GameMessage{
-    // Ranks ranks;
     GameInfo game;
     uint32_t index;
     GameEvent event;
+    ChessInfo target;
+    ChessInfo player;
     ClientInfo client;
-    glm::vec2 playChessPos, selectChessPos;
+    glm::vec2 mousePos;
 };
 VkCommandBuffer g_CommandBuffers;
 
 uint32_t g_PlayerIndex = -1;
 std::array<GameInfo, 3>g_Players;//用来保存其他玩家的信息//尽管也包含自身信息
 bool g_ServerAppaction;
-char g_ServerIp[MAX_NAME];
+char g_ServerIp[MAX_BYTE];
 ServerInfo g_Server;
 //当该程序作为客户端时,应该使用该变量而不是std::vector<ClientInfo>g_Clients
 ClientInfo g_Client;
 //当该程序作为服务端和客户端时, 应该使用该变量而不是ClientInfo g_Client
 std::array<ClientInfo, 3>g_Clients;
-//如果该程序不包含服务端，忽略下面的值
-SOCKET g_ServerSocket = -1;
 
-SOCKET g_ClientSocket = -1;
-std::array<SOCKET, 3>g_ClientSockets = { INVALID_SOCKET, INVALID_SOCKET, INVALID_SOCKET};
+std::array<SOCKET, 3>g_ClientSockets;// = { INVALID_SOCKET, INVALID_SOCKET, INVALID_SOCKET};
 #ifdef __linux
 pthread_t g_ServerPthreadId;
 pthread_t g_ClientPthreadId;
@@ -119,7 +117,10 @@ const uint32_t g_DefaultCountryCount = 4;
 #else
 const uint32_t g_DefaultCountryCount = 3;
 #endif
-
+#ifdef AI_RANDOMLY_PLAY_CHESS
+#include "Ai.h"
+Ai g_AI;
+#endif
 VkSampler g_TextureSampler;
 VkPipelineCache g_PipelineCache;
 VkDescriptorSetLayout g_SetLayout;
@@ -339,7 +340,7 @@ void SendToAllClient(const GameMessage *__buf, size_t __n){
     }
 }
 void SendToServer(const GameMessage *__buf, size_t __n){
-    Send(g_ClientSocket, __buf, __n, 0);
+    Send(g_Client.socket, __buf, __n, 0);
 }
 void CreateClient(const char *serverIp){
     struct in_addr address;
@@ -356,8 +357,8 @@ void CreateClient(const char *serverIp){
     }
 #endif
     addr.sin_addr = address;
-    g_ClientSocket = socket(AF_INET, SOCK_STREAM, 0);
-    if(g_ClientSocket == -1){
+    g_Client.socket = socket(AF_INET, SOCK_STREAM, 0);
+    if(g_Client.socket == -1){
         perror("create client:function:socket");
         return;
     }
@@ -368,15 +369,15 @@ void CreateClient(const char *serverIp){
 #else
     bzero(&addr.sin_zero, sizeof(addr.sin_zero)); /* zero the rest of the struct */
 #endif // WIN32
-    if(connect(g_ClientSocket,(struct sockaddr *)&addr,sizeof(struct sockaddr)) == -1){
+    if(connect(g_Client.socket,(struct sockaddr *)&addr,sizeof(struct sockaddr)) == -1){
         perror("create client:function:connect");
-        shutdown(g_ClientSocket, SHUT_RDWR);
+        shutdown(g_Client.socket, SHUT_RDWR);
         return;
     }
 }
 void CreateServer(int listenCount){
-    g_ServerSocket = socket(AF_INET, SOCK_STREAM, 0);
-    if(g_ServerSocket == -1){
+    g_Server.sockset = socket(AF_INET, SOCK_STREAM, 0);
+    if(g_Server.sockset == -1){
         perror("create server:function:socket");
         // herror("create server:function:socket");
         return;
@@ -390,12 +391,12 @@ void CreateServer(int listenCount){
 #else
     bzero(&my_addr.sin_zero, sizeof(my_addr.sin_zero)); /* zero the rest of the struct */
 #endif
-    if(bind(g_ServerSocket, (struct sockaddr *)&my_addr, sizeof(struct sockaddr)) == -1){
+    if(bind(g_Server.sockset, (struct sockaddr *)&my_addr, sizeof(struct sockaddr)) == -1){
         perror("create server:function:bind");
         // herror("create server:function:bind");
         return;
     }
-    if (listen(g_ServerSocket, listenCount) == -1){
+    if (listen(g_Server.sockset, listenCount) == -1){
         perror("create server:function:listen");
         // herror("create server:function:listen");
         return;
@@ -410,7 +411,7 @@ void JoinsGame(const char *serverIp){
 }
 void GetLocalIp(char outIp[]){
     int status = -1;
-    char buffer[MAX_NAME] = {0};
+    char buffer[MAX_BYTE] = {0};
     if(!gethostname(buffer, sizeof(buffer))){
 #ifdef WIN32
         struct addrinfo* result = NULL;
@@ -498,9 +499,7 @@ void SendAllInfoation(uint32_t count){
     message.event = JOINS_GAME_GAMEEVENT;
     for (uint32_t uiClient = 0; uiClient < count; ++uiClient){
         message.index = uiClient;
-        strcpy(message.client.ip, g_Clients[uiClient].ip);
         strcpy(message.client.name, g_Clients[uiClient].name);
-        strcpy(message.client.serverIp, g_Clients[uiClient].serverIp);
         SendToAllClient(&message, sizeof(message));
     }
 }
@@ -527,13 +526,11 @@ void *server_start(void *userData){
     struct sockaddr_in client_addr;
     socklen_t size = sizeof(client_addr);
     for (size_t i = 0; i < 3; i++){
-        g_ClientSockets[i] = accept(g_ServerSocket, (struct sockaddr *)&client_addr, &size);
+        g_ClientSockets[i] = accept(g_Server.sockset, (struct sockaddr *)&client_addr, &size);
         if(g_ClientSockets[i] != INVALID_SOCKET){
             //客户端连接后会发送自身信息
             Recv(g_ClientSockets[i], &message, sizeof(message), 0);
-            strcpy(g_Clients[i].ip, message.client.ip);
             strcpy(g_Clients[i].name, message.client.name);
-            strcpy(g_Clients[i].serverIp, message.client.serverIp);
             GameInfo player;
             player.index = i;
             SendSelfInfoation(g_ClientSockets[i], player);
@@ -568,14 +565,16 @@ void *server_start(void *userData){
 // void Play(uint32_t row, uint32_t column){
 //     Play(glm::vec2(COLUMN_TO_X(column, CHESSBOARD_GRID_SIZE, CHESSBOARD_LINE_WIDTH), ROW_TO_Y(row, CHESSBOARD_GRID_SIZE, CHESSBOARD_LINE_WIDTH)));
 // }
-void SendPlayChessMessage(const GameInfo&game, const glm::vec2&playPos, const glm::vec2&selectPos){
+void SendPlayChessMessage(const GameInfo&game, const ChessInfo *player, const ChessInfo *target, const glm::vec2&mousePos){
     GameMessage message;
     message.event = PLAY_CHESS_GAMEEVENT;
     message.game = game;
-    message.playChessPos = playPos;
-    message.selectChessPos = selectPos;
+    message.mousePos = mousePos;
+    if(player)message.player = *player;
+    if(target)message.target = *target;
     SendToServer(&message, sizeof(message));
 }
+
 //但该程序为客户端时,一般不会用上面的函数而是用下面的函数创建创建线程
 void *process_client(void *userData){
     //接收消息后做出动作即可
@@ -594,7 +593,7 @@ void *process_client(void *userData){
             g_CurrentCountry = message.index;
         }
         else if(message.event == JOINS_GAME_GAMEEVENT){
-            printf("joins game, index:%d, name:%s, ip:%s\n", message.index, message.client.name, message.client.ip);
+            printf("joins game, index:%d, name:%s\n", message.index, message.client.name);
             g_Clients[message.index] = message.client;
         }
         else if(message.event == CHANGE_PLAYER_INFORMATION_GAMEEVENT){
@@ -606,27 +605,23 @@ void *process_client(void *userData){
         }
         else if(message.event == PLAY_CHESS_GAMEEVENT){
             //这里应该真正下棋而不是发消息
-            const ChessInfo *pRival  = g_Chessboard.GetChessInfos(message.playChessPos), *pSelect = g_Chessboard.GetChessInfos(message.selectChessPos);
+            const ChessInfo *pRival  = g_Chessboard.GetChessInfos(message.target.country, message.target.row, message.target.column), *pSelect = g_Chessboard.GetChessInfos(g_CurrentCountry, message.player.row, message.player.column);
             if(pSelect){
                 if(pRival){
                     printf("catpure chess:country:%d, chess:%d;target country:%d, chess:%d\n", pSelect->country, pSelect->chess, pRival->country, pRival->chess);
                     PlayChess(pSelect->country, pSelect->chess, pRival->country, pRival->chess);
                 }
                 else{
-                    printf("move chess:country:%d, chess:%d;target row:%.0f, column:%.0f\n", pSelect->country, pSelect->chess, message.playChessPos.y / CHESSBOARD_GRID_SIZE, message.playChessPos.x / CHESSBOARD_GRID_SIZE);
-                    PlayChess(pSelect->country, pSelect->chess, message.playChessPos);
+                    printf("move chess:country:%d, chess:%d;target row:%.0f, column:%.0f\n", pSelect->country, pSelect->chess, message.player.row, message.player.column);
+                    PlayChess(pSelect->country, pSelect->chess, message.mousePos);
                 }
-            }
-            else{
-                printf("pSelect is nullptr;client index is %d;play chess pos:%.0f, %.0f;select chess pos:%.0f, %.0f\n", message.index, message.playChessPos.x, message.playChessPos.y, message.selectChessPos.x, message.selectChessPos.y);
             }
         }
     }while(message.event != GAME_OVER_GAMEEVENT);
     return nullptr;
 }
 void ClickCreateServer(const char *name){
-    memcpy(g_Server.name, name, MAX_NAME);
-    memcpy(g_Client.ip, g_ServerIp, MAX_NAME);
+    memcpy(g_Server.name, name, MAX_BYTE);
     // g_Player.color = WEI_CHESS_COUNTRY_COLOR;
     // strcpy(g_Player.country, "魏");
     // g_Player.index = 0;
@@ -636,30 +631,28 @@ void ClickCreateServer(const char *name){
     DWORD  threadId;
     g_ServerPthreadId = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)server_start, 0, 0, &threadId);
     CreateClient(g_ServerIp);
-    g_ClientPthreadId = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)process_client, &g_ClientSocket, 0, &threadId);
+    g_ClientPthreadId = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)process_client, &g_Client.socket, 0, &threadId);
 #endif
 #ifdef __linux
     pthread_create(&g_ServerPthreadId, nullptr, server_start, nullptr);
     CreateClient(g_ServerIp);
     //该程序也需要客户端方面的线程
-    pthread_create(&g_ClientPthreadId, nullptr, process_client, &g_ClientSocket);
+    pthread_create(&g_ClientPthreadId, nullptr, process_client, &g_Client.socket);
 #endif
     JoinsGame(g_ServerIp);
 }
 void ClickCreateClient(const char *serverIp){
-    memcpy(g_Client.serverIp, serverIp, MAX_NAME);
     CreateClient(serverIp);
-    char ip[MAX_NAME] = { 0 };
+    char ip[MAX_BYTE] = { 0 };
     GetLocalIp(ip);//用来存自己的ip
-    memcpy(g_Client.ip, ip, MAX_NAME);
 #ifdef WIN32
     DWORD  threadId;
-    g_ClientPthreadId = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)process_client, &g_ClientSocket, 0, &threadId);
+    g_ClientPthreadId = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)process_client, &g_Client.socket, 0, &threadId);
 #endif
 #ifdef __linux
-    pthread_create(&g_ClientPthreadId, nullptr, process_client, &g_ClientSocket);
+    pthread_create(&g_ClientPthreadId, nullptr, process_client, &g_Client.socket);
 #endif
-    JoinsGame(g_Client.serverIp);
+    JoinsGame(serverIp);
 }
 void updateImguiWidget(){
     // static bool checkbuttonstatu;//检查框的状态。这个值传给imgui会影响到检查框
@@ -668,28 +661,23 @@ void updateImguiWidget(){
 
     static bool bShowCreateServer = false, bShowConnectServer = false;
     if(ImGui::Begin("局域网联机")){
-        static char name[MAX_NAME];
+        static char name[MAX_BYTE];
         //在非广播模式下，直接显示本机ip。(或许广播模式下也可以显示)
         ImGui::Text("本机ip:%s", g_ServerIp);
-        const char *countryName[] = { "魏", "蜀", "吴" };
+        const char *countryName[] = { "魏国", "蜀国", "吴国" };
         if(g_CurrentCountry != -1){
-            ImGui::Text("该%s国下棋\n", countryName[g_CurrentCountry]);
+            ImGui::Text("你是%s, 该%s下棋\n", countryName[g_CurrentCountry], g_PlayerIndex == g_CurrentCountry?"你":countryName[g_CurrentCountry]);
         }
         ImGui::InputText("用户名", name, sizeof(name));
         if(strcmp(name, g_Client.name)){
-            memcpy(g_Client.name, name, MAX_NAME);
+            memcpy(g_Client.name, name, MAX_BYTE);
         }
         //当有客户端程序接入后，显示名称和ip，然后初始化棋盘并开始游戏
-        if(ImGui::BeginTable("client information", 3)){
+        if(ImGui::BeginTable("client information", 2)){
             ImGui::TableNextColumn();
             ImGui::Text("name");
             for (size_t i = 0; i < g_Clients.size(); ++i){
                 ImGui::Text(g_Clients[i].name);
-            }
-            ImGui::TableNextColumn();
-            ImGui::Text("ip");
-            for (size_t i = 0; i < g_Clients.size(); ++i){
-                ImGui::Text(g_Clients[i].ip);
             }
             ImGui::TableNextColumn();
             ImGui::Text("country");
@@ -724,7 +712,7 @@ void updateImguiWidget(){
     }
     if(bShowCreateServer){
         if(ImGui::Begin("创建房间")){
-            static char name[MAX_NAME] = {0};
+            static char name[MAX_BYTE] = {0};
             ImGui::InputText("输入房间名", name, sizeof(name));
             //目前用不到房间名, 所以不需要判断
             if(ImGui::BeginTable("确定取消按钮", 2)){
@@ -744,7 +732,7 @@ void updateImguiWidget(){
     }
     if(bShowConnectServer){
         if(ImGui::Begin("连接服务端")){
-            static char serverIp[MAX_NAME] = {0};
+            static char serverIp[MAX_BYTE] = {0};
             ImGui::InputText("服务端ip", serverIp, sizeof(serverIp));
             if(ImGui::BeginTable("确定取消按钮", 2)){
                 ImGui::TableNextColumn();
@@ -1101,31 +1089,52 @@ void *AiPlayChess(void *userData){
     return nullptr;
 }
 #endif
+//一般情况下, ai不需要调用该函数
+const ChessInfo *SelectChess(uint32_t country, const glm::vec2&mousePos){
+    const ChessInfo *pSelected = nullptr;
+#ifdef INTERNET_MODE
+    if(country == g_PlayerIndex)pSelected = g_Chessboard.GetChessInfos(country, mousePos);
+#else
+    pSelected = g_Chessboard.GetChessInfos(country, mousePos);
+#endif
+    if(pSelected && pSelected->country == country){
+        g_Chessboard.Select(g_VulkanDevice.device, country, pSelected->chess);
+    }
+    return pSelected;
+}
 const ChessInfo *g_Selected = nullptr;
 void mousebutton(GLFWwindow *windows, int button, int action, int mods){
     if(action == GLFW_RELEASE && button == GLFW_MOUSE_BUTTON_LEFT){
+#ifdef INTERNET_MODE
         //这里判断了国家是否为-1
         if(g_CurrentCountry == -1)return;
-        //单机和局域网联机差不多。无非就是要接收和发送消息
+#endif
         double xpos, ypos;
         glfwGetCursorPos(windows, &xpos, &ypos);
         const glm::vec2 mousePos = glm::vec2(xpos, ypos);
         if(g_Selected){
             g_Chessboard.UnSelect(g_VulkanDevice.device, g_Selected->country, g_Selected->chess);
-            const ChessInfo *pSelected = g_Chessboard.GetChessInfos(mousePos);
+            const ChessInfo *pTarget = g_Chessboard.GetChessInfos(mousePos);
 #ifdef INTERNET_MODE
-            if(pSelected){
-                if(pSelected->country != g_CurrentCountry){
-                    SendPlayChessMessage(g_Players[g_PlayerIndex], glm::vec2(COLUMN_TO_X(pSelected->column), ROW_TO_Y(pSelected->row)), glm::vec2(COLUMN_TO_X(g_Selected->column), ROW_TO_Y(g_Selected->row)));
+            if(pTarget){
+                if(pTarget->country != g_CurrentCountry){
+                    //单机和局域网联机差不多。无非就是要接收和发送消息
+                    SendPlayChessMessage(g_Players[g_PlayerIndex], g_Selected, pTarget, mousePos);
+                }
+                else{
+                    g_Selected = SelectChess(g_CurrentCountry, mousePos);
                 }
             }
             else{
-                SendPlayChessMessage(g_Players[g_PlayerIndex], mousePos, glm::vec2(COLUMN_TO_X(g_Selected->column), ROW_TO_Y(g_Selected->row)));
+                SendPlayChessMessage(g_Players[g_PlayerIndex], g_Selected, nullptr, mousePos);
             }
 #else
-            if(pSelected){
-                if(pSelected->country != g_CurrentCountry){
-                    PlayChess(g_CurrentCountry, g_Selected->chess, pSelected->country, pSelected->chess);
+            if(pTarget){
+                if(pTarget->country != g_CurrentCountry){
+                    PlayChess(g_CurrentCountry, g_Selected->chess, pTarget->country, pTarget->chess);
+                }
+                else{
+                    g_Selected = SelectChess(g_CurrentCountry, mousePos);
                 }
             }
             else{
@@ -1135,31 +1144,13 @@ void mousebutton(GLFWwindow *windows, int button, int action, int mods){
             g_Selected = nullptr;
         }
         else{
-#ifdef INTERNET_MODE
-            if(g_CurrentCountry == g_PlayerIndex)g_Selected = g_Chessboard.GetChessInfos(g_CurrentCountry, mousePos);
-#else
-            g_Selected = g_Chessboard.GetChessInfos(g_CurrentCountry, mousePos);
-#endif
-            if(g_Selected && g_Selected->country == g_CurrentCountry){
-                g_Chessboard.Select(g_VulkanDevice.device, g_CurrentCountry, g_Selected->chess);
-            }
+            g_Selected = SelectChess(g_CurrentCountry, mousePos);
         }
         // aiPlay();//从这边调用就看不到移动效果
 #ifndef INTERNET_MODE
         g_UpdateScreen = true;
 #endif
     }
-// #ifdef AI_RANDOMLY_PLAY_CHESS
-//     if(action == GLFW_RELEASE){
-// #ifdef WIN32
-//         DWORD  threadId;
-//         g_AiPlayChess = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)AiPlayChess, nullptr, 0, &threadId);
-// #endif
-// #ifdef __linux
-//         pthread_create(&g_AiPlayChess, nullptr, AiPlayChess, nullptr);
-// #endif
-//     }
-// #endif
 }
 void SetupDescriptorSetLayout(VkDevice device){
     VkDescriptorSetLayoutBinding descriptorSetLayoutBindings[2] = {};
@@ -1267,7 +1258,7 @@ void cleanup(){
     for (size_t i = 0; i < g_Clients.size(); ++i){
         if(g_ClientSockets[i] != INVALID_SOCKET)shutdown(g_ClientSockets[i], SHUT_RDWR);
     }
-    if(g_ServerSocket != INVALID_SOCKET)shutdown(g_ServerSocket, SHUT_RDWR);
+    if(g_Server.sockset != INVALID_SOCKET)shutdown(g_Server.sockset, SHUT_RDWR);
 #ifdef WIN32
     WSACleanup();
 #endif

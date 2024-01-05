@@ -59,11 +59,11 @@ public:
     void DestroyCountry(VkDevice device, uint32_t country);
     const ChessInfo *GetChessInfos(const glm::vec2&mousePos);
     //目前该函数只用于ai
-    const ChessInfo *GetChessInfos(uint32_t row, uint32_t column);
     void Select(VkDevice device, uint32_t country, uint32_t chess);
     void UnSelect(VkDevice device, uint32_t country, uint32_t chess);
-    const ChessInfo *GetChessInfos(uint32_t country, const glm::vec2&mousePos);
-    const ChessInfo *GetChessInfos(uint32_t country, uint32_t row, uint32_t column);
+    const ChessInfo *GetChessInfos(uint32_t row, uint32_t column)const;
+    const ChessInfo *GetChessInfos(uint32_t country, const glm::vec2&mousePos)const;
+    const ChessInfo *GetChessInfos(uint32_t country, uint32_t row, uint32_t column)const;
     void Move(VkDevice device, uint32_t country, uint32_t chess, uint32_t row, uint32_t column);
     void CaptureChess(uint32_t srcCountry, uint32_t srcChess, uint32_t dstCountry, uint32_t destChess);
     void Play(VkDevice device, uint32_t srcCountry, uint32_t srcChess, uint32_t dstCountry, uint32_t dstChess);
@@ -71,7 +71,7 @@ public:
     // inline const ChessInfo *GetSelected(){
     //     return mSelected;
     // }
-    inline auto GetChess(){
+    inline auto GetChess()const{
         return mChess;
     }
     inline bool IsDeath(uint32_t country)const{
@@ -83,13 +83,13 @@ public:
     // inline const std::vector<ChessInfo>&GetCanPlay(){
     //     return mCanplays;
     // }
-    inline const ChessInfo *GetChessInfo(uint32_t country, uint32_t chess){
+    inline const ChessInfo *GetChessInfo(uint32_t country, uint32_t chess)const{
         const Chess *pChess = mChess[country][chess];
         if(pChess)
             return pChess->GetInfo();
         return nullptr;
     }
-    inline const Chess *GetChess(uint32_t country, uint32_t chess){
+    inline const Chess *GetChess(uint32_t country, uint32_t chess)const{
         return mChess[country][chess];
     }
     //除蜀国外，a吃掉b的将后，a获得b剩下的所有棋子
