@@ -10,7 +10,7 @@
 #include "VulkanChessboard.h"
 //目前的问题是:获取棋子的时候, 汉和其他势力棋子偏移出现冲突问题
 // #define HAN_CAN_PLAY
-// #define INTERNET_MODE
+#define INTERNET_MODE
 #define AI_RANDOMLY_PLAY_CHESS
 #ifdef INTERNET_MODE
 #include <array>
@@ -345,16 +345,18 @@ void *server_start(void *userData){
     RandomCountry();
     SendCurrentCountry();
     SendPlayersInfoation();
+    //必须用静态变量, 局部变量在函数结束后就销毁, 会导致传餐错误//不知道为什么linux下没问题
+    static uint32_t socksetIndex[] = { 0, 1, 2 };
 #ifdef WIN32
     DWORD  threadId;
-    for (size_t i = 0; i < 3; i++){
-        g_ServerPthreadId = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)process_server, &i, 0, &threadId);
+    for (size_t i = 0; i < g_DefaultCountryCount; ++i){
+        g_ServerPthreadId = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)process_server, &socksetIndex[i], 0, &threadId);
     }
 #endif
 #ifdef __linux
     pthread_t pthreadId;
-    for (size_t i = 0; i < 3; i++){
-        pthread_create(&g_ServerPthreadId, nullptr, process_server, &i);
+    for (size_t i = 0; i < g_DefaultCountryCount; ++i){
+        pthread_create(&g_ServerPthreadId, nullptr, process_server, &socksetIndex[i]);
     }
 #endif
     //游戏开始, 发消息告诉所有客户端游戏开始
@@ -418,7 +420,7 @@ void *process_client(void *userData){
     }while(message.event != GAME_OVER_GAMEEVENT);
     return nullptr;
 }
-void ClickCreateServer(const char *name){
+void CreateServer(const char *name){
     g_ServerAppaction = true;
     // memcpy(g_Server.name, name, MAX_BYTE);
     // g_Player.color = WEI_CHESS_COUNTRY_COLOR;
@@ -516,7 +518,7 @@ void updateImguiWidget(){
                 ImGui::TableNextColumn();
                 if(ImGui::Button("确定")){
                     bShowCreateServer = false;
-                    ClickCreateServer(name);
+                    CreateServer(name);
                 }
                 ImGui::TableNextColumn();
                 if(ImGui::Button("取消")){
