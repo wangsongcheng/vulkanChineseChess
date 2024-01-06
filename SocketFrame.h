@@ -14,12 +14,12 @@
 #include <pthread.h>
 #include <arpa/inet.h>
 #include <sys/socket.h>
-#define MAX_BYTE 0xff
 typedef unsigned long long SOCKET;
 #endif
 #include "Chess.h"
 #include "glm/glm.hpp"
 #include "glm/gtc/matrix_transform.hpp"
+#define MAX_BYTE 0xff
 #define INTERNET_PORT 10086
 #define INVALID_SOCKET 100000
 enum GameEvent{
