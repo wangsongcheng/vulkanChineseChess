@@ -58,14 +58,15 @@ struct GameInfo{
     char name[MAX_BYTE];//角色名//如果有
     char country[MAX_BYTE];
 };
+struct ClientInfo{
+    SOCKET socket;
+    char name[MAX_BYTE];//用户名
+};
 //记录服务端的房间名称密码(如果有)等。
 struct ServerInfo{
     SOCKET sockset;
     char name[MAX_BYTE];//房间名
-};
-struct ClientInfo{
-    SOCKET socket;
-    char name[MAX_BYTE];//用户名
+    std::array<ClientInfo, 3>clients;
 };
 struct GameMessage{
     GameInfo game;
@@ -85,10 +86,6 @@ char g_ServerIp[MAX_BYTE];
 ServerInfo g_Server;
 //当该程序作为客户端时,应该使用该变量而不是std::vector<ClientInfo>g_Clients
 ClientInfo g_Client;
-//当该程序作为服务端和客户端时, 应该使用该变量而不是ClientInfo g_Client
-std::array<ClientInfo, 3>g_Clients;
-
-std::array<SOCKET, 3>g_ClientSockets;// = { INVALID_SOCKET, INVALID_SOCKET, INVALID_SOCKET};
 #ifdef __linux
 pthread_t g_ServerPthreadId;
 pthread_t g_ClientPthreadId;
@@ -307,12 +304,11 @@ void Send(int __fd, const GameMessage *__buf, size_t __n, int __flags){
                 perror("send error");
                 break;
             }
-            else {
-                printf("success send message %d byte, residue:%d, offset = %d, __n = %d\n", sendSize, __n - offset - sendSize, offset + sendSize, __n);
-            }
+            // else {
+            //     printf("success send message %d byte, residue:%d, offset = %d, __n = %d\n", sendSize, __n - offset - sendSize, offset + sendSize, __n);
+            // }
             offset += sendSize;
         } while (offset < __n);
-        printf("send end\n");
     }
 }
 void Recv(int __fd, GameMessage *__buf, size_t __n, int __flags){
@@ -324,18 +320,17 @@ void Recv(int __fd, GameMessage *__buf, size_t __n, int __flags){
                 perror("recv error");
                 break;
             }
-            else {
-                printf("success recv message %d byte, residue:%d, offset = %d, __n = %d\n", recvSize, __n - offset - recvSize, offset + recvSize, __n);
-            }
+            // else {
+            //     printf("success recv message %d byte, residue:%d, offset = %d, __n = %d\n", recvSize, __n - offset - recvSize, offset + recvSize, __n);
+            // }
             offset += recvSize;
         } while (offset < __n);
-        printf("recv end\n");
     }
 }
 void SendToAllClient(const GameMessage *__buf, size_t __n){
-    for (size_t i = 0; i < g_Clients.size(); ++i){
-        if(g_ClientSockets[i] != INVALID_SOCKET){
-            Send(g_ClientSockets[i], __buf, __n, 0);
+    for (size_t i = 0; i < g_Server.clients.size(); ++i){
+        if(g_Server.clients[i].socket != INVALID_SOCKET){
+            Send(g_Server.clients[i].socket, __buf, __n, 0);
         }
     }
 }
@@ -481,10 +476,13 @@ void *process_server(void *userData){
     GameMessage message;
     //该函数只负责向所有客户端转发消息
     SOCKET socket = *(SOCKET *)userData;
+    printf("%s线程开始\n", __FUNCTION__);
     do{ 
         Recv(socket, &message, sizeof(message), 0);
+        printf("in function %s:sockset:%d\n", __FUNCTION__, socket);
         SendToAllClient(&message, sizeof(message));
     } while (message.event != GAME_OVER_GAMEEVENT);
+    printf("%s线程结束\n", __FUNCTION__);
     return nullptr;
 }
 void SendSelfInfoation(SOCKET clientSocket, const GameInfo&player){
@@ -499,7 +497,7 @@ void SendAllInfoation(uint32_t count){
     message.event = JOINS_GAME_GAMEEVENT;
     for (uint32_t uiClient = 0; uiClient < count; ++uiClient){
         message.index = uiClient;
-        strcpy(message.client.name, g_Clients[uiClient].name);
+        strcpy(message.client.name, g_Server.clients[uiClient].name);
         SendToAllClient(&message, sizeof(message));
     }
 }
@@ -525,36 +523,36 @@ void *server_start(void *userData){
     GameMessage message;
     struct sockaddr_in client_addr;
     socklen_t size = sizeof(client_addr);
-    for (size_t i = 0; i < 3; i++){
-        g_ClientSockets[i] = accept(g_Server.sockset, (struct sockaddr *)&client_addr, &size);
-        if(g_ClientSockets[i] != INVALID_SOCKET){
+    for (size_t i = 0; i < g_DefaultCountryCount; i++){
+        g_Server.clients[i].socket = accept(g_Server.sockset, (struct sockaddr *)&client_addr, &size);
+        if(g_Server.clients[i].socket != INVALID_SOCKET){
             //客户端连接后会发送自身信息
-            Recv(g_ClientSockets[i], &message, sizeof(message), 0);
-            strcpy(g_Clients[i].name, message.client.name);
+            Recv(g_Server.clients[i].socket, &message, sizeof(message), 0);
+            strcpy(g_Server.clients[i].name, message.client.name);
             GameInfo player;
             player.index = i;
-            SendSelfInfoation(g_ClientSockets[i], player);
+            SendSelfInfoation(g_Server.clients[i].socket, player);
 
             SendAllInfoation(i + 1);
         }
         else{
             perror("process_server:accept");
-            // shutdown(g_ClientSockets[i], SHUT_RDWR);
+            // shutdown(g_Server.clientsockets[i], SHUT_RDWR);
         }
     }
-    SendCurrentCountry();
     RandomCountry();
+    SendCurrentCountry();
     SendPlayersInfoation();
 #ifdef WIN32
     DWORD  threadId;
     for (size_t i = 0; i < 3; i++){
-        g_ServerPthreadId = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)process_server, &g_ClientSockets[i], 0, &threadId);
+        g_ServerPthreadId = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)process_server, &g_Server.clients[i].socket, 0, &threadId);
     }
 #endif
 #ifdef __linux
     pthread_t pthreadId;
     for (size_t i = 0; i < 3; i++){
-        pthread_create(&g_ServerPthreadId, nullptr, process_server, &g_ClientSockets[i]);
+        pthread_create(&g_ServerPthreadId, nullptr, process_server, &g_Server.clients[i].socket);
     }
 #endif
     //游戏开始, 发消息告诉所有客户端游戏开始
@@ -594,7 +592,7 @@ void *process_client(void *userData){
         }
         else if(message.event == JOINS_GAME_GAMEEVENT){
             printf("joins game, index:%d, name:%s\n", message.index, message.client.name);
-            g_Clients[message.index] = message.client;
+            strcpy(g_Server.clients[message.index].name, message.client.name);
         }
         else if(message.event == CHANGE_PLAYER_INFORMATION_GAMEEVENT){
             const uint32_t index = message.index, playerIndex = message.game.index;
@@ -676,8 +674,8 @@ void updateImguiWidget(){
         if(ImGui::BeginTable("client information", 2)){
             ImGui::TableNextColumn();
             ImGui::Text("name");
-            for (size_t i = 0; i < g_Clients.size(); ++i){
-                ImGui::Text(g_Clients[i].name);
+            for (size_t i = 0; i < g_Server.clients.size(); ++i){
+                ImGui::Text(g_Server.clients[i].name);
             }
             ImGui::TableNextColumn();
             ImGui::Text("country");
@@ -1255,8 +1253,8 @@ void cleanup(){
     GameMessage message;
     message.event = GAME_OVER_GAMEEVENT;
     if(g_ServerAppaction)SendToAllClient(&message, sizeof(message));
-    for (size_t i = 0; i < g_Clients.size(); ++i){
-        if(g_ClientSockets[i] != INVALID_SOCKET)shutdown(g_ClientSockets[i], SHUT_RDWR);
+    for (size_t i = 0; i < g_Server.clients.size(); ++i){
+        if(g_Server.clients[i].socket != INVALID_SOCKET)shutdown(g_Server.clients[i].socket, SHUT_RDWR);
     }
     if(g_Server.sockset != INVALID_SOCKET)shutdown(g_Server.sockset, SHUT_RDWR);
 #ifdef WIN32
