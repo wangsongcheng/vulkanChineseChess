@@ -1,5 +1,6 @@
 #ifndef CLIENT_INCLUDE_H
 #define CLIENT_INCLUDE_H
+#include <string.h>
 #include "SocketFrame.h"
 class Client{
     SOCKET mSocket;

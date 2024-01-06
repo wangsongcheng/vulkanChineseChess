@@ -1,6 +1,6 @@
-#include <string.h>
 #include "Client.h"
 Client::Client(/* args */){
+    mSocket = INVALID_SOCKET;
 }
 
 Client::~Client(){

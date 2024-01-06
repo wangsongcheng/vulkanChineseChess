@@ -20,49 +20,16 @@
 #ifdef INTERNET_MODE
 #include <array>
 
-#include "Client.h"
+#include "Server.h"
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_vulkan.h"
-#define MAX_NAME 0xff
-enum GameEvent{
-    GAME_OVER_GAMEEVENT = 0,
-    GAME_START_GAMEEVENT,
-    JOINS_GAME_GAMEEVENT,
-    PLAY_CHESS_GAMEEVENT,
-    CURRENT_COUNTRY_GAMEEVENT,
-    SELF_PLAYER_INFORMATION_GAMEEVENT,
-    CHANGE_PLAYER_INFORMATION_GAMEEVENT
-};
-struct PlayerInfo{
-    uint32_t index;
-    glm::vec3 color;
-    char name[MAX_BYTE];//角色名//如果有
-    char country[MAX_BYTE];
-};
-
-//记录服务端的房间名称密码(如果有)等。
-struct ServerInfo{
-    SOCKET sockset;
-    char name[MAX_BYTE];//房间名
-    std::array<Client, 3>clients;
-};
-struct GameMessage{
-    uint32_t index;
-    PlayerInfo game;
-    GameEvent event;
-    ChessInfo target;
-    ChessInfo player;
-    glm::vec2 mousePos;
-    char clientName[MAX_BYTE];
-};
 VkCommandBuffer g_CommandBuffers;
-
-uint32_t g_PlayerIndex = -1;
-std::array<PlayerInfo, 3>g_Players;//用来保存其他玩家的信息//尽管也包含自身信息
+Client g_Client;
+Server g_Server;
 bool g_ServerAppaction;
 char g_ServerIp[MAX_BYTE];
-Client g_Client;
-ServerInfo g_Server;
+uint32_t g_PlayerIndex = -1;
+std::array<PlayerInfo, 3>g_Players;//用来保存其他玩家的信息//尽管也包含自身信息
 #ifdef __linux
 pthread_t g_ServerPthreadId;
 pthread_t g_ClientPthreadId;
@@ -272,43 +239,10 @@ void MoveChess(uint32_t country, uint32_t chess, const glm::vec2&start, const gl
     }
 }
 #ifdef INTERNET_MODE
-void SendToAllClient(const GameMessage *__buf, size_t __n){
-    for (auto it = g_Server.clients.begin(); it != g_Server.clients.end(); ++it){
-        it->SendTo(__buf, __n);
-    }
-}
-void CreateServer(int listenCount){
-    g_Server.sockset = socket(AF_INET, SOCK_STREAM, 0);
-    if(g_Server.sockset == -1){
-        perror("create server:function:socket");
-        // herror("create server:function:socket");
-        return;
-    }
-    struct sockaddr_in my_addr;
-    my_addr.sin_family = AF_INET; /* host byte order */
-    my_addr.sin_addr.s_addr = INADDR_ANY; /* auto-fill with my IP */
-    my_addr.sin_port = htons(INTERNET_PORT); /* short, network byte order */
-#ifdef WIN32
-    ZeroMemory(&my_addr.sin_zero, sizeof(my_addr.sin_zero)); /* zero the rest of the struct */
-#else
-    bzero(&my_addr.sin_zero, sizeof(my_addr.sin_zero)); /* zero the rest of the struct */
-#endif
-    if(bind(g_Server.sockset, (struct sockaddr *)&my_addr, sizeof(struct sockaddr)) == -1){
-        perror("create server:function:bind");
-        // herror("create server:function:bind");
-        return;
-    }
-    if (listen(g_Server.sockset, listenCount) == -1){
-        perror("create server:function:listen");
-        // herror("create server:function:listen");
-        return;
-    }
-    g_ServerAppaction = true;
-}
 void JoinsGame(const char *serverIp){
     GameMessage message;
     message.event = JOINS_GAME_GAMEEVENT;
-    strcpy(message.clientName, g_Client.GetName());
+    strcpy(message.name, g_Client.GetName());
     g_Client.SendTo(&message, sizeof(message));
 }
 void GetLocalIp(char outIp[]){
@@ -385,37 +319,21 @@ void *process_server(void *userData){
     uint32_t socketindex = *(uint32_t *)userData;
     printf("%s线程开始\n", __FUNCTION__);
     do{ 
-        g_Server.clients[socketindex].RecvFrom(&message, sizeof(message));
-        SendToAllClient(&message, sizeof(message));
+        g_Server.RecvFromClient(socketindex, &message, sizeof(message));
+        g_Server.SendToAllClient(&message, sizeof(message));
     } while (message.event != GAME_OVER_GAMEEVENT);
     printf("%s线程结束\n", __FUNCTION__);
     return nullptr;
-}
-void SendSelfInfoation(uint32_t clientIndex, const PlayerInfo&player){
-    GameMessage message;
-    message.event = SELF_PLAYER_INFORMATION_GAMEEVENT;
-    message.game = player;
-    message.index = player.index;
-    g_Server.clients[clientIndex].SendTo(&message, sizeof(message));
-}
-void SendAllInfoation(uint32_t count){
-    GameMessage message;
-    message.event = JOINS_GAME_GAMEEVENT;
-    for (uint32_t uiClient = 0; uiClient < count; ++uiClient){
-        message.index = uiClient;
-        strcpy(message.clientName, g_Server.clients[uiClient].GetName());
-        SendToAllClient(&message, sizeof(message));
-    }
 }
 void SendPlayersInfoation(){
     GameMessage message;
     message.event = CHANGE_PLAYER_INFORMATION_GAMEEVENT;
     for (uint32_t uiPlayer = 0; uiPlayer < g_Players.size(); ++uiPlayer){
         message.index = uiPlayer;
+        strcpy(message.name, g_Client.GetName());
         message.game.index = g_Players[uiPlayer].index;
-        strcpy(message.game.name, g_Players[uiPlayer].name);
         strcpy(message.game.country, g_Players[uiPlayer].country);
-        SendToAllClient(&message, sizeof(message));
+        g_Server.SendToAllClient(&message, sizeof(message));
     }
 }
 void SendCurrentCountry(){
@@ -423,30 +341,12 @@ void SendCurrentCountry(){
     message.event = CURRENT_COUNTRY_GAMEEVENT;
     // message.index = WEI_COUNTRY_INDEX;
     message.index = rand() % g_DefaultCountryCount;
-    SendToAllClient(&message, sizeof(message));
+    g_Server.SendToAllClient(&message, sizeof(message));
 }
 void *server_start(void *userData){
     GameMessage message;
-    struct sockaddr_in client_addr;
-    socklen_t size = sizeof(client_addr);
-    for (size_t i = 0; i < g_DefaultCountryCount; i++){
-        SOCKET s = accept(g_Server.sockset, (struct sockaddr *)&client_addr, &size);
-        if(s != INVALID_SOCKET){
-            g_Server.clients[i].SetScoket(s);
-            //客户端连接后会发送自身信息
-            g_Server.clients[i].RecvFrom(&message, sizeof(message));
-            g_Server.clients[i].SetName(message.clientName);
-            PlayerInfo player;
-            player.index = i;
-            SendSelfInfoation(i, player);
-
-            SendAllInfoation(i + 1);
-        }
-        else{
-            perror("process_server:accept");
-            // shutdown(g_Server.clientsockets[i], SHUT_RDWR);
-        }
-    }
+    uint32_t aiIndex = -1;
+    g_Server.AcceptClient(g_DefaultCountryCount, aiIndex);
     RandomCountry();
     SendCurrentCountry();
     SendPlayersInfoation();
@@ -464,7 +364,7 @@ void *server_start(void *userData){
 #endif
     //游戏开始, 发消息告诉所有客户端游戏开始
     message.event = GAME_START_GAMEEVENT;
-    SendToAllClient(&message, sizeof(message));
+    g_Server.SendToAllClient(&message, sizeof(message));
     return nullptr;
 }
 // void Play(uint32_t row, uint32_t column){
@@ -497,13 +397,12 @@ void *process_client(void *userData){
             g_CurrentCountry = message.index;
         }
         else if(message.event == JOINS_GAME_GAMEEVENT){
-            printf("joins game, index:%d, name:%s\n", message.index, message.clientName);
-            g_Server.clients[message.index].SetName(message.clientName);
+            printf("joins game, index:%d, name:%s\n", message.index, message.name);
+            g_Server.SetClientName(message.index, message.name);
         }
         else if(message.event == CHANGE_PLAYER_INFORMATION_GAMEEVENT){
             const uint32_t index = message.index, playerIndex = message.game.index;
             glm::vec3 countryColor[] = { WEI_CHESS_COUNTRY_COLOR, SHU_CHESS_COUNTRY_COLOR, WU_CHESS_COUNTRY_COLOR };
-            strcpy(g_Players[index].name, message.game.name);
             g_Players[index].color = countryColor[playerIndex];
             strcpy(g_Players[index].country, message.game.country);
         }
@@ -525,12 +424,13 @@ void *process_client(void *userData){
     return nullptr;
 }
 void ClickCreateServer(const char *name){
-    memcpy(g_Server.name, name, MAX_BYTE);
+    g_ServerAppaction = true;
+    // memcpy(g_Server.name, name, MAX_BYTE);
     // g_Player.color = WEI_CHESS_COUNTRY_COLOR;
     // strcpy(g_Player.country, "魏");
     // g_Player.index = 0;
     // g_Player.name = ;
-    CreateServer(3);
+    g_Server.CreateServer(3);
 #ifdef WIN32
     DWORD  threadId;
     g_ServerPthreadId = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)server_start, 0, 0, &threadId);
@@ -568,7 +468,7 @@ void updateImguiWidget(){
         ImGui::Text("本机ip:%s", g_ServerIp);
         const char *countryName[] = { "魏国", "蜀国", "吴国" };
         if(g_CurrentCountry != -1){
-            ImGui::Text("你是%s, 该%s下棋\n", countryName[g_CurrentCountry], g_PlayerIndex == g_CurrentCountry?"你":countryName[g_CurrentCountry]);
+            ImGui::Text("你是%s, 该%s下棋\n", countryName[g_PlayerIndex], g_PlayerIndex == g_CurrentCountry?"你":countryName[g_CurrentCountry]);
         }
         if(ImGui::InputText("用户名", name, sizeof(name))){
             g_Client.SetName(name);
@@ -577,8 +477,9 @@ void updateImguiWidget(){
         if(ImGui::BeginTable("client information", 2)){
             ImGui::TableNextColumn();
             ImGui::Text("name");
-            for (size_t i = 0; i < g_Server.clients.size(); ++i){
-                ImGui::Text(g_Server.clients[i].GetName());
+            auto clients = g_Server.GetClientInfo();
+            for (auto it = clients.begin(); it != clients.end(); ++it){
+                ImGui::Text(it->GetName());
             }
             ImGui::TableNextColumn();
             ImGui::Text("country");
@@ -1155,11 +1056,9 @@ void cleanup(){
 
     GameMessage message;
     message.event = GAME_OVER_GAMEEVENT;
-    if(g_ServerAppaction)SendToAllClient(&message, sizeof(message));
-    for (size_t i = 0; i < g_Server.clients.size(); ++i){
-        g_Server.clients[i].Shutdown();
-    }
-    if(g_Server.sockset != INVALID_SOCKET)shutdown(g_Server.sockset, SHUT_RDWR);
+    g_Server.SendToAllClient(&message, sizeof(message));
+    g_Server.ShutdownClient();
+    g_Server.ShutdownServer();
 #ifdef WIN32
     WSACleanup();
 #endif
