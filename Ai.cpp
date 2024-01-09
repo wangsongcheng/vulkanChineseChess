@@ -171,15 +171,6 @@ Ai::Ai(/* args */){
 
 Ai::~Ai(){
 }
-bool Ai::GameOver(uint32_t countryCount, const Chessboard *pChessboard){
-    uint32_t deathCount = 0;
-    for (size_t i = 0; i < countryCount; ++i){
-        if(pChessboard->IsDeath(i)){
-            ++deathCount;
-        }
-    }
-    return deathCount > 1;
-}
 int Ai::CreatePthread(void *(*__start_routine)(void *), void *__arg){
     //注意windows和linux两部分都返回了
 #ifdef WIN32

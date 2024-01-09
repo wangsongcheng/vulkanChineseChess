@@ -20,8 +20,8 @@ typedef unsigned long long SOCKET;
 #include "glm/glm.hpp"
 #include "glm/gtc/matrix_transform.hpp"
 #define MAX_BYTE 0xff
+#define INVALID_SOCKET -1
 #define INTERNET_PORT 10086
-#define INVALID_SOCKET 100000
 enum GameEvent{
     GAME_OVER_GAMEEVENT = 0,
     GAME_START_GAMEEVENT,
@@ -34,6 +34,7 @@ enum GameEvent{
 };
 //这个结构体不应该放这里
 struct PlayerInfo{
+    bool ai;
     uint32_t index;
     glm::vec3 color;
     char country[MAX_BYTE];

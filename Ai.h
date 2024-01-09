@@ -17,7 +17,6 @@ class Ai{
 public:
     Ai(/* args */);
     ~Ai();
-    bool GameOver(uint32_t countryCount, const Chessboard *pChessboard);
     int CreatePthread(void *(*__start_routine)(void *), void *__arg);
     void GetPlayChessInfo(uint32_t country, const ChessInfo **player, const ChessInfo **target, glm::vec2 *mousePos, const Chessboard *pChessboard);
 };

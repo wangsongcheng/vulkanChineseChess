@@ -24,6 +24,7 @@ public:
     }
     inline void Shutdown(){
         shutdown(mSocket, SHUT_RDWR);
+        mSocket = INVALID_SOCKET;
     }
 };
 #endif

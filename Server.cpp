@@ -59,7 +59,7 @@ void Server::AcceptClient(uint32_t count, uint32_t&ai){
             mClients[i].RecvFrom(&message, sizeof(message));
             if(message.event == AI_JOIN_GAME_GAMEEVENT){
                 ai = i;
-                mClients[i].SetName("电脑");
+                mClients[i].SetName("ai");
                 mClients[i].Shutdown();
                 mClients[i].SetScoket(INVALID_SOCKET);
             }
