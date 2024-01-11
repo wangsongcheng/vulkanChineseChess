@@ -3,7 +3,6 @@
 #define STB_TRUETYPE_IMPLEMENTATION
 // #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stb_truetype.h"
-// #include "stb_image_write.h"
 void GetFontImageData(const unsigned char *fontData, int bitmap_w, int bitmap_h, wchar_t word, unsigned char *out){
 	stbtt_fontinfo info;
     const float pixels = bitmap_w;
@@ -23,14 +22,6 @@ void GetFontImageData(const unsigned char *fontData, int bitmap_w, int bitmap_h,
     int byteOffset = roundf(leftSideBearing * scale) + (y * bitmap_w);
     stbtt_MakeCodepointBitmap(&info, out + byteOffset, c_x2 - c_x1, c_y2 - c_y1, bitmap_w, scale, scale, word);
     // stbtt_MakeCodepointBitmap(&info, bitmap + byteOffset, c_x2 - c_x1, c_y2 - c_y1, bitmap_w, scale, scale, word);
-
-    // // unsigned int *TexPixelsRGBA32 = (unsigned int*)malloc(bitmap_w * bitmap_h * 4);
-    // const unsigned char* src = bitmap;
-    // // unsigned int* dst = TexPixelsRGBA32;
-    // unsigned int* dst = (unsigned int *)*out;
-    // for (int n = bitmap_w * bitmap_h; n > 0; n--)
-    //     *dst++ = IM_COL32(255, 255, 255, (unsigned int)(*src++));
-    // *out = (unsigned char *)TexPixelsRGBA32;
 }
 void VulkanChess::DestroyFontResource(VkDevice device){
     mFont.index.Destroy(device);

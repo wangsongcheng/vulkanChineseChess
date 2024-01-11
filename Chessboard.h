@@ -5,51 +5,21 @@
 #include "VulkanChessboard.h"
 #include "glm/gtc/matrix_transform.hpp"
 #define MAX_BYTE 0xff
-// struct ChessboardChess{
-//     Chess *jiang;//实际上是魏蜀吴汉
-//     Chess *ma[2];
-//     Chess *pao[2];
-//     Chess *che[2];
-//     Chess *shi[2];
-//     Chess *bing[5];
-//     Chess *xiang[2];
-// };
-// struct ChessboardSelectChess{
-//     VkDescriptorSet set;
-//     VulkanBuffer uniform;
-//     void UpdateUniform(VkDevice device, const std::vector<Ranks>&canplays){
-//         glm::mat4 model[SELECT_CHESS_UNIFORM_MAX];
-//         const uint32_t uiCanplays = canplays.size();
-//         if(uiCanplays > sizeof(model) / sizeof(glm::mat4)){
-//             printf("%s函数:uiCanplays的数量:%d, 大于model[%d]的数量:%d\n", __FUNCTION__, uiCanplays, sizeof(model) / sizeof(glm::mat4), sizeof(model) / sizeof(glm::mat4));
-//             return;
-//         }
-//         const glm::mat4 scale = glm::scale(glm::mat4(1), glm::vec3(CHESSBOARD_GRID_SIZE, CHESSBOARD_GRID_SIZE, 1));
-//         for (size_t i = 0; i < sizeof(model) / sizeof(glm::mat4); ++i){
-//             model[i] = glm::translate(glm::mat4(1), glm::vec3(COLUMN_TO_X(100, CHESSBOARD_GRID_SIZE, CHESSBOARD_LINE_WIDTH), ROW_TO_Y(100, CHESSBOARD_GRID_SIZE, CHESSBOARD_LINE_WIDTH), 0)) * scale;
-//         }
-//         for (size_t i = 0; i < canplays.size(); ++i){
-//             model[i] = glm::translate(glm::mat4(1), glm::vec3(COLUMN_TO_X(canplays[i].column, CHESSBOARD_GRID_SIZE, CHESSBOARD_LINE_WIDTH) - CHESSBOARD_GRID_SIZE * .5, ROW_TO_Y(canplays[i].row, CHESSBOARD_GRID_SIZE, CHESSBOARD_LINE_WIDTH) - CHESSBOARD_GRID_SIZE * .5, 0)) * scale;
-//         }
-//         uniform.UpdateData(device, sizeof(model), model);
-//     }
-// };
-//因为GetCountryBehind函数中的值是写死的，所以在修改颜色或国家位置后可能需要修改函数内的方向
 class Chessboard:public VulkanChessboard{
-    // ChessInfo *mSelected;
-    //原棋子数为16,因为汉需要3个車,和1个炮, 所以需要加4//汉势力只赋值一个将
-    Chess *mChess[4][COUNTRY_CHESS_COUNT];//因为棋子数都一样，而汉的棋子少，所以无所谓
+    uint32_t mPlayerCountry;
+    Chess *mChess[4][COUNTRY_CHESS_COUNT];
     // std::vector<ChessInfo>mCanplays;
     void GetCountryChess(uint32_t srcCountry, uint32_t dstCountry);
-    void InitWuChessRowAndColumn(ChessInfo chessInfo[4][COUNTRY_CHESS_COUNT]);
-    void InitShuChessRowAndColumn(ChessInfo chessInfo[4][COUNTRY_CHESS_COUNT]);
-    void InitWeiChessRowAndColumn(ChessInfo chessInfo[4][COUNTRY_CHESS_COUNT]);
-    void InitChessInfo(uint32_t country, ChessInfo chessInfo[4][COUNTRY_CHESS_COUNT]);
+    void InitWuChessRowAndColumn(ChessInfo chessInfo[COUNTRY_CHESS_COUNT]);
+    void InitShuChessRowAndColumn(ChessInfo chessInfo[COUNTRY_CHESS_COUNT]);
+    void InitWeiChessRowAndColumn(ChessInfo chessInfo[COUNTRY_CHESS_COUNT]);
+    void InitHanChessRowAndColumn(ChessInfo chessInfo[COUNTRY_CHESS_COUNT]);
+    void InitHanChessRowAndColumn(uint32_t country, ChessInfo chessInfo[COUNTRY_CHESS_COUNT]);
+    void InitChessInfo(uint32_t country, uint32_t playerCountry, ChessInfo chessInfo[4][COUNTRY_CHESS_COUNT]);
 public:
     Chessboard(/* args */);
     ~Chessboard();
     void Cleanup(VkDevice device);
-    void InitChess(VkDevice device);
     //一次更新所有棋子，棋子大小也变为初始大小
     void UpdateChess(VkDevice device);
     void ClearCanPlay(VkDevice device);
@@ -57,6 +27,7 @@ public:
     bool IsBoundary(uint32_t row, uint32_t column)const;
     // const ChessInfo *GetSelectInfo(const glm::vec2&pos);
     void DestroyCountry(VkDevice device, uint32_t country);
+    void InitChess(VkDevice device, uint32_t playerCountry);
     const ChessInfo *GetChessInfos(const glm::vec2&mousePos);
     //目前该函数只用于ai
     void Select(VkDevice device, uint32_t country, uint32_t chess);

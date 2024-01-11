@@ -1,4 +1,5 @@
 #include "Ai.h"
+extern uint32_t g_PlayerCountry;
 // //返回第一个满足条件的敌人
 // const ChessInfo *GetRival(const std::vector<ChessInfo>&canplays, auto condition){
 //     const ChessInfo *pRival = nullptr;
@@ -182,8 +183,7 @@ int Ai::CreatePthread(void *(*__start_routine)(void *), void *__arg){
     return pthread_create(&mPthread, nullptr, __start_routine, __arg);
 #endif
 }
-void Ai::GetPlayChessInfo(uint32_t country, const ChessInfo **pPlayer, const ChessInfo **pTarget, glm::vec2 *mousePos, const Chessboard *pChessboard)
-{
+void Ai::GetPlayChessInfo(uint32_t country, const ChessInfo **pPlayer, const ChessInfo **pTarget, glm::vec2 *mousePos, const Chessboard *pChessboard){
     const Chess *pChess = nullptr;
     std::vector<ChessInfo>canplays;
     // const ChessInfo *pSelect = nullptr, *pRival = nullptr;
@@ -214,7 +214,7 @@ void Ai::GetPlayChessInfo(uint32_t country, const ChessInfo **pPlayer, const Che
             if(*pPlayer){
                 canplays.clear();
                 pChess = pChessboard->GetChess(country, (*pPlayer)->chess);
-                pChess->Selected((const Chess* (*)[21])pChessboard->GetChess(), canplays);
+                pChess->Selected(g_PlayerCountry, (const Chess* (*)[COUNTRY_CHESS_COUNT])pChessboard->GetChess(), canplays);
             }
         }while(!*pPlayer || -1 == CanPlay(country, canplays, pChessboard));//不用担心判断*player后死循环,因为"将"肯定会存在,否则就输了
     }
@@ -222,7 +222,7 @@ void Ai::GetPlayChessInfo(uint32_t country, const ChessInfo **pPlayer, const Che
         //这个分支也有吃子的可能, 只不过是随机的
         canplays.clear();
         pChess = pChessboard->GetChess(country, (*pPlayer)->chess);
-        pChess->Selected((const Chess* (*)[21])pChessboard->GetChess(), canplays);
+        pChess->Selected(g_PlayerCountry, (const Chess* (*)[COUNTRY_CHESS_COUNT])pChessboard->GetChess(), canplays);
         uint32_t index = 0;
         do{
             index = rand() % canplays.size();

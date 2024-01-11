@@ -11,8 +11,7 @@
 #include "VulkanChessboard.h"
 //目前的问题是:获取棋子的时候, 汉和其他势力棋子偏移出现冲突问题
 #define JOIN_AI
-// #define HAN_CAN_PLAY
-#define INTERNET_MODE
+// #define INTERNET_MODE
 #ifdef INTERNET_MODE
 #include <array>
 
@@ -98,31 +97,7 @@ uint32_t GetNextCountry(uint32_t currentCountry){
     do{
         currentCountry = (currentCountry + 1) % g_DefaultCountryCount;
     } while (g_Chessboard.IsDeath(currentCountry));
-    // if(pChess){
-    //     currentCountry = jiang(currentCountry, pChessInfo);
-    // }
-    // //被将的国家不论顺序, 下回合都轮到他
-    // //应该检查除下棋的国家外所有国家是否有被将的
-    // //另外, 如果同时将了2个国家, 那应该轮到那个国家?例如开局吴国, 出炮到列8的位置。即使禁了吴国开局，也有可能出现类似现象
-    // bool bNext = true;
-    // //如果两国约好, 其中一国将住另一国，而另一个国不解将则该国可以一直下
-    // //能否只检查下棋的人对其他人有没有将。主要是这样检查只会提示一个国家被将，难保第二个国家不解。
-    // // for (size_t i = 0; i < 3; ++i){
-    // //     for (size_t j = 0; j < 3; ++j){
-    // //         if(i != j){
-    // //             if(IsDangerous(i, j, JIANG_CHESS_INDEX)){
-    // //                 //吴开局, 这样做会直接轮到蜀。而实际上应该轮到魏
-    // //                 bNext = false;
-    // //                 printf("注意%s国的\"将\"\n", county[i]);
-    // //                 g_CurrentCountry = i;
-    // //                 break;
-    // //             }
-    // //         }
-    // //     }                
-    // // }
-    // if(bNext){
-    //     g_CurrentCountry = NextCountry(g_CurrentCountry);
-    // }
+    //"将"警告
     return currentCountry;
 }
 #ifdef JOIN_AI
@@ -862,7 +837,7 @@ int32_t GetCanPlay(uint32_t row, uint32_t column, const std::vector<ChessInfo>&c
 void PlayChess(uint32_t country, uint32_t chess, const glm::vec2&mousePos){
     std::vector<ChessInfo>canplays;
     const Chess *pChess = g_Chessboard.GetChess(country, chess);
-    pChess->Selected((const Chess* (*)[21])g_Chessboard.GetChess(), canplays);
+    pChess->Selected(g_PlayerCountry, (const Chess* (*)[COUNTRY_CHESS_COUNT])g_Chessboard.GetChess(), canplays);
     const int32_t index = GetCanPlay(mousePos, canplays);
     if(index != -1){
         const ChessInfo *pChessInfo = pChess->GetInfo();
@@ -891,7 +866,7 @@ void PlayChess(uint32_t srcCountry, uint32_t srcChess, uint32_t dstCountry, uint
     const char county[][MAX_BYTE] = { "魏", "蜀", "吴", "汉" };
     const Chess *pSrcChess = g_Chessboard.GetChess(srcCountry, srcChess);
     const ChessInfo *pSrcChessInfo = pSrcChess->GetInfo(), *pDstChessInfo = g_Chessboard.GetChessInfo(dstCountry, dstChess);
-    pSrcChess->Selected((const Chess* (*)[21])g_Chessboard.GetChess(), canplays);
+    pSrcChess->Selected(g_PlayerCountry, (const Chess* (*)[COUNTRY_CHESS_COUNT])g_Chessboard.GetChess(), canplays);
     if(GetCanPlay(pDstChessInfo->row, pDstChessInfo->column, canplays) != -1){
         //不知道为什么，手动下棋看不到棋移动的效果
 #if (defined JOIN_AI) || (defined INTERNET_MODE)
@@ -961,9 +936,9 @@ void *AiPlayChess(void *userData){
 #endif
     while(!GameOver(g_DefaultCountryCount)){
         AiWait();
-        printf("ai下棋了\n");
+        // printf("ai下棋了\n");
         aiPlay();
-        printf("ai下完棋了\n");
+        // printf("ai下完棋了\n");
     }
 #ifdef __linux__
     sem_destroy(&g_AiSemaphore);
@@ -1067,17 +1042,19 @@ void setup(GLFWwindow *windows){
     SetupDescriptorSetLayout(g_VulkanDevice.device);
     vkf::CreateTextureSampler(g_VulkanDevice.device, g_TextureSampler);
     vkf::CreatePipelineCache(g_VulkanDevice.device, "GraphicsPipelineCache", g_PipelineCache);
-
+#ifndef INTERNET_MODE
+    // g_CurrentCountry = WEI_COUNTRY_INDEX;
+    // g_PlayerCountry = WEI_COUNTRY_INDEX;
+    g_CurrentCountry = rand() % g_DefaultCountryCount;
+    g_PlayerCountry = rand() % g_DefaultCountryCount;
+#endif
     g_Chessboard.Setup(g_VulkanDevice.physicalDevice, g_VulkanDevice.device, g_SetLayout, g_WindowWidth, g_VulkanQueue.graphics, g_VulkanPool);
     g_Chessboard.CreatePipeline(g_VulkanDevice.device, g_VulkanWindows.renderpass, g_SetLayout, g_PipelineCache, g_WindowWidth);
 
     g_Chessboard.UpdateBackgroundUniform(g_VulkanDevice.device, g_WindowWidth);
-    g_Chessboard.UpdateUniform(g_VulkanDevice.device);
+    g_Chessboard.UpdateUniform(g_VulkanDevice.device, g_PlayerCountry);
 #ifndef INTERNET_MODE
-    g_Chessboard.InitChess(g_VulkanDevice.device);
-    // g_CurrentCountry = WEI_COUNTRY_INDEX;
-    g_CurrentCountry = rand() % g_DefaultCountryCount;
-    g_PlayerCountry = rand() % g_DefaultCountryCount;
+    g_Chessboard.InitChess(g_VulkanDevice.device, g_PlayerCountry);
 #endif
     //局域网联机需要imgui
     //先通过ip连接, 后面知道怎么广播再说

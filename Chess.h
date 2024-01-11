@@ -46,6 +46,8 @@ struct ChessInfo{
     uint32_t fontIndex;
     ChessInfo(){
         country = -1;//该值为-1时, chess和fontIndex无效
+        row = 100;
+        column = 100;
     }
     ChessInfo(uint32_t row, uint32_t column){
         this->row = row;
@@ -90,7 +92,7 @@ public:
         return abs(pos.x - mPos.x) < CHESS_WIDTH && abs(pos.y - mPos.y) < CHESS_HEIGHT;
     }
 
-    virtual void Selected(const Chess *pChess[4][COUNTRY_CHESS_COUNT], std::vector<ChessInfo>&canplays)const = 0;
+    virtual void Selected(uint32_t playerIndex, const Chess *pChess[4][COUNTRY_CHESS_COUNT], std::vector<ChessInfo>&canplays)const = 0;
 };
 
 class Wei:public Chess{
@@ -98,7 +100,7 @@ class Wei:public Chess{
 public:
     Wei(const ChessInfo&info);
     ~Wei();
-    virtual void Selected(const Chess *pChess[4][COUNTRY_CHESS_COUNT], std::vector<ChessInfo>&canplays)const;
+    virtual void Selected(uint32_t playerIndex, const Chess *pChess[4][COUNTRY_CHESS_COUNT], std::vector<ChessInfo>&canplays)const;
 };
 
 class Shu:public Chess{
@@ -106,7 +108,7 @@ class Shu:public Chess{
 public:
     Shu(const ChessInfo&info);
     ~Shu();
-    virtual void Selected(const Chess *pChess[4][COUNTRY_CHESS_COUNT], std::vector<ChessInfo>&canplays)const;
+    virtual void Selected(uint32_t playerIndex, const Chess *pChess[4][COUNTRY_CHESS_COUNT], std::vector<ChessInfo>&canplays)const;
 };
 
 class Wu:public Chess{
@@ -114,57 +116,58 @@ class Wu:public Chess{
 public:
     Wu(const ChessInfo&info);
     ~Wu();
-    virtual void Selected(const Chess *pChess[4][COUNTRY_CHESS_COUNT], std::vector<ChessInfo>&canplays)const;
+    virtual void Selected(uint32_t playerIndex, const Chess *pChess[4][COUNTRY_CHESS_COUNT], std::vector<ChessInfo>&canplays)const;
 };
 
 class Han:public Chess{
+    ChessInfo mCenter;//九宫格中心
 public:
     Han(const ChessInfo&info);
     ~Han();
-    virtual void Selected(const Chess *pChess[4][COUNTRY_CHESS_COUNT], std::vector<ChessInfo>&canplays)const;
+    virtual void Selected(uint32_t playerIndex, const Chess *pChess[4][COUNTRY_CHESS_COUNT], std::vector<ChessInfo>&canplays)const;
 };
 class Bing:public Chess{
-    ChessInfo mCenter[2];//九宫格中心
+    ChessInfo mCenter[3];//汉能走时, 3个
     glm::vec2 GetCountryBack(uint32_t country)const;
     bool IsAbroad(uint32_t row, uint32_t column)const;
 public:
     Bing(const ChessInfo&info);
     ~Bing();
-    virtual void Selected(const Chess *pChess[4][COUNTRY_CHESS_COUNT], std::vector<ChessInfo>&canplays)const;
+    virtual void Selected(uint32_t playerIndex, const Chess *pChess[4][COUNTRY_CHESS_COUNT], std::vector<ChessInfo>&canplays)const;
 };
 class Pao:public Chess{
-    ChessInfo mCenter[3];//九宫格中心
+    ChessInfo mCenter[4];//汉能走时, 4个
 public:
     Pao(const ChessInfo&info);
     ~Pao();
-    virtual void Selected(const Chess *pChess[4][COUNTRY_CHESS_COUNT], std::vector<ChessInfo>&canplays)const;
+    virtual void Selected(uint32_t playerIndex, const Chess *pChess[4][COUNTRY_CHESS_COUNT], std::vector<ChessInfo>&canplays)const;
 };
 class Che:public Chess{
-    ChessInfo mCenter[3];//九宫格中心
+    ChessInfo mCenter[4];//汉能走时, 4个
 public:
     Che(const ChessInfo&info);
     ~Che();
-    virtual void Selected(const Chess *pChess[4][COUNTRY_CHESS_COUNT], std::vector<ChessInfo>&canplays)const;
+    virtual void Selected(uint32_t playerIndex, const Chess *pChess[4][COUNTRY_CHESS_COUNT], std::vector<ChessInfo>&canplays)const;
 };
 class Ma:public Chess{
-    ChessInfo mCenter[3];//九宫格中心
+    ChessInfo mCenter[4];//汉能走时, 4个
 public:
     Ma(const ChessInfo&info);
     ~Ma();
-    virtual void Selected(const Chess *pChess[4][COUNTRY_CHESS_COUNT], std::vector<ChessInfo>&canplays)const;
+    virtual void Selected(uint32_t playerIndex, const Chess *pChess[4][COUNTRY_CHESS_COUNT], std::vector<ChessInfo>&canplays)const;
 };
 class Xiang:public Chess{
     bool IsAbroad(uint32_t row, uint32_t column)const;
 public:
     Xiang(const ChessInfo&info);
     ~Xiang();
-    virtual void Selected(const Chess *pChess[4][COUNTRY_CHESS_COUNT], std::vector<ChessInfo>&canplays)const;
+    virtual void Selected(uint32_t playerIndex, const Chess *pChess[4][COUNTRY_CHESS_COUNT], std::vector<ChessInfo>&canplays)const;
 };
 class Shi:public Chess{
     ChessInfo mCenter;//九宫格中心
 public:
     Shi(const ChessInfo&info);
     ~Shi();
-    virtual void Selected(const Chess *pChess[4][COUNTRY_CHESS_COUNT], std::vector<ChessInfo>&canplays)const;
+    virtual void Selected(uint32_t playerIndex, const Chess *pChess[4][COUNTRY_CHESS_COUNT], std::vector<ChessInfo>&canplays)const;
 };
 #endif
