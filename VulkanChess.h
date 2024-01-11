@@ -12,6 +12,7 @@
 #define WEI_COUNTRY_INDEX 0
 #define SHU_COUNTRY_INDEX 1
 #define HAN_COUNTRY_INDEX 3
+#define INVALID_COUNTRY_INDEX -1
 //这个值已经用到了至少一个循环, 修改的时候需要注意
 #define MAX_COUNTRY_INDEX 4
 //除汉外, 每个国家的棋子数

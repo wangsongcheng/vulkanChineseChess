@@ -22,7 +22,7 @@ void Client::CreateClient(const char *serverIp){
 #endif
     addr.sin_addr = address;
     mSocket = socket(AF_INET, SOCK_STREAM, 0);
-    if(mSocket == -1){
+    if(mSocket == INVALID_SOCKET){
         perror("create client:function:socket");
         return;
     }
@@ -33,7 +33,7 @@ void Client::CreateClient(const char *serverIp){
 #else
     bzero(&addr.sin_zero, sizeof(addr.sin_zero)); /* zero the rest of the struct */
 #endif // WIN32
-    if(connect(mSocket,(struct sockaddr *)&addr,sizeof(struct sockaddr)) == -1){
+    if(connect(mSocket,(struct sockaddr *)&addr,sizeof(struct sockaddr)) == INVALID_SOCKET){
         perror("create client:function:connect");
         shutdown(mSocket, SHUT_RDWR);
         return;

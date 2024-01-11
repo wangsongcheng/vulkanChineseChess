@@ -1,25 +1,24 @@
 #include "Server.h"
-void Server::SendAllInfoation(uint32_t count){
-    GameMessage message;
-    message.event = JOINS_GAME_GAMEEVENT;
-    for (uint32_t uiClient = 0; uiClient < count; ++uiClient){
-        message.index = uiClient;
-        strcpy(message.name, GetClientName(uiClient));
-        SendToAllClient(&message, sizeof(message));
-    }
-}
 void Server::SendSelfInfoation(uint32_t clientIndex){
     GameMessage message;
-    message.event = SELF_PLAYER_INFORMATION_GAMEEVENT;
-    message.index = clientIndex;
+    message.event = SELF_PLAYER_INFORMATION_GAME_EVENT;
+    message.clientIndex = clientIndex;
     SendToClient(clientIndex, &message, sizeof(message));
+}
+void Server::SendPlayerNameInfoation(uint32_t count, const std::array<PlayerInfo, 3>&players){
+    GameMessage message;
+    message.event = JOINS_GAME_GAME_EVENT;
+    for (uint32_t uiClient = 0; uiClient < count; ++uiClient){
+        message.clientIndex = uiClient;
+        strcpy(message.player.name, players[uiClient].name);
+        SendToAllClient(&message, sizeof(message));
+    }
 }
 Server::Server(/* args */){
 }
 
 Server::~Server(){
 }
-
 void Server::CreateServer(int listenCount){
     mSocket = socket(AF_INET, SOCK_STREAM, 0);
     if(mSocket == -1){
@@ -47,43 +46,23 @@ void Server::CreateServer(int listenCount){
         return;
     }
 }
-void Server::AcceptClient(uint32_t count, uint32_t&ai){
-    GameMessage message;
-    struct sockaddr_in client_addr;
-    socklen_t size = sizeof(client_addr);
-    for (size_t i = 0; i < count; i++){
-        SOCKET s = accept(mSocket, (struct sockaddr *)&client_addr, &size);
-        if(s != INVALID_SOCKET){
-            mClients[i].SetScoket(s);
-            //客户端连接后会发送自身信息
-            mClients[i].RecvFrom(&message, sizeof(message));
-            if(message.event == AI_JOIN_GAME_GAMEEVENT){
-                ai = i;
-                mClients[i].SetName("ai");
-                mClients[i].Shutdown();
-                mClients[i].SetScoket(INVALID_SOCKET);
-            }
-            else{
-                mClients[i].SetName(message.name);
-
-                message.index = i;
-                SendSelfInfoation(i);
-            }
-            SendAllInfoation(i + 1);
-        }
-        else{
-            perror("process_server:accept");
-            // shutdown(mClientsockets[i], SHUT_RDWR);
-        }
-    }
-}
 
 void Server::SendToAllClient(const void *__buf, size_t __n){
     for (auto it = mClients.begin(); it != mClients.end(); ++it){
         it->SendTo(__buf, __n);
     }
 }
-
+SOCKET Server::AcceptClient(uint32_t client, void *__buf, size_t __n){
+    struct sockaddr_in client_addr;
+    socklen_t size = sizeof(client_addr);
+    SOCKET s = accept(mSocket, (struct sockaddr *)&client_addr, &size);
+    mClients[client].SetScoket(s);
+    mClients[client].RecvFrom(__buf, __n);
+    GameMessage *pMessage = (GameMessage *)__buf;
+    printf("in function %s:recv client %d, event %d\n", __FUNCTION__, client, pMessage->event);
+    if(pMessage->event != AI_JOIN_GAME_GAME_EVENT)SendSelfInfoation(client);
+    return s;
+}
 void Server::RecvFromClient(uint32_t client, void *__buf, size_t __n){
     mClients[client].RecvFrom(__buf, __n);
 }
@@ -91,3 +70,35 @@ void Server::RecvFromClient(uint32_t client, void *__buf, size_t __n){
 void Server::SendToClient(uint32_t client, const void *__buf, size_t __n){
     mClients[client].SendTo(__buf, __n);
 }
+// SOCKET Server::AcceptClient(uint32_t count, std::array<PlayerInfo, 3>&players) {
+//     GameMessage message;
+//     struct sockaddr_in client_addr;
+//     socklen_t size = sizeof(client_addr);
+//     SOCKET clientSocket = INVALID_SOCKET;
+//     for (size_t i = 0; i < count; i++) {
+//         clientSocket = accept(mSocket, (struct sockaddr*)&client_addr, &size);
+//         if (clientSocket != INVALID_SOCKET) {
+//             mClients[i].SetScoket(clientSocket);
+//             //客户端连接后会发送自身信息
+//             mClients[i].RecvFrom(&message, sizeof(message));
+//             if (message.event == AI_JOIN_GAME_GAME_EVENT) {
+//                 players[i].ai = true;
+//                 players[i].index = i;
+//                 strcpy(players[i].name, "ai");
+//                 mClients[i].Shutdown();
+//             }
+//             else {
+//                 sprintf(message.player.name, "player%d", i + 1);
+//                 strcpy(players[i].name, message.player.name);
+
+//                 SendSelfInfoation(i);
+//             }
+//             SendPlayerNameInfoation(i + 1, players);
+//         }
+//         else {
+//             perror("process_server:accept");
+//             // shutdown(mClientsockets[i], SHUT_RDWR);
+//         }
+//     }
+//     return clientSocket;
+// }

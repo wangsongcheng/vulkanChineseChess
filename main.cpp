@@ -1,3 +1,4 @@
+#include <mutex>
 #include <time.h>
 #include <stdio.h>
 #ifdef __linux
@@ -18,12 +19,14 @@
 #include "Server.h"
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_vulkan.h"
-VkCommandBuffer g_CommandBuffers;
 Client g_Client;
 Server g_Server;
-bool g_ServerAppaction;
 char g_ServerIp[MAX_BYTE];
+VkCommandBuffer g_CommandBuffers;
+bool g_ServerAppaction, g_GameStart;
 std::array<PlayerInfo, 3>g_Players;//用来保存其他玩家的信息//尽管也包含自身信息
+//本来只需要1个,但服务端能改ai的势力, 所以需要加上ai的
+const char* g_CountryItems[2][5];
 #else
 bool g_UpdateScreen;
 std::vector<VkCommandBuffer>g_CommandBuffers;
@@ -272,10 +275,11 @@ void CreateThread(void *(*__start_routine)(void *), void *__arg){
     pthread_create(&pthreadId, nullptr, __start_routine, __arg);
 #endif
 }
-void JoinsGame(const char *clientName){
+void JoinsGame(){
+// void JoinsGame(const char *clientName){
     GameMessage message;
-    strcpy(message.name, clientName);
-    message.event = JOINS_GAME_GAMEEVENT;
+    // strcpy(message.name, clientName);
+    message.event = JOINS_GAME_GAME_EVENT;
     g_Client.SendTo(&message, sizeof(message));
 }
 void GetLocalIp(char outIp[]){
@@ -333,132 +337,260 @@ void RandomNumber(uint32_t max, uint32_t count, uint32_t *result, uint32_t min =
     }
     
 }
+uint32_t countryToindex(const char *country){
+    if(!strcmp(country, "魏")){
+        return WEI_COUNTRY_INDEX;
+    }
+    else if(!strcmp(country, "蜀")){
+        return SHU_COUNTRY_INDEX;
+    }
+    else if(!strcmp(country, "吴")){
+        return WU_COUNTRY_INDEX;
+    }
+    else if(!strcmp(country, "汉")){
+        return HAN_COUNTRY_INDEX;
+    }
+    return INVALID_COUNTRY_INDEX;
+}
+bool CanUseCountry(uint32_t countryIndex, const char *country){
+    bool bCanUse = true;
+    uint32_t playerIndex = 0;
+    for (auto it = g_Players.begin(); it != g_Players.end(); ++it, ++playerIndex){
+        if(countryIndex != playerIndex && !strcmp(it->country, country)){
+            bCanUse = false;
+            break;
+        }
+    }
+    return bCanUse;
+}
 void RandomCountry(){
-    uint32_t country[3];
-    const char *countryName[] = { "魏", "蜀", "吴" };
-    glm::vec3 countryColor[] = { WEI_CHESS_COUNTRY_COLOR, SHU_CHESS_COUNTRY_COLOR, WU_CHESS_COUNTRY_COLOR };
-    const uint32_t count = sizeof(country) / sizeof(uint32_t);
-    RandomNumber(count, count, country);
-    for (size_t i = 0; i < count; ++i){
-        g_Players[i].index = country[i];
-        g_Players[i].color = countryColor[country[i]];
-        strcpy(g_Players[i].country, countryName[country[i]]);
-        printf("in function %s:country index:%d, country:%s\n", __FUNCTION__, country[i], g_Players[i].country);
+    uint32_t countryIndex[3];
+    uint32_t canUseIndex = 0, playerIndex = 0;
+    const char *countryName[] = { "魏", "蜀", "吴", "汉" };
+    RandomNumber(g_DefaultCountryCount, g_DefaultCountryCount, countryIndex);
+    for (auto it = g_Players.begin(); it != g_Players.end(); ++it, ++playerIndex){
+        if(it->random){
+            do{
+                if(canUseIndex >= g_DefaultCountryCount)break;
+                strcpy(it->country, countryName[countryIndex[canUseIndex++]]);
+                printf("尝试给%d个玩家赋值%s国\n", playerIndex, it->country);
+            } while (!CanUseCountry(playerIndex, it->country));
+            if(canUseIndex >= g_DefaultCountryCount){
+                printf("error, no can use country, canUseIndex is %d\n", canUseIndex);
+            }
+        }
+        canUseIndex = 0;
+        it->index = countryToindex(it->country);
+        printf("in function %s:country index:%d, country:%s\n", __FUNCTION__, it->index, it->country);
     }
 }
-void *process_server(void *userData){
+void SendChangeCountryInfomation(uint32_t client, const char *country){
     GameMessage message;
-    //该函数只负责向所有客户端转发消息
-    uint32_t socketindex = *(uint32_t *)userData;
-    do{
-        g_Server.RecvFromClient(socketindex, &message, sizeof(message));
-        g_Server.SendToAllClient(&message, sizeof(message));
-    } while (message.event != GAME_OVER_GAMEEVENT);
-    return nullptr;
+    message.clientIndex = client;
+    strcpy(message.player.country, country);
+    message.event = CHANGE_PLAYER_COUNTRY_GAME_EVENT;
+    g_Client.SendTo(&message, sizeof(message));
 }
 void SendPlayersInfoation(){
     GameMessage message;
-    message.event = CHANGE_PLAYER_INFORMATION_GAMEEVENT;
+    message.event = JOINS_GAME_GAME_EVENT;
     for (uint32_t uiPlayer = 0; uiPlayer < g_Players.size(); ++uiPlayer){
-        message.index = uiPlayer;
-        strcpy(message.name, g_Client.GetName());
-        message.game.index = g_Players[uiPlayer].index;
-        strcpy(message.game.country, g_Players[uiPlayer].country);
-        g_Server.SendToAllClient(&message, sizeof(message));
+        if(g_Players[uiPlayer].index != INVALID_PLAYER_INDEX){
+            message.clientIndex = uiPlayer;
+            message.player.ai = g_Players[uiPlayer].ai;
+            message.player.index = g_Players[uiPlayer].index;
+            strcpy(message.player.name, g_Players[uiPlayer].name);
+            strcpy(message.player.country, g_Players[uiPlayer].country);
+            g_Server.SendToAllClient(&message, sizeof(message));
+        }
     }
 }
 void SendCurrentCountry(){
     GameMessage message;
-    message.event = CURRENT_COUNTRY_GAMEEVENT;
+    message.event = CURRENT_COUNTRY_GAME_EVENT;
     // message.index = WEI_COUNTRY_INDEX;
-    message.index = rand() % g_DefaultCountryCount;
+    message.clientIndex = rand() % g_DefaultCountryCount;
     g_Server.SendToAllClient(&message, sizeof(message));
 }
-void *server_start(void *userData){
+void SendPlayChessMessage(const PlayerInfo&game, const ChessInfo *pSelect, const ChessInfo *pTarget, const glm::vec2&mousePos){
     GameMessage message;
-    uint32_t aiIndex = -1;
-    g_Server.AcceptClient(g_DefaultCountryCount, aiIndex);
-    if(aiIndex != -1){
-        g_Players[aiIndex].ai = true;
-        g_Players[aiIndex].index = aiIndex;
-    }
-    RandomCountry();
-    SendCurrentCountry();
-    SendPlayersInfoation();
-    //必须用静态变量, 局部变量在函数结束后就销毁, 会导致传餐错误//不知道为什么linux下没问题
-    static uint32_t socksetIndex[] = { 0, 1, 2 };
-    if(aiIndex != -1){
-        if(aiIndex == 1){
-            /*
-                电脑索引不可能为0,因为服务端占了
-                电脑索引为2不用管 因为线程数减1了
-            */
-            socksetIndex[1] = 2;
-        }
-        for (size_t i = 0; i < g_DefaultCountryCount - 1; ++i){
-            CreateThread(&process_server, &socksetIndex[i]);
-        }
-    }
-    else{
-        for (size_t i = 0; i < g_DefaultCountryCount; ++i){
-            CreateThread(&process_server, &socksetIndex[i]);
+    message.event = PLAY_CHESS_GAME_EVENT;
+    message.player = game;
+    message.mousePos = mousePos;
+    if(pSelect)message.select = *pSelect;
+    if(pTarget)message.target = *pTarget;
+    g_Client.SendTo(&message, sizeof(message));
+}
+//第一个参数是被修改的玩家
+void InitCountryItem(uint32_t countryIndex, const char* countryItems[2][5]) {
+    uint32_t index = 0;
+    const char *country[] = { "?", "魏", "蜀", "吴", "汉" };
+    for (auto it = g_Players.begin(); it != g_Players.end(); ++it, ++index) {
+        if (it->index != INVALID_PLAYER_INDEX) {
+            for (size_t i = 1; i < g_DefaultCountryCount + 1; ++i) {
+                if(!strcmp(country[i], it->country) && it->index != countryIndex){
+                    countryItems[countryIndex][i] = countryItems[countryIndex][0];
+                    return;
+                }
+                else {
+                    countryItems[countryIndex][i] = country[i];
+                }
+            }
         }
     }
-    //游戏开始, 发消息告诉所有客户端游戏开始
-    message.event = GAME_START_GAMEEVENT;
-    g_Server.SendToAllClient(&message, sizeof(message));
-#ifdef JOIN_AI
-    //因为最多只有1个ai, 所以可以直接循环里面判断和创建线程
-    for (auto it = g_Players.begin(); it != g_Players.end(); ++it){
-        if(it->ai){
-            g_AI.CreatePthread(AiPlayChess, NULL);
+}
+int32_t GetAiPlayerIndex(){
+    int32_t index = INVALID_PLAYER_INDEX;
+    for (size_t i = 0; i < g_Players.size(); ++i){
+        if(g_Players[i].ai){
+            index = i;
             break;
         }
     }
-#endif            
+    return index;
+}
+std::mutex g_Mutex;
+//HANDLE g_Mutex = CreateMutex(NULL, FALSE, NULL);
+void *process_server(void *userData){
+    GameMessage message;
+    static uint32_t acceptCount;
+    uint32_t socketindex = INVALID_SOCKET;
+    //WaitForSingleObject(g_Mutex, INFINITE);
+    g_Mutex.lock();
+    if(INVALID_SOCKET != g_Server.AcceptClient(acceptCount, &message, sizeof(message))){
+        socketindex = acceptCount;
+        printf("in function %s:socket index %d, accept count:%d\n", __FUNCTION__, socketindex, acceptCount);
+        ++acceptCount;
+        if(message.event == AI_JOIN_GAME_GAME_EVENT){
+            g_Players[socketindex].ai = true;
+            strcpy(message.player.name, "ai");
+            g_Server.ShutdownClient(socketindex);
+            //因为只有服务端能加ai, 所以可以直接在这里初始化
+            //而玩家不行
+            InitCountryItem(socketindex, g_CountryItems);
+        }
+        else{
+            sprintf(message.player.name, "player%d", socketindex + 1);
+        }
+        g_Players[socketindex].index = socketindex;
+        strcpy(g_Players[socketindex].name, message.player.name);
+
+        SendPlayersInfoation();
+    }
+    g_Mutex.unlock();
+    //ReleaseMutex(g_Mutex);
+    //虽然ai不需要收发消息, 但为了反正最小加ai, 所以即使该线程是ai也需要做下面的事
+    if(acceptCount >= g_DefaultCountryCount){
+        RandomCountry();
+        SendCurrentCountry();
+        SendPlayersInfoation();
+        //游戏开始, 发消息告诉所有客户端游戏开始
+        message.event = GAME_START_GAME_EVENT;
+        g_Server.SendToAllClient(&message, sizeof(message));
+#ifdef JOIN_AI
+        //因为最多只有1个ai, 所以可以直接循环里面判断和创建线程
+        for (auto it = g_Players.begin(); it != g_Players.end(); ++it){
+            if(it->ai){
+                //证明有ai需要启动ai方面的线程
+                g_AI.CreatePthread(AiPlayChess, NULL);
+                break;
+            }
+        }
+#endif  
+    }
+    if(message.event == AI_JOIN_GAME_GAME_EVENT){
+        return nullptr;//ai不需要收发消息
+    }
+    // int32_t aiIndex = GetAiPlayerIndex();
+    // if(aiIndex != INVALID_PLAYER_INDEX && aiIndex == socketindex){
+    //     printf("客户端索引%d为ai, 但前函数socket index %d。所以退出函数%s\n", aiIndex, socketindex, __FUNCTION__);
+    //     return nullptr;//ai不需要收发消息
+    // }
+    do{
+        g_Server.RecvFromClient(socketindex, &message, sizeof(message));
+        g_Server.SendToAllClient(&message, sizeof(message));
+    } while (message.event != GAME_OVER_GAME_EVENT);
     return nullptr;
 }
-// void Play(uint32_t row, uint32_t column){
-//     Play(glm::vec2(COLUMN_TO_X(column, CHESSBOARD_GRID_SIZE, CHESSBOARD_LINE_WIDTH), ROW_TO_Y(row, CHESSBOARD_GRID_SIZE, CHESSBOARD_LINE_WIDTH)));
+// void *server_start(void *userData){
+//     GameMessage message;
+//     uint32_t aiIndex = -1;
+//     g_Server.AcceptClient(g_DefaultCountryCount, g_Players);
+//     RandomCountry();
+//     SendCurrentCountry();
+//     SendPlayersInfoation();
+//     //必须用静态变量, 局部变量在函数结束后就销毁, 会导致传餐错误
+//     static uint32_t socksetIndex[] = { 0, 1, 2 };
+//     for (size_t i = 0; i < g_DefaultCountryCount; ++i){
+//         CreateThread(&process_server, &socksetIndex[i]);
+//     }
+//     //游戏开始, 发消息告诉所有客户端游戏开始
+//     message.event = GAME_START_GAME_EVENT;
+//     g_Server.SendToAllClient(&message, sizeof(message));
+// #ifdef JOIN_AI
+//     //因为最多只有1个ai, 所以可以直接循环里面判断和创建线程
+//     for (auto it = g_Players.begin(); it != g_Players.end(); ++it){
+//         if(it->ai){
+//             g_AI.CreatePthread(AiPlayChess, NULL);
+//             break;
+//         }
+//     }
+// #endif            
+//     return nullptr;
 // }
-void SendPlayChessMessage(const PlayerInfo&game, const ChessInfo *player, const ChessInfo *target, const glm::vec2&mousePos){
-    GameMessage message;
-    message.event = PLAY_CHESS_GAMEEVENT;
-    message.game = game;
-    message.mousePos = mousePos;
-    if(player)message.player = *player;
-    if(target)message.target = *target;
-    g_Client.SendTo(&message, sizeof(message));
-}
 //但该程序为客户端时,一般不会用上面的函数而是用下面的函数创建创建线程
 void *process_client(void *userData){
     //接收消息后做出动作即可
     GameMessage message;
     do{
         g_Client.RecvFrom(&message, sizeof(GameMessage));
-        if(message.event == GAME_START_GAMEEVENT){
+        if(message.event == GAME_START_GAME_EVENT){
+            g_GameStart = true;
             printf("game start\n");
             g_Chessboard.InitChess(g_VulkanDevice.device);
         }
-        else if(message.event == SELF_PLAYER_INFORMATION_GAMEEVENT){
-            g_PlayerCountry = message.index;
+        else if(message.event == JOINS_GAME_GAME_EVENT){
+            printf("joins game, index:%d, name:%s\n", message.clientIndex, message.player.name);
+            g_Players[message.clientIndex].ai = message.player.ai;
+            g_Players[message.clientIndex].index = message.clientIndex;
+            strcpy(g_Players[message.clientIndex].name, message.player.name);
+            strcpy(g_Players[message.clientIndex].country, message.player.country);
+            InitCountryItem(g_PlayerCountry, g_CountryItems);
         }
-        else if(message.event == CURRENT_COUNTRY_GAMEEVENT){
-            g_CurrentCountry = message.index;
+        else if(message.event == CURRENT_COUNTRY_GAME_EVENT){
+            g_CurrentCountry = message.clientIndex;
         }
-        else if(message.event == JOINS_GAME_GAMEEVENT){
-            printf("joins game, index:%d, name:%s\n", message.index, message.name);
-            g_Server.SetClientName(message.index, message.name);
+        else if(message.event == CHANGE_PLAYER_COUNTRY_GAME_EVENT){
+            int32_t aiIndex = GetAiPlayerIndex();
+            if (g_ServerAppaction) {
+                if (message.clientIndex != aiIndex) {
+                    if(aiIndex != INVALID_PLAYER_INDEX)
+                        InitCountryItem(aiIndex, g_CountryItems);
+                }
+                else {
+                    InitCountryItem(g_PlayerCountry, g_CountryItems);
+                }
+            }
+            else if (message.clientIndex != g_PlayerCountry) {
+                InitCountryItem(g_PlayerCountry, g_CountryItems);
+            }
+            strcpy(g_Players[message.clientIndex].country, message.player.country);
+            g_Players[message.clientIndex].random = !strcmp(message.player.country, "?");
         }
-        else if(message.event == CHANGE_PLAYER_INFORMATION_GAMEEVENT){
-            const uint32_t index = message.index, playerIndex = message.game.index;
-            glm::vec3 countryColor[] = { WEI_CHESS_COUNTRY_COLOR, SHU_CHESS_COUNTRY_COLOR, WU_CHESS_COUNTRY_COLOR };
-            g_Players[index].color = countryColor[playerIndex];
-            strcpy(g_Players[index].country, message.game.country);
+        else if(message.event == SELF_PLAYER_INFORMATION_GAME_EVENT){
+            g_PlayerCountry = message.clientIndex;
+            g_Players[message.clientIndex].index = g_PlayerCountry;
         }
-        else if(message.event == PLAY_CHESS_GAMEEVENT){
+        // else if(message.event == CHANGE_PLAYER_INFORMATION_GAME_EVENT){
+        //     const uint32_t index = message.clientIndex, playerIndex = message.player.index;
+        //     // glm::vec3 countryColor[] = { WEI_CHESS_COUNTRY_COLOR, SHU_CHESS_COUNTRY_COLOR, WU_CHESS_COUNTRY_COLOR };
+        //     // g_Players[index].color = countryColor[playerIndex];
+        //     g_Players[index].index = playerIndex;
+        //     strcpy(g_Players[index].country, message.player.country);
+        // }
+        else if(message.event == PLAY_CHESS_GAME_EVENT){
             //这里应该真正下棋而不是发消息
-            const ChessInfo *pTarget  = g_Chessboard.GetChessInfos(message.target.country, message.target.row, message.target.column), *pSelect = g_Chessboard.GetChessInfos(g_CurrentCountry, message.player.row, message.player.column);
+            const ChessInfo *pTarget  = g_Chessboard.GetChessInfos(message.target.country, message.target.row, message.target.column), *pSelect = g_Chessboard.GetChessInfos(g_CurrentCountry, message.select.row, message.select.column);
             if(pSelect){
                 if(pTarget){
                     // printf("catpure chess:country:%d, chess:%d;target country:%d, chess:%d\n", pSelect->country, pSelect->chess, pTarget->country, pTarget->chess);
@@ -470,7 +602,10 @@ void *process_client(void *userData){
                 }
             }
         }
-    }while(message.event != GAME_OVER_GAMEEVENT);
+        else{
+            printf("invalid event:%d\n", message.event);
+        }
+    }while(message.event != GAME_OVER_GAME_EVENT);
     return nullptr;
 }
 void CreateServer(const char *name){
@@ -480,83 +615,148 @@ void CreateServer(const char *name){
     // strcpy(g_Player.country, "魏");
     // g_Player.index = 0;
     // g_Player.name = ;
-    g_Server.CreateServer(3);
-    CreateThread(server_start, nullptr);
+    g_Server.CreateServer(g_DefaultCountryCount);
+    //必须用静态变量, 局部变量在函数结束后就销毁, 会导致传餐错误
+    //static uint32_t socksetIndex[] = { 0, 1, 2 };
+    for (size_t i = 0; i < g_DefaultCountryCount; ++i){
+        CreateThread(process_server, nullptr);
+    }
+    // CreateThread(server_start, nullptr);
     g_Client.CreateClient(g_ServerIp);
     //该程序也需要客户端方面的线程
     CreateThread(process_client, nullptr);
-    JoinsGame(g_Client.GetName());
+    JoinsGame();
+    // JoinsGame(g_Client.GetName());
 }
 void CreateClient(const char *serverIp){
     g_Client.CreateClient(serverIp);
     CreateThread(process_client, nullptr);
-    JoinsGame(g_Client.GetName());
+    JoinsGame();
+    // JoinsGame(g_Client.GetName());
 }
 void AddAi(const char *serverIp){
     Client client;
     client.CreateClient(serverIp);
     GameMessage message;
-    message.event = AI_JOIN_GAME_GAMEEVENT;
+    message.event = AI_JOIN_GAME_GAME_EVENT;
     client.SendTo(&message, sizeof(message));
 }
-void updateImguiWidget(){
+/*
+    需求:
+        输入用户名
+        一开始必须有创建房间和连接服务端的按钮;这时候还不能确定该程序是客户端还是服务端
+*/
+void ShowClientWidget(){
+    /*
+        需要选择国家, 就需要知道其他玩家选择的国家
+        如果都没选择(即随机)，该玩家能选择所有国家
+        否则只能选择其他国家
+        //----
+        所以, 需要在玩家加入的时候立即接受所有玩家信息
+        接收后，还要注意。
+        如果玩家在接收所有玩家信息前点开了选择国家消息。
+        怎么做到在接收完所有玩家信息时，让该玩家只能选择某些国家
+    */
+    static std::array<int32_t, 2>countryItemIndex;
+    //汉是为了在HAN_CAN_PLAY宏定义了的情况下设置的
+    // static const char *currentCountry = countryItems[0];
+    if(ImGui::BeginTable("player information", 2)){
+        ImGui::TableNextColumn();
+        ImGui::Text("名字");
+        for (auto it = g_Players.begin(); it != g_Players.end(); ++it){
+            if (it->index != INVALID_PLAYER_INDEX)
+                ImGui::Text(it->name);
+        }
+        ImGui::TableNextColumn();
+        ImGui::Text("势力");
+        uint32_t comboIndex = 0;
+        for (auto it = g_Players.begin(); it != g_Players.end(); ++it, ++comboIndex){
+            if(it->index != INVALID_PLAYER_INDEX){
+                //combo(或许其他也是)需要靠label查找。所以label不能重复
+                char comboName[MAX_BYTE] = {};
+                for (size_t i = 0; i < comboIndex + 1; ++i){
+                    strcat(comboName, " ");
+                }
+                if(!g_GameStart && (it->index == g_PlayerCountry || (g_ServerAppaction && it->ai))){
+                    if(ImGui::Combo(comboName, &countryItemIndex[it->ai], g_CountryItems[it->ai], g_DefaultCountryCount + 1)) {
+                        it->random = !strcmp(it->country, "?");
+                        strcpy(it->country, g_CountryItems[it->ai][countryItemIndex[it->ai]]);
+                        printf("发送消息前:玩家更改势力, 新势力为%s\n", it->country);
+                        SendChangeCountryInfomation(it->index, it->country);
+                    }
+                }
+                else{
+                    //这里只给看不给改
+                    if(ImGui::BeginCombo(comboName, it->country)){
+                        ImGui::EndCombo();
+                    }
+                }
+            }
+        }
+        ImGui::EndTable();
+    }
+    // if(ImGui::BeginCombo(" ", it->country)){//加ai后，就会出现多余的项目
+    //     for (size_t i = 0; i < g_DefaultCountryCount + 1; ++i){
+    //         bool is_selected = (!strcmp(it->country, countryItems[i]));
+    //         if (ImGui::Selectable(countryItems[i], is_selected)){
+    //             strcpy(it->country, countryItems[i]);
+    //             it->random = false;
+    //             strcpy(it->country, it->country);
+    //             SendChangeCountryInfomation(it->index, it->country);
+    //         }
+    //         if (is_selected)ImGui::SetItemDefaultFocus();   // You may set the initial focus when opening the combo (scrolling + for keyboard navigation support)
+    //     }
+    //     ImGui::EndCombo();
+    // }
+}
+void ShowGameWidget(){
+    const char *countryName[] = { "魏国", "蜀国", "吴国" };
+    if(g_CurrentCountry != -1){
+        ImGui::Text("你是%s, 该%s下棋\n", countryName[g_PlayerCountry], g_PlayerCountry == g_CurrentCountry?"你":countryName[g_CurrentCountry]);
+    }
+    ShowClientWidget();
+}
+void ShowServerWidget(bool gameStart){
+    //在非广播模式下，直接显示本机ip。(或许广播模式下也可以显示)
+    ImGui::Text("本机ip:%s", g_ServerIp);
+    ShowClientWidget();
+    if(!g_GameStart){
+        if(!gameStart){
+            if(ImGui::Button("添加电脑")){
+                AddAi(g_ServerIp);
+            }
+        }
+    }
+}
+void UpdateImguiWidget(){
     // static bool checkbuttonstatu;//检查框的状态。这个值传给imgui会影响到检查框
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
 
     static bool bShowCreateServer = false, bShowConnectServer = false;
     if(ImGui::Begin("局域网联机")){
-        static char name[MAX_BYTE];
-        //在非广播模式下，直接显示本机ip。(或许广播模式下也可以显示)
-        ImGui::Text("本机ip:%s", g_ServerIp);
-        const char *countryName[] = { "魏国", "蜀国", "吴国" };
-        if(g_CurrentCountry != -1){
-            ImGui::Text("你是%s, 该%s下棋\n", countryName[g_PlayerCountry], g_PlayerCountry == g_CurrentCountry?"你":countryName[g_CurrentCountry]);
+        if(g_GameStart){
+            ShowGameWidget();
         }
-        if(ImGui::InputText("用户名", name, sizeof(name))){
-            g_Client.SetName(name);
-        }
-        //当有客户端程序接入后，显示名称和ip，然后初始化棋盘并开始游戏
-        if(ImGui::BeginTable("client information", 2)){
-            ImGui::TableNextColumn();
-            ImGui::Text("name");
-            auto clients = g_Server.GetClientInfo();
-            for (auto it = clients.begin(); it != clients.end(); ++it){
-                ImGui::Text(it->GetName());
+        else{
+            if(g_ServerAppaction){
+                ShowServerWidget(g_GameStart);
             }
-            ImGui::TableNextColumn();
-            ImGui::Text("country");
-            for (size_t i = 0; i < g_Players.size(); ++i){
-                ImGui::Text(g_Players[i].country);
+            else{
+                ShowClientWidget();
             }
-            // const char *countryItem[] = {
-            //     "魏",
-            //     "蜀",
-            //     "吴",
-            // };
-            // for (size_t i = 0; i < g_Clients.size(); ++i){
-            //     if(ImGui::Combo("国", &g_Clients[i], countryItem, sizeof(countryItem) / sizeof(char *))){
-                    
-            //         ImGui::TreePop();
-            //     }
-            // }
-            ImGui::EndTable();
-        }
-        if(g_ServerAppaction){
-            if(ImGui::Button("添加电脑")){
-                AddAi(g_ServerIp);
+            //如果创建好房间或连接了客户端后, 不应该继续显示下面的按钮
+            if(ImGui::BeginTable("客户端信息", 2)){
+                ImGui::TableNextColumn();
+                if(ImGui::Button("创建房间")){
+                    bShowCreateServer = true;
+                }
+                ImGui::TableNextColumn();
+                if(ImGui::Button("连接服务端")){
+                    bShowConnectServer = true;
+                }
+                ImGui::EndTable();
             }
-        }
-        if(ImGui::BeginTable("客户端信息", 2)){
-            ImGui::TableNextColumn();
-            if(ImGui::Button("创建房间")){
-                bShowCreateServer = true;
-            }
-            ImGui::TableNextColumn();
-            if(ImGui::Button("连接服务端")){
-                bShowConnectServer = true;
-            }
-            ImGui::EndTable();
         }
         ImGui::End();
     }
@@ -631,7 +831,7 @@ void RecordCommand(VkCommandBuffer command, uint32_t currentFrame){
 
     g_Chessboard.RecordCommand(command, g_WindowWidth, g_CurrentCountry);
 #ifdef INTERNET_MODE
-    updateImguiWidget();
+    UpdateImguiWidget();
 #endif
     vkCmdEndRenderPass(command);
     vkEndCommandBuffer(command);
@@ -761,9 +961,9 @@ void *AiPlayChess(void *userData){
 #endif
     while(!GameOver(g_DefaultCountryCount)){
         AiWait();
-        printf("该ai下棋了\n");
+        printf("ai下棋了\n");
         aiPlay();
-        printf("该ai下完棋了\n");
+        printf("ai下完棋了\n");
     }
 #ifdef __linux__
     sem_destroy(&g_AiSemaphore);
@@ -919,6 +1119,12 @@ void setup(GLFWwindow *windows){
         printf("in function:%s:WSAStartup error, result = %d", __FUNCTION__, wsaResult);
     }
 #endif
+    const char *country[] = { "?", "魏", "蜀", "吴", "汉" };
+    for (size_t i = 0; i < 2; i++){
+        for (size_t j = 0; j < IM_ARRAYSIZE(country); ++j) {
+            g_CountryItems[i][j] = country[j];
+        }
+    }
     GetLocalIp(g_ServerIp);
 #else
     g_CommandBuffers.resize(g_VulkanWindows.framebuffers.size());
@@ -936,7 +1142,7 @@ void cleanup(){
     ImGui_ImplVulkan_Shutdown();
 
     GameMessage message;
-    message.event = GAME_OVER_GAMEEVENT;
+    message.event = GAME_OVER_GAME_EVENT;
     g_Server.SendToAllClient(&message, sizeof(message));
     g_Server.ShutdownClient();
     g_Server.ShutdownServer();
