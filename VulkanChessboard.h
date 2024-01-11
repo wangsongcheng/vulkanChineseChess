@@ -6,7 +6,11 @@
 //只要绘制线框时没有加线宽偏移的话，下面的值就不应该修改。因为图形管线线宽默认1
 #define CHESSBOARD_LINE_WIDTH 1
 #define CHESSBOARD_BIG_GRID_COUNT 4
+#ifdef HAN_CAN_PLAY
+#define CHESSBOARD_WIREFRAME_COUNT 16
+#else
 #define CHESSBOARD_WIREFRAME_COUNT 12
+#endif
 #define CHESSBOARD_COLUMN CHESSBOARD_ROW
 #define CHESSBOARD_GRID_SIZE (CHESS_WIDTH * 2)
 
@@ -51,7 +55,7 @@ class VulkanChessboard:public VulkanChess{
 
     void UpdateGridUniform(VkDevice device);
     void UpdateBigGridUniform(VkDevice device);
-    void UpdateJiuGongGeWireframeUniform(VkDevice device);
+    void UpdateJiuGongGeWireframeUniform(VkDevice device, uint32_t playerIndex);
 public:
     VulkanChessboard(/* args */);
     ~VulkanChessboard();
@@ -60,8 +64,8 @@ public:
     void Setup(VkPhysicalDevice physicalDevice, VkDevice device, VkDescriptorSetLayout setLayout, uint32_t windowWidth, VkQueue graphics, VulkanPool pool);
     void RecordCommand(VkCommandBuffer cmd, uint32_t windowWidth, uint32_t currentCountry);
 
-    void UpdateUniform(VkDevice device);
     void ClearSelectWireframeUnfirom(VkDevice device);
+    void UpdateUniform(VkDevice device, uint32_t playerIndex);
     void UpdateBackgroundUniform(VkDevice device, uint32_t windowWidth);
     void UpdateSelectWireframeUniform(VkDevice device, const ChessInfo *pInfo, uint32_t count);
     void UpdateChessUniform(VkDevice device, uint32_t country, uint32_t chess, const glm::vec2&pos, uint32_t fontIndex, const VkExtent2D&size);

@@ -123,17 +123,75 @@ void VulkanChessboard::UpdateBigGridUniform(VkDevice device){
     }
     uniforms.bigGrid.UpdateData(device, sizeof(model), model);
 }
-void VulkanChessboard::UpdateJiuGongGeWireframeUniform(VkDevice device){
+void VulkanChessboard::UpdateJiuGongGeWireframeUniform(VkDevice device, uint32_t playerIndex){
     const glm::mat4 gridScale = glm::scale(glm::mat4(1.0f), glm::vec3(CHESSBOARD_GRID_SIZE + CHESSBOARD_LINE_WIDTH, CHESSBOARD_GRID_SIZE + CHESSBOARD_LINE_WIDTH, 1));
-    const glm::vec2 rc[] = {
-        //线框[0]
-        glm::vec2(8, 0), glm::vec2(rc[0].x - 1, rc[0].y + 1), glm::vec2(15, 7), glm::vec2(rc[2].x - 1, rc[2].y + 1), glm::vec2(rc[0].x, 14), glm::vec2(rc[1].x, rc[4].y + 1),
-        //线框[1]
-        glm::vec2(rc[1].x, rc[0].y), glm::vec2(rc[0].x, rc[1].y), glm::vec2(rc[3].x, rc[2].y), glm::vec2(rc[2].x, rc[3].y), glm::vec2(rc[1].x, rc[4].y), glm::vec2(rc[4].x, rc[5].y)
+    const glm::vec2 wu_jiugongge[] = {
+        glm::vec2(15, 7), glm::vec2(wu_jiugongge[0].x - 1, wu_jiugongge[0].y + 1),
+        glm::vec2(wu_jiugongge[1].x, wu_jiugongge[0].y), glm::vec2(wu_jiugongge[0].x, wu_jiugongge[1].y)
     };
+    const glm::vec2 wei_jiugongge[] = {
+        glm::vec2(8, 0), glm::vec2(wei_jiugongge[0].x - 1, wei_jiugongge[0].y + 1),
+        glm::vec2(wei_jiugongge[1].x, wei_jiugongge[0].y), glm::vec2(wei_jiugongge[0].x, wei_jiugongge[1].y)
+    };
+    const glm::vec2 shu_jiugongge[] = {
+        glm::vec2(8, 14), glm::vec2(shu_jiugongge[0].x - 1, shu_jiugongge[0].y + 1),
+        glm::vec2(shu_jiugongge[1].x, shu_jiugongge[0].y), glm::vec2(shu_jiugongge[0].x, shu_jiugongge[1].y)
+    };
+    const glm::vec2 han_jiugongge[] = {
+        glm::vec2(1, 7), glm::vec2(han_jiugongge[0].x - 1, han_jiugongge[0].y + 1),
+        glm::vec2(han_jiugongge[1].x, han_jiugongge[0].y), glm::vec2(han_jiugongge[0].x, han_jiugongge[1].y)
+    };
+#ifdef HAN_CAN_PLAY
+    const glm::vec2 jiugonggePos[] = {
+        //线框[0]
+        wei_jiugongge[0], wei_jiugongge[1], shu_jiugongge[0], shu_jiugongge[1], wu_jiugongge[0], wu_jiugongge[1], han_jiugongge[0], han_jiugongge[1],
+        //线框[1]
+        wei_jiugongge[2], wei_jiugongge[3], shu_jiugongge[2], shu_jiugongge[3], wu_jiugongge[2], wu_jiugongge[3], han_jiugongge[2], han_jiugongge[3]
+    };
+#else
+    const uint32_t wireframeOffset = 6;
+    glm::vec2 jiugonggePos[CHESSBOARD_WIREFRAME_COUNT];
+    jiugonggePos[0] = shu_jiugongge[0];
+    jiugonggePos[1] = shu_jiugongge[1];
+    jiugonggePos[wireframeOffset] = shu_jiugongge[2];
+    jiugonggePos[wireframeOffset + 1] = shu_jiugongge[3];
+    if(playerIndex == WU_COUNTRY_INDEX){
+        jiugonggePos[2] = han_jiugongge[0];
+        jiugonggePos[3] = han_jiugongge[1];
+        jiugonggePos[wireframeOffset + 2] = han_jiugongge[2];
+        jiugonggePos[wireframeOffset + 3] = han_jiugongge[3];
+
+        jiugonggePos[4] = wu_jiugongge[0];
+        jiugonggePos[5] = wu_jiugongge[1];
+        jiugonggePos[wireframeOffset + 4] = wu_jiugongge[2];
+        jiugonggePos[wireframeOffset + 5] = wu_jiugongge[3];
+    }
+    else if(playerIndex == WEI_COUNTRY_INDEX){
+        jiugonggePos[2] = han_jiugongge[0];
+        jiugonggePos[3] = han_jiugongge[1];
+        jiugonggePos[wireframeOffset + 2] = han_jiugongge[2];
+        jiugonggePos[wireframeOffset + 3] = han_jiugongge[3];
+
+        jiugonggePos[4] = wei_jiugongge[0];
+        jiugonggePos[5] = wei_jiugongge[1];
+        jiugonggePos[wireframeOffset + 4] = wei_jiugongge[2];
+        jiugonggePos[wireframeOffset + 5] = wei_jiugongge[3];
+    }
+    else{
+        jiugonggePos[2] = wei_jiugongge[0];
+        jiugonggePos[3] = wei_jiugongge[1];
+        jiugonggePos[wireframeOffset + 2] = wei_jiugongge[2];
+        jiugonggePos[wireframeOffset + 3] = wei_jiugongge[3];
+
+        jiugonggePos[4] = wu_jiugongge[0];
+        jiugonggePos[5] = wu_jiugongge[1];
+        jiugonggePos[wireframeOffset + 4] = wu_jiugongge[2];
+        jiugonggePos[wireframeOffset + 5] = wu_jiugongge[3];      
+    }
+#endif    
     glm::mat4 model[CHESSBOARD_WIREFRAME_COUNT];
-    for (size_t i = 0; i < sizeof(rc) / sizeof(glm::vec2); ++i){
-        model[i] = glm::translate(glm::mat4(1), glm::vec3(COLUMN_TO_X(rc[i].x), ROW_TO_Y(rc[i].y), 0)) * gridScale;
+    for (size_t i = 0; i < CHESSBOARD_WIREFRAME_COUNT; ++i){
+        model[i] = glm::translate(glm::mat4(1), glm::vec3(COLUMN_TO_X(jiugonggePos[i].x), ROW_TO_Y(jiugonggePos[i].y), 0)) * gridScale;
     }
     uniforms.wireframe.jiugongge.UpdateData(device, sizeof(model), &model);
 }
@@ -205,19 +263,19 @@ void VulkanChessboard::RecordCommand(VkCommandBuffer cmd, uint32_t windowWidth, 
     DrawSelectWireframe(cmd, pipelines.wireframe);
     VulkanChess::RecordCommand(cmd, windowWidth, currentCountry);
 }
-void VulkanChessboard::UpdateUniform(VkDevice device){
-    UpdateBigGridUniform(device);
-
-    UpdateGridUniform(device);
-
-    UpdateJiuGongGeWireframeUniform(device);
-}
 void VulkanChessboard::ClearSelectWireframeUnfirom(VkDevice device){
     glm::mat4 model[CHESSBOARD_ROW * 2];
     for (size_t i = 0; i < CHESSBOARD_ROW * 2; ++i){
         model[i] = glm::translate(glm::mat4(1), glm::vec3(COLUMN_TO_X(100), ROW_TO_Y(100), 0));
     }
     uniforms.wireframe.selectChess.UpdateData(device, CHESSBOARD_ROW * 2 * mMinUniformBufferOffset, model);
+}
+void VulkanChessboard::UpdateUniform(VkDevice device, uint32_t playerIndex){
+    UpdateBigGridUniform(device);
+
+    UpdateGridUniform(device);
+
+    UpdateJiuGongGeWireframeUniform(device, playerIndex);
 }
 void VulkanChessboard::UpdateBackgroundUniform(VkDevice device, uint32_t windowWidth){
     const glm::mat4 model[] = {
