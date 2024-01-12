@@ -59,7 +59,7 @@ SOCKET Server::AcceptClient(uint32_t client, void *__buf, size_t __n){
     mClients[client].SetScoket(s);
     mClients[client].RecvFrom(__buf, __n);
     GameMessage *pMessage = (GameMessage *)__buf;
-    printf("in function %s:recv client %d, event %d\n", __FUNCTION__, client, pMessage->event);
+    // printf("in function %s:recv client %d, event %d\n", __FUNCTION__, client, pMessage->event);
     if(pMessage->event != AI_JOIN_GAME_GAME_EVENT)SendSelfInfoation(client);
     return s;
 }

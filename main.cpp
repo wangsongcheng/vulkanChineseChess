@@ -326,32 +326,42 @@ uint32_t countryToindex(const char *country){
     else if(!strcmp(country, "汉")){
         return HAN_COUNTRY_INDEX;
     }
+    else{
+        printf("error:invalid country:%s\n", country);
+    }
     return INVALID_COUNTRY_INDEX;
 }
-uint32_t CanUseCountry(uint32_t countryIndex, const char *country){
+bool CanUseCountry(uint32_t countryIndex, const char *country){
+    bool bCanUse = true;
     uint32_t playerIndex = 0;
     for (auto it = g_Players.begin(); it != g_Players.end(); ++it, ++playerIndex){
         if(countryIndex != playerIndex && !strcmp(it->country, country)){
+            bCanUse = false;
             break;
         }
     }
-    return playerIndex;
+    return bCanUse;
 }
 void RandomCountry(){
     uint32_t countryIndex[3];
     uint32_t playerIndex = 0;
-    const char *countryName[] = { "魏", "蜀", "吴", "汉" };
+    const char *countryName[4];
+    countryName[WU_COUNTRY_INDEX] = "吴";
+    countryName[WEI_COUNTRY_INDEX] = "魏";
+    countryName[SHU_COUNTRY_INDEX] = "蜀";
+#ifdef HAN_CAN_PLAY
+    countryName[HAN_COUNTRY_INDEX] = "汉";
+#endif
     RandomNumber(g_DefaultCountryCount, g_DefaultCountryCount, countryIndex);
     for (auto it = g_Players.begin(); it != g_Players.end(); ++it, ++playerIndex){
         if(it->random){
-            uint32_t canUseIndex = 0, pi = 0;
-            do{
-                strcpy(it->country, countryName[countryIndex[canUseIndex++]]);
-                pi = CanUseCountry(playerIndex, it->country);
-                if(pi < g_DefaultCountryCount){
-                    printf("尝试将\"%s\"第%d个玩家赋值, 但和第%d个玩家的\"%s\"重复\n", it->country, playerIndex, pi, it->country);
+            for (size_t i = 0; i < g_DefaultCountryCount; ++i){
+                strcpy(it->country, countryName[countryIndex[i]]);
+                if(CanUseCountry(playerIndex, it->country)){
+                    break;
                 }
-            } while (pi < g_DefaultCountryCount);
+                printf("尝试将\"%s\"第%d个玩家赋值, 但重复了\n", it->country, playerIndex);
+            }
         }
         it->index = countryToindex(it->country);
         printf("in function %s:country index:%d, country:%s\n", __FUNCTION__, it->index, it->country);
@@ -497,7 +507,7 @@ void *process_client(void *userData){
             g_Players[message.clientIndex].index = message.player.index;
             strcpy(g_Players[message.clientIndex].name, message.player.name);
             strcpy(g_Players[message.clientIndex].country, message.player.country);
-            InitCountryItem(g_PlayerIndex, g_CountryItems[0]);
+            InitCountryItem(g_Players[g_PlayerIndex].index, g_CountryItems[0]);
         }
         else if(message.event == CURRENT_COUNTRY_GAME_EVENT){
             g_CurrentCountry = message.clientIndex;
@@ -507,21 +517,20 @@ void *process_client(void *userData){
             if (g_ServerAppaction) {
                 if (message.clientIndex != aiIndex) {
                     if(aiIndex != INVALID_PLAYER_INDEX)
-                        InitCountryItem(aiIndex, g_CountryItems[0]);
+                        InitCountryItem(aiIndex, g_CountryItems[1]);
                 }
                 else {
-                    InitCountryItem(g_PlayerIndex, g_CountryItems[0]);
+                    InitCountryItem(g_Players[g_PlayerIndex].index, g_CountryItems[0]);
                 }
             }
             else if (message.clientIndex != g_PlayerIndex) {
-                InitCountryItem(g_PlayerIndex, g_CountryItems[0]);
+                InitCountryItem(g_Players[g_PlayerIndex].index, g_CountryItems[0]);
             }
             strcpy(g_Players[message.clientIndex].country, message.player.country);
             g_Players[message.clientIndex].random = !strcmp(message.player.country, "?");
         }
         else if(message.event == SELF_PLAYER_INFORMATION_GAME_EVENT){
             g_PlayerIndex = message.clientIndex;
-            g_Players[message.clientIndex].index = g_PlayerIndex;
         }
         // else if(message.event == CHANGE_PLAYER_INFORMATION_GAME_EVENT){
         //     const uint32_t index = message.clientIndex, playerIndex = message.player.index;
@@ -532,10 +541,10 @@ void *process_client(void *userData){
         // }
         else if(message.event == PLAY_CHESS_GAME_EVENT){
             //这里应该真正下棋而不是发消息
-            const ChessInfo *pTarget  = g_Chessboard.GetChessInfos(message.target.country, message.target.row, message.target.column), *pSelect = g_Chessboard.GetChessInfos(g_CurrentCountry, message.select.row, message.select.column);
+            const ChessInfo *pTarget  = g_Chessboard.GetChessInfos(message.target.country, message.target.chess), *pSelect = g_Chessboard.GetChessInfos(g_CurrentCountry, message.select.chess);
             if(pSelect){
                 if(pTarget){
-                    // printf("catpure chess:country:%d, chess:%d;target country:%d, chess:%d\n", pSelect->country, pSelect->chess, pTarget->country, pTarget->chess);
+                    printf("catpure chess:country:%d, chess:%d;target country:%d, chess:%d\n", pSelect->country, pSelect->chess, pTarget->country, pTarget->chess);
                     PlayChess(pSelect->country, pSelect->chess, pTarget->country, pTarget->chess);
                 }
                 else{
@@ -656,7 +665,7 @@ void ShowGameWidget(){
     countryName[HAN_COUNTRY_INDEX] = "汉";
 #endif
     if(g_CurrentCountry != -1){
-        ImGui::Text("你是%s, 该%s下棋\n", countryName[g_PlayerIndex], g_PlayerIndex == g_CurrentCountry?"你":countryName[g_CurrentCountry]);
+        ImGui::Text("你是%s, 该%s下棋\n", countryName[g_Players[g_PlayerIndex].index], g_Players[g_PlayerIndex].index == g_CurrentCountry?"你":countryName[g_CurrentCountry]);
     }
     ShowClientWidget();
 }
@@ -917,12 +926,13 @@ void *AiPlayChess(void *userData){
 //一般情况下, ai不需要调用该函数
 const ChessInfo *SelectChess(uint32_t country, const glm::vec2&mousePos){
     const ChessInfo *pSelected = nullptr;
-    if(country == g_PlayerIndex)pSelected = g_Chessboard.GetChessInfos(country, mousePos);
+    if(country == g_Players[g_PlayerIndex].index)pSelected = g_Chessboard.GetChessInfos(country, mousePos);
     if(pSelected && pSelected->country == country){
         g_Chessboard.Select(g_VulkanDevice.device, country, pSelected->chess);
     }
     return pSelected;
 }
+#ifndef INTERNET_MODE
 struct PPC{
     bool capture;
     uint32_t srcChess;
@@ -941,6 +951,7 @@ void *PlayerPlayChess(void *userData){
     }
     return nullptr;
 }
+#endif
 const ChessInfo *g_Selected = nullptr;
 void mousebutton(GLFWwindow *windows, int button, int action, int mods){
     if(action == GLFW_RELEASE && button == GLFW_MOUSE_BUTTON_LEFT){
