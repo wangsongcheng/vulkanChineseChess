@@ -9,9 +9,10 @@
 #ifdef WIN32
 #define M_PI 3.14159265358979323846
 #endif
-#define WU_COUNTRY_INDEX 2
-#define WEI_COUNTRY_INDEX 0
-#define SHU_COUNTRY_INDEX 1
+//修改势力索引的时候需要该字的顺序
+#define WU_COUNTRY_INDEX 1
+#define WEI_COUNTRY_INDEX 2
+#define SHU_COUNTRY_INDEX 0
 #define HAN_COUNTRY_INDEX 3
 #define INVALID_COUNTRY_INDEX -1
 //这个值已经用到了至少一个循环, 修改的时候需要注意
@@ -53,17 +54,17 @@
 // #define COUNTRY_CHESS_COUNT (WEI_CHESS_COUNT * 2 + HAN_CHESS_COUNT)
 #endif
 #define CHESSBOARD_CHESS_TOTAL (COUNTRY_CHESS_COUNT * 4)
-
-#define FONT_INDEX_WU 2
+//索引值理论可以随意修改;因为数组有限,所以最大索引应该小于数组大小 
 #define FONT_INDEX_MA 7
-#define FONT_INDEX_WEI 0
-#define FONT_INDEX_SHU 1
-#define FONT_INDEX_HAN 3
 #define FONT_INDEX_PAO 5
 #define FONT_INDEX_CHE 6
 #define FONT_INDEX_SHI 9
 #define FONT_INDEX_BING 4
 #define FONT_INDEX_XIANG 8
+#define FONT_INDEX_WU WU_COUNTRY_INDEX
+#define FONT_INDEX_SHU SHU_COUNTRY_INDEX
+#define FONT_INDEX_WEI WEI_COUNTRY_INDEX
+#define FONT_INDEX_HAN HAN_COUNTRY_INDEX
 struct Vertex {
     glm::vec3 pos;
     glm::vec3 color;

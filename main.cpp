@@ -1066,10 +1066,10 @@ void setup(GLFWwindow *windows){
     vkf::CreateTextureSampler(g_VulkanDevice.device, g_TextureSampler);
     vkf::CreatePipelineCache(g_VulkanDevice.device, "GraphicsPipelineCache", g_PipelineCache);
 #ifndef INTERNET_MODE
-    // g_CurrentCountry = WEI_COUNTRY_INDEX;
-    // g_PlayerCountry = WEI_COUNTRY_INDEX;
-    g_CurrentCountry = rand() % g_DefaultCountryCount;
-    g_PlayerCountry = rand() % g_DefaultCountryCount;
+    g_CurrentCountry = WEI_COUNTRY_INDEX;
+    g_PlayerCountry = WEI_COUNTRY_INDEX;
+    // g_CurrentCountry = rand() % g_DefaultCountryCount;
+    // g_PlayerCountry = rand() % g_DefaultCountryCount;
 #endif
     g_Chessboard.Setup(g_VulkanDevice.physicalDevice, g_VulkanDevice.device, g_SetLayout, g_WindowWidth, g_VulkanQueue.graphics, g_VulkanPool);
     g_Chessboard.CreatePipeline(g_VulkanDevice.device, g_VulkanWindows.renderpass, g_SetLayout, g_PipelineCache, g_WindowWidth);

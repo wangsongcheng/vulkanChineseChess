@@ -4,11 +4,11 @@
 #include "VulkanChess.h"
 #include "glm/glm.hpp"
 #include "glm/gtc/matrix_transform.hpp"
-#define WU_TERRITORY_INDEX 2
-#define WEI_TERRITORY_INDEX 0
-#define SHU_TERRITORY_INDEX 1
-#define HAN_TERRITORY_INDEX 3
-#define INVALID_TERRITORY_INDEX -1
+#define WU_TERRITORY_INDEX WU_COUNTRY_INDEX
+#define WEI_TERRITORY_INDEX WEI_COUNTRY_INDEX
+#define SHU_TERRITORY_INDEX SHU_COUNTRY_INDEX
+#define HAN_TERRITORY_INDEX HAN_COUNTRY_INDEX
+#define INVALID_TERRITORY_INDEX INVALID_COUNTRY_INDEX
 //以下索引、魏国索引。现在变成不能随意修改了。这确实是痛点
 //除非增加新棋,否则在不包括汉棋子的情况下, 其他棋子的值应该在16以下;这些值主要用于动态偏移
 #define MA_CHESS_INDEX_1 1
@@ -43,6 +43,8 @@
 #define CHESS_HEIGHT CHESS_WIDTH
 #define ROW_TO_Y(ROW)((CHESSBOARD_GRID_SIZE) + (ROW) * (CHESSBOARD_GRID_SIZE) + ((ROW) + 1) * CHESSBOARD_LINE_WIDTH)
 #define COLUMN_TO_X(COLUMN)(ROW_TO_Y(COLUMN))
+#define GET_PLAYER_COUNTRY(COUNTRY, TERRITORY, COUNTRY_COUNT)((COUNTRY + TERRITORY) % COUNTRY_COUNT)
+#define GET_COUNTRY_INDEX(COUNTRY, PLAYER_COUNTRY, COUNTRY_COUNT)((COUNTRY + COUNTRY_COUNT - PLAYER_COUNTRY) % COUNTRY_COUNT)
 struct ChessInfo{
     uint32_t row;
     uint32_t chess;//一般用上面的宏赋值(*_CHESS_INDEX_*)
@@ -74,8 +76,8 @@ protected:
     void SwapCenter(ChessInfo *src, ChessInfo *dst);
     //以蜀为参考视角;位置不准确但能用
     uint32_t GetTerritoryIndex(uint32_t row, uint32_t column)const;
-    //country是在territory上的势力
-    uint32_t GetPlayerCountry(uint32_t country, uint32_t territory);
+    // //country是在territory上的势力
+    // uint32_t GetPlayerCountry(uint32_t country, uint32_t territory)const;
     const ChessInfo *GetChessInfo(uint32_t row, uint32_t column, const Chess *pChess[4][COUNTRY_CHESS_COUNT])const;
     const ChessInfo *GetChessInfo(uint32_t country, uint32_t row, uint32_t column, const Chess *pChess[4][COUNTRY_CHESS_COUNT])const;
 public:

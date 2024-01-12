@@ -204,7 +204,7 @@ void Chessboard::InitHanChessRowAndColumn(ChessInfo chessInfo[COUNTRY_CHESS_COUN
     chessInfo[XIANG_CHESS_INDEX_2].row = chessInfo[JIANG_CHESS_INDEX].row + 2;
     chessInfo[XIANG_CHESS_INDEX_2].column = chessInfo[JIANG_CHESS_INDEX].column;
 }
-//第一个参数为:以country为视角的位置//reference
+// 第一个参数为:以country为视角的位置//reference
 void Chessboard::InitHanChessRowAndColumn(uint32_t country, ChessInfo chessInfo[COUNTRY_CHESS_COUNT]){
     if(country == WU_COUNTRY_INDEX){
         chessInfo[JIANG_CHESS_INDEX].row = 0;
@@ -257,48 +257,13 @@ void Chessboard::InitHanChessRowAndColumn(uint32_t country, ChessInfo chessInfo[
     }
 }
 // playerCountry视角下country的坐标
-void Chessboard::InitChessInfo(uint32_t country, uint32_t playerCountry, ChessInfo chessInfo[4][COUNTRY_CHESS_COUNT]){
-    for (size_t uiChess = 0; uiChess < COUNTRY_CHESS_COUNT; ++uiChess){
-        chessInfo[country][uiChess].row = CHESSBOARD_ROW + 100;
-        chessInfo[country][uiChess].column = CHESSBOARD_COLUMN + 100;
-    }
-    //以蜀为参照
-    InitShuChessRowAndColumn(chessInfo[playerCountry]);
-#ifndef HAN_CAN_PLAY
-    InitHanChessRowAndColumn(playerCountry, chessInfo[HAN_COUNTRY_INDEX]);
-#endif
-    if(WU_COUNTRY_INDEX == playerCountry){
-        //魏位置, 相当于原吴位置
-        InitWuChessRowAndColumn(chessInfo[WEI_COUNTRY_INDEX]);
-        //蜀位置, 相当于原汉位置
-        InitHanChessRowAndColumn(chessInfo[SHU_COUNTRY_INDEX]);
-        //汉位置, 相当于原魏位置
-#ifdef HAN_CAN_PLAY
-        InitWeiChessRowAndColumn(chessInfo[HAN_COUNTRY_INDEX]);
-#endif
-    }
-    else if(WEI_COUNTRY_INDEX == playerCountry){
-        InitHanChessRowAndColumn(chessInfo[WU_COUNTRY_INDEX]);
-        InitWeiChessRowAndColumn(chessInfo[SHU_COUNTRY_INDEX]);
-#ifdef HAN_CAN_PLAY
-        InitWuChessRowAndColumn(chessInfo[HAN_COUNTRY_INDEX]);
-#endif
-    }
-    else if(SHU_COUNTRY_INDEX == playerCountry){
-        InitWuChessRowAndColumn(chessInfo[WU_COUNTRY_INDEX]);
-        InitWeiChessRowAndColumn(chessInfo[WEI_COUNTRY_INDEX]);
-#ifdef HAN_CAN_PLAY
-        InitHanChessRowAndColumn(chessInfo[HAN_COUNTRY_INDEX]);
-#endif
-    }
-#ifdef HAN_CAN_PLAY
-    else if(HAN_COUNTRY_INDEX == playerCountry){
-        InitShuChessRowAndColumn(chessInfo[SHU_COUNTRY_INDEX]);
-        InitWeiChessRowAndColumn(chessInfo[WU_COUNTRY_INDEX]);
-        InitWuChessRowAndColumn(chessInfo[WEI_COUNTRY_INDEX]);
-    }
-#endif
-    uint32_t fontIndex[] = { FONT_INDEX_WEI, FONT_INDEX_SHU, FONT_INDEX_WU, FONT_INDEX_HAN };
+void Chessboard::InitChessInfo(uint32_t country, ChessInfo chessInfo[4][COUNTRY_CHESS_COUNT]){
+    uint32_t fontIndex[4];
+    fontIndex[WU_COUNTRY_INDEX] = FONT_INDEX_WU;
+    fontIndex[SHU_COUNTRY_INDEX] = FONT_INDEX_SHU;
+    fontIndex[WEI_COUNTRY_INDEX] = FONT_INDEX_WEI;
+    fontIndex[HAN_COUNTRY_INDEX] = FONT_INDEX_HAN;
+
     chessInfo[country][JIANG_CHESS_INDEX].country = country;
     chessInfo[country][JIANG_CHESS_INDEX].chess = JIANG_CHESS_INDEX;
     chessInfo[country][JIANG_CHESS_INDEX].fontIndex = fontIndex[country];
@@ -416,6 +381,44 @@ void Chessboard::InitChessInfo(uint32_t country, uint32_t playerCountry, ChessIn
     }
 #endif
 }
+void Chessboard::InitCountryRowAndColumn(uint32_t playerCountry, ChessInfo chessInfo[4][COUNTRY_CHESS_COUNT]){
+    //以蜀为参照
+    InitShuChessRowAndColumn(chessInfo[playerCountry]);
+#ifndef HAN_CAN_PLAY
+    InitHanChessRowAndColumn(playerCountry, chessInfo[HAN_COUNTRY_INDEX]);
+#endif
+    if(WU_COUNTRY_INDEX == playerCountry){
+        //魏位置, 相当于原吴位置
+        InitWuChessRowAndColumn(chessInfo[WEI_COUNTRY_INDEX]);
+        //蜀位置, 相当于原汉位置
+        InitHanChessRowAndColumn(chessInfo[SHU_COUNTRY_INDEX]);
+        //汉位置, 相当于原魏位置
+#ifdef HAN_CAN_PLAY
+        InitWeiChessRowAndColumn(chessInfo[HAN_COUNTRY_INDEX]);
+#endif
+    }
+    else if(WEI_COUNTRY_INDEX == playerCountry){
+        InitHanChessRowAndColumn(chessInfo[WU_COUNTRY_INDEX]);
+        InitWeiChessRowAndColumn(chessInfo[SHU_COUNTRY_INDEX]);
+#ifdef HAN_CAN_PLAY
+        InitWuChessRowAndColumn(chessInfo[HAN_COUNTRY_INDEX]);
+#endif
+    }
+    else if(SHU_COUNTRY_INDEX == playerCountry){
+        InitWuChessRowAndColumn(chessInfo[WU_COUNTRY_INDEX]);
+        InitWeiChessRowAndColumn(chessInfo[WEI_COUNTRY_INDEX]);
+#ifdef HAN_CAN_PLAY
+        InitHanChessRowAndColumn(chessInfo[HAN_COUNTRY_INDEX]);
+#endif
+    }
+#ifdef HAN_CAN_PLAY
+    else if(HAN_COUNTRY_INDEX == playerCountry){
+        InitShuChessRowAndColumn(chessInfo[SHU_COUNTRY_INDEX]);
+        InitWeiChessRowAndColumn(chessInfo[WU_COUNTRY_INDEX]);
+        InitWuChessRowAndColumn(chessInfo[WEI_COUNTRY_INDEX]);
+    }
+#endif
+}
 Chessboard::Chessboard(/* args */){
     for (uint32_t uiCountry = 0; uiCountry < 4; ++uiCountry){
         for (uint32_t uiChess = 0; uiChess < COUNTRY_CHESS_COUNT; ++uiChess){
@@ -521,8 +524,15 @@ void Chessboard::DestroyCountry(VkDevice device, uint32_t country){
 void Chessboard::InitChess(VkDevice device, uint32_t playerCountry){
     ChessInfo chessInfo[4][COUNTRY_CHESS_COUNT];
     // mPlayerCountry = playerCountry;
+    for (uint32_t uiCountry = 0; uiCountry < 4; ++uiCountry){
+        for (size_t uiChess = 0; uiChess < COUNTRY_CHESS_COUNT; ++uiChess){
+            chessInfo[uiCountry][uiChess].row = CHESSBOARD_ROW + 100;
+            chessInfo[uiCountry][uiChess].column = CHESSBOARD_COLUMN + 100;
+        }        
+    }
+    InitCountryRowAndColumn(playerCountry, chessInfo);
     for (size_t i = 0; i < 4; i++){
-        InitChessInfo(i, playerCountry, chessInfo);
+        InitChessInfo(i, chessInfo);
     }
     for (uint32_t uiCountry = 0; uiCountry < 4; ++uiCountry){
         for (uint32_t uiChess = 0; uiChess < COUNTRY_CHESS_COUNT; ++uiChess){

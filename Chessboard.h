@@ -14,8 +14,9 @@ class Chessboard:public VulkanChessboard{
     void InitShuChessRowAndColumn(ChessInfo chessInfo[COUNTRY_CHESS_COUNT]);
     void InitWeiChessRowAndColumn(ChessInfo chessInfo[COUNTRY_CHESS_COUNT]);
     void InitHanChessRowAndColumn(ChessInfo chessInfo[COUNTRY_CHESS_COUNT]);
+    void InitChessInfo(uint32_t country, ChessInfo chessInfo[4][COUNTRY_CHESS_COUNT]);
     void InitHanChessRowAndColumn(uint32_t country, ChessInfo chessInfo[COUNTRY_CHESS_COUNT]);
-    void InitChessInfo(uint32_t country, uint32_t playerCountry, ChessInfo chessInfo[4][COUNTRY_CHESS_COUNT]);
+    void InitCountryRowAndColumn(uint32_t playerCountry, ChessInfo chessInfo[4][COUNTRY_CHESS_COUNT]);
 public:
     Chessboard(/* args */);
     ~Chessboard();

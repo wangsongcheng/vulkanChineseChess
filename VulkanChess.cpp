@@ -94,7 +94,17 @@ void VulkanChess::CreateFontResource(VkDevice device, VkCommandPool pool, VkQueu
     const uint32_t fontImageCount = 10;
     const uint32_t imageSize = CHESS_WIDTH * 2 * CHESS_HEIGHT * 2;
     unsigned char *datas = new unsigned char[imageSize * fontImageCount];
-    const wchar_t word[] = { L'魏', L'蜀', L'吴', L'漢', L'兵', L'炮', L'車', L'馬', L'相', L'士' };
+    wchar_t word[10];
+    word[FONT_INDEX_MA] = L'馬';
+    word[FONT_INDEX_WU] = L'吴';
+    word[FONT_INDEX_SHU] = L'蜀';
+    word[FONT_INDEX_WEI] = L'魏';
+    word[FONT_INDEX_HAN] = L'漢';
+    word[FONT_INDEX_PAO] = L'炮';
+    word[FONT_INDEX_CHE] = L'車';
+    word[FONT_INDEX_SHI] = L'士';
+    word[FONT_INDEX_BING] = L'兵';
+    word[FONT_INDEX_XIANG] = L'相';
     memset(datas, 0, imageSize * fontImageCount);
     for (size_t i = 0; i < fontImageCount; ++i){
         GetFontImageData(fontBuffer, CHESS_WIDTH * 2, CHESS_HEIGHT * 2, word[i], datas + i * imageSize);
@@ -108,7 +118,12 @@ void VulkanChess::CreateFontResource(VkDevice device, VkCommandPool pool, VkQueu
 void VulkanChess::CreateChessResource(VkDevice device, VkCommandPool pool, VkQueue graphics){
     //这里得准备4*2种颜色的棋子
     std::vector<Vertex> circularVertices;
-    const glm::vec3 countryColor[] = { WEI_CHESS_COUNTRY_COLOR, SHU_CHESS_COUNTRY_COLOR, WU_CHESS_COUNTRY_COLOR, HAN_CHESS_COUNTRY_COLOR };
+    glm::vec3 countryColor[4];
+    countryColor[WU_COUNTRY_INDEX] = WU_CHESS_COUNTRY_COLOR; 
+    countryColor[WEI_COUNTRY_INDEX] = WEI_CHESS_COUNTRY_COLOR; 
+    countryColor[SHU_COUNTRY_INDEX] = SHU_CHESS_COUNTRY_COLOR; 
+    countryColor[HAN_COUNTRY_INDEX] = HAN_CHESS_COUNTRY_COLOR; 
+
     GetCircularVertex(countryColor[0], circularVertices);
     mChess.vertexCount = circularVertices.size();
     std::vector<uint16_t> circularIndices;

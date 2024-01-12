@@ -1,12 +1,11 @@
 #include "Chess.h"
-#include "VulkanChess.h"
 #include "VulkanChessboard.h"
 void Chess::SwapCenter(ChessInfo *src, ChessInfo *dst){
     ChessInfo temp = *src;
     *src = *dst;
     *dst = temp;
 }
-uint32_t Chess::GetTerritoryIndex(uint32_t row, uint32_t column) const{
+uint32_t Chess::GetTerritoryIndex(uint32_t row, uint32_t column)const{
     if(mInfo.row < 13 && mInfo.row > 3){
         if(mInfo.column > 4){
             return WU_TERRITORY_INDEX;
@@ -26,52 +25,54 @@ uint32_t Chess::GetTerritoryIndex(uint32_t row, uint32_t column) const{
     }
     return INVALID_TERRITORY_INDEX;
 }
-uint32_t Chess::GetPlayerCountry(uint32_t country, uint32_t territory){
-    //以蜀为参考视角
-    uint32_t playerCountry = INVALID_COUNTRY_INDEX;
-    if(territory == SHU_TERRITORY_INDEX){
-        playerCountry = country;
-    }
-    else if(country == territory){
-        playerCountry = SHU_COUNTRY_INDEX;
-    }
-#ifdef HAN_CAN_PLAY
-    else if((country == WU_COUNTRY_INDEX && territory == WEI_COUNTRY_INDEX) || (country == WEI_COUNTRY_INDEX && territory == HAN_TERRITORY_INDEX) || (country == SHU_COUNTRY_INDEX && territory == WU_COUNTRY_INDEX)){
-        playerCountry = HAN_COUNTRY_INDEX;
-    }
-#endif
-    else{
-        if(country == WU_COUNTRY_INDEX){
-            if(territory == HAN_TERRITORY_INDEX){
-                playerCountry = WEI_COUNTRY_INDEX;
-            }
-        }
-        else if(country == WEI_COUNTRY_INDEX){
-            if(territory == WU_TERRITORY_INDEX){
-                playerCountry = WU_COUNTRY_INDEX;
-            }      
-        }
-        else if(country == SHU_COUNTRY_INDEX){
-            if(territory == WEI_COUNTRY_INDEX){
-                playerCountry == WEI_COUNTRY_INDEX;
-            }
-            else if(territory == HAN_TERRITORY_INDEX){
-                playerCountry = WU_COUNTRY_INDEX;
-            }
-        }
-#ifdef HAN_CAN_PLAY
-        else if(country == HAN_COUNTRY_INDEX){
-            if(territory == WU_COUNTRY_INDEX){
-                playerCountry = WEI_COUNTRY_INDEX;
-            }
-            else if(territory == WEI_COUNTRY_INDEX){
-                playerCountry = WU_COUNTRY_INDEX;
-            }
-        }
-#endif
-    }
-    return playerCountry;
-}
+// uint32_t Chess::GetPlayerCountry(uint32_t country, uint32_t territory)const{
+//     //以蜀为参考视角
+//     uint32_t playerCountry = INVALID_COUNTRY_INDEX;
+//     if(territory == SHU_TERRITORY_INDEX){
+//         playerCountry = country;
+//     }
+//     else if(country == territory){
+//         playerCountry = SHU_COUNTRY_INDEX;
+//     }
+// #ifdef HAN_CAN_PLAY
+//     else if((country == WU_COUNTRY_INDEX && territory == WEI_COUNTRY_INDEX) || (country == WEI_COUNTRY_INDEX && territory == HAN_TERRITORY_INDEX) || (country == SHU_COUNTRY_INDEX && territory == WU_COUNTRY_INDEX)){
+//         playerCountry = HAN_COUNTRY_INDEX;
+//     }
+// #endif
+//     else{
+//         if(country == WU_COUNTRY_INDEX){
+//             if(territory == HAN_TERRITORY_INDEX){
+//                 playerCountry = WEI_COUNTRY_INDEX;
+//             }
+//         }
+//         else if(country == WEI_COUNTRY_INDEX){
+//             if(territory == WU_TERRITORY_INDEX){
+//                 playerCountry = WU_COUNTRY_INDEX;
+//             }      
+//         }
+//         else if(country == SHU_COUNTRY_INDEX){
+//             if(territory == WEI_COUNTRY_INDEX){
+//                 playerCountry == WEI_COUNTRY_INDEX;
+//             }
+//             else if(territory == HAN_TERRITORY_INDEX){
+//                 playerCountry = WU_COUNTRY_INDEX;
+//             }
+//         }
+// #ifdef HAN_CAN_PLAY
+//         else if(country == HAN_COUNTRY_INDEX){
+//             if(territory == WU_COUNTRY_INDEX){
+//                 playerCountry = WEI_COUNTRY_INDEX;
+//             }
+//             else if(territory == WEI_COUNTRY_INDEX){
+//                 playerCountry = WU_COUNTRY_INDEX;
+//             }
+//         }
+// #endif
+//     }
+//     return playerCountry;
+    // country + territory;
+    //((COUNTRY + COUNTRY_COUNT - PLAYER_COUNTRY) % COUNTRY_COUNT
+// }
 const ChessInfo *Chess::GetChessInfo(uint32_t row, uint32_t column, const Chess *pChess[4][COUNTRY_CHESS_COUNT]) const{
     const ChessInfo *pChessInfo = nullptr;
     for (uint32_t uiCountry = 0; uiCountry < 4; ++uiCountry){
@@ -179,8 +180,8 @@ void Chess::SelectChessInPalace(const Chess *pChess[4][COUNTRY_CHESS_COUNT], uin
 Wei::Wei(const ChessInfo &info) : Chess(info){
     uint32_t territory = GetTerritoryIndex(info.row, info.column);
     if(territory == WU_TERRITORY_INDEX){
-        mCenter.row = info.row - 1;
-        mCenter.column = info.column;
+        mCenter.row = info.row;
+        mCenter.column = info.column - 1;
     }
     else if(territory == WEI_TERRITORY_INDEX){
         mCenter.row = info.row + 1;
@@ -202,13 +203,10 @@ void Wei::Selected(const Chess *pChess[4][COUNTRY_CHESS_COUNT], std::vector<Ches
     //需要知道某个地方有没有棋子，该棋子的信息
     const ChessInfo cInfo[] = { ChessInfo(mInfo.row + 1, mInfo.column), ChessInfo(mInfo.row - 1, mInfo.column), ChessInfo(mInfo.row, mInfo.column + 1), ChessInfo(mInfo.row, mInfo.column - 1) };
     for(uint32_t i = 0; i < sizeof(cInfo) / sizeof(ChessInfo); ++i){
-        if(!IsBoundary(cInfo[i].row, cInfo[i].column)){
-            if(IsInPalace(cInfo[i].row, cInfo[i].column, &mCenter)){//将不能出九宫格
-                const ChessInfo *pChessInfo = GetChessInfo(cInfo[i].row, cInfo[i].column, pChess);
-                if(!pChessInfo || pChessInfo->country != mInfo.country){
-                    canplays.push_back(ChessInfo(cInfo[i].row, cInfo[i].column));
-                }
-            }
+        if(!IsBoundary(cInfo[i].row, cInfo[i].column) && IsInPalace(cInfo[i].row, cInfo[i].column, &mCenter)){//将不能出九宫格
+            const ChessInfo *pChessInfo = GetChessInfo(cInfo[i].row, cInfo[i].column, pChess);
+            if(!pChessInfo || pChessInfo->country != mInfo.country)
+                canplays.push_back(ChessInfo(cInfo[i].row, cInfo[i].column));
         }
     }
     SelectChessInPalace(pChess, 1, &mCenter, canplays);
@@ -217,8 +215,8 @@ void Wei::Selected(const Chess *pChess[4][COUNTRY_CHESS_COUNT], std::vector<Ches
 Shu::Shu(const ChessInfo&info):Chess(info){
     uint32_t territory = GetTerritoryIndex(info.row, info.column);
     if(territory == WU_TERRITORY_INDEX){
-        mCenter.row = info.row - 1;
-        mCenter.column = info.column;
+        mCenter.row = info.row;
+        mCenter.column = info.column - 1;
     }
     else if(territory == WEI_TERRITORY_INDEX){
         mCenter.row = info.row + 1;
@@ -239,12 +237,10 @@ Shu::~Shu(){
 void Shu::Selected(const Chess *pChess[4][COUNTRY_CHESS_COUNT], std::vector<ChessInfo>&canplays)const{
     const ChessInfo cInfo[] = { ChessInfo(mInfo.row + 1, mInfo.column), ChessInfo(mInfo.row - 1, mInfo.column), ChessInfo(mInfo.row, mInfo.column + 1), ChessInfo(mInfo.row, mInfo.column - 1) };
     for(uint32_t i = 0; i < sizeof(cInfo) / sizeof(ChessInfo); ++i){
-        if(!IsBoundary(cInfo[i].row, cInfo[i].column)){
-            if(IsInPalace(cInfo[i].row, cInfo[i].column, &mCenter)){//将不能出九宫格
-                const ChessInfo *pChessInfo = GetChessInfo(cInfo[i].row, cInfo[i].column, pChess);
-                if(!pChessInfo || pChessInfo->country != mInfo.country)
-                    canplays.push_back(ChessInfo(cInfo[i].row, cInfo[i].column));
-            }
+        if(!IsBoundary(cInfo[i].row, cInfo[i].column) && IsInPalace(cInfo[i].row, cInfo[i].column, &mCenter)){//将不能出九宫格
+            const ChessInfo *pChessInfo = GetChessInfo(cInfo[i].row, cInfo[i].column, pChess);
+            if(!pChessInfo || pChessInfo->country != mInfo.country)
+                canplays.push_back(ChessInfo(cInfo[i].row, cInfo[i].column));
         }
     }
     SelectChessInPalace(pChess, 1, &mCenter, canplays);
@@ -252,8 +248,8 @@ void Shu::Selected(const Chess *pChess[4][COUNTRY_CHESS_COUNT], std::vector<Ches
 Wu::Wu(const ChessInfo&info):Chess(info){
     uint32_t territory = GetTerritoryIndex(info.row, info.column);
     if(territory == WU_TERRITORY_INDEX){
-        mCenter.row = info.row - 1;
-        mCenter.column = info.column;
+        mCenter.row = info.row;
+        mCenter.column = info.column - 1;
     }
     else if(territory == WEI_TERRITORY_INDEX){
         mCenter.row = info.row + 1;
@@ -274,12 +270,10 @@ Wu::~Wu(){
 void Wu::Selected(const Chess *pChess[4][COUNTRY_CHESS_COUNT], std::vector<ChessInfo>&canplays)const{
     const ChessInfo cInfo[] = { ChessInfo(mInfo.row + 1, mInfo.column), ChessInfo(mInfo.row - 1, mInfo.column), ChessInfo(mInfo.row, mInfo.column + 1), ChessInfo(mInfo.row, mInfo.column - 1) };
     for(uint32_t i = 0; i < sizeof(cInfo) / sizeof(ChessInfo); ++i){
-        if(!IsBoundary(cInfo[i].row, cInfo[i].column)){
-            if(IsInPalace(cInfo[i].row, cInfo[i].column, &mCenter)){//将不能出九宫格
-                const ChessInfo *pChessInfo = GetChessInfo(cInfo[i].row, cInfo[i].column, pChess);
-                if(!pChessInfo || pChessInfo->country != mInfo.country)
-                    canplays.push_back(ChessInfo(cInfo[i].row, cInfo[i].column));
-            }
+        if(!IsBoundary(cInfo[i].row, cInfo[i].column) && IsInPalace(cInfo[i].row, cInfo[i].column, &mCenter)){//将不能出九宫格
+            const ChessInfo *pChessInfo = GetChessInfo(cInfo[i].row, cInfo[i].column, pChess);
+            if(!pChessInfo || pChessInfo->country != mInfo.country)
+                canplays.push_back(ChessInfo(cInfo[i].row, cInfo[i].column));
         }
     }
     SelectChessInPalace(pChess, 1, &mCenter, canplays);
@@ -288,8 +282,8 @@ Han::Han(const ChessInfo&info):Chess(info){
 #ifdef HAN_CAN_PLAY
     uint32_t territory = GetTerritoryIndex(info.row, info.column);
     if(territory == WU_TERRITORY_INDEX){
-        mCenter.row = info.row - 1;
-        mCenter.column = info.column;
+        mCenter.row = info.row;
+        mCenter.column = info.column - 1;
     }
     else if(territory == WEI_TERRITORY_INDEX){
         mCenter.row = info.row + 1;
@@ -312,12 +306,10 @@ void Han::Selected(const Chess *pChess[4][COUNTRY_CHESS_COUNT], std::vector<Ches
 #ifdef HAN_CAN_PLAY
     const ChessInfo cInfo[] = { ChessInfo(mInfo.row + 1, mInfo.column), ChessInfo(mInfo.row - 1, mInfo.column), ChessInfo(mInfo.row, mInfo.column + 1), ChessInfo(mInfo.row, mInfo.column - 1) };
     for(uint32_t i = 0; i < sizeof(cInfo) / sizeof(ChessInfo); ++i){
-        if(!IsBoundary(cInfo[i].row, cInfo[i].column)){
-            if(IsInPalace(cInfo[i].row, cInfo[i].column, &mCenter)){//将不能出九宫格
-                const ChessInfo *pChessInfo = GetChessInfo(cInfo[i].row, cInfo[i].column, pChess);
-                if(!pChessInfo || pChessInfo->country != mInfo.country)
-                    canplays.push_back(ChessInfo(cInfo[i].row, cInfo[i].column));
-            }
+        if(!IsBoundary(cInfo[i].row, cInfo[i].column) && IsInPalace(cInfo[i].row, cInfo[i].column, &mCenter)){//将不能出九宫格
+            const ChessInfo *pChessInfo = GetChessInfo(cInfo[i].row, cInfo[i].column, pChess);
+            if(!pChessInfo || pChessInfo->country != mInfo.country)
+                canplays.push_back(ChessInfo(cInfo[i].row, cInfo[i].column));
         }
     }
     SelectChessInPalace(pChess, 1, &mCenter, canplays);
@@ -344,7 +336,6 @@ bool Bing::IsAbroad(uint32_t row, uint32_t column)const{
 }
 Bing::Bing(const ChessInfo &info) : Chess(info){
     mTerriory = GetTerritoryIndex(info.row, info.column);
-
     mCenter[WU_COUNTRY_INDEX].row = 8;
     mCenter[WU_COUNTRY_INDEX].column = 15;
 
@@ -356,11 +347,16 @@ Bing::Bing(const ChessInfo &info) : Chess(info){
     //因为汉在最后面,如果没定义,后面没用到,所以不需要管
     mCenter[HAN_COUNTRY_INDEX].row = 8;
     mCenter[HAN_COUNTRY_INDEX].column = 1;
-    
-    SwapCenter(&mCenter[info.country], &mCenter[HAN_COUNTRY_INDEX]);
+#ifdef HAN_CAN_PLAY
+    const uint32_t playerCountry = GET_PLAYER_COUNTRY(info.country, mTerriory, 4);
+    const uint32_t country = GET_COUNTRY_INDEX(info.country, playerCountry, 4);
+#else
+    const uint32_t playerCountry = GET_PLAYER_COUNTRY(info.country, mTerriory, 3);
+    const uint32_t country = GET_COUNTRY_INDEX(info.country, playerCountry, 3);
+#endif
+    //位置不固定,所以不能直接用
+    SwapCenter(&mCenter[country], &mCenter[HAN_COUNTRY_INDEX]);
 #ifndef HAN_CAN_PLAY
-    uint32_t playerCountry = GetPlayerCountry(info.country, mTerriory);
-    SwapCenter(&mCenter[info.country], &mCenter[HAN_COUNTRY_INDEX]);
     if(playerCountry == WU_COUNTRY_INDEX){
         SwapCenter(&mCenter[WEI_COUNTRY_INDEX], &mCenter[SHU_COUNTRY_INDEX]);
     }
@@ -411,7 +407,7 @@ Pao::Pao(const ChessInfo&info):Chess(info){
     mCenter[HAN_COUNTRY_INDEX].row = 8;
     mCenter[HAN_COUNTRY_INDEX].column = 1;
 #ifndef HAN_CAN_PLAY
-    uint32_t playerCountry = GetPlayerCountry(info.country, territory);
+    uint32_t playerCountry = GET_PLAYER_COUNTRY(info.country, territory, 3);
     if(playerCountry == WU_COUNTRY_INDEX){
         SwapCenter(&mCenter[WEI_COUNTRY_INDEX], &mCenter[HAN_COUNTRY_INDEX]);
     }
@@ -471,7 +467,7 @@ Che::Che(const ChessInfo&info):Chess(info){
     mCenter[HAN_COUNTRY_INDEX].row = 8;
     mCenter[HAN_COUNTRY_INDEX].column = 1;
 #ifndef HAN_CAN_PLAY
-    uint32_t playerCountry = GetPlayerCountry(info.country, territory);
+    uint32_t playerCountry = GET_PLAYER_COUNTRY(info.country, territory, 3);
     if(playerCountry == WU_COUNTRY_INDEX){
         SwapCenter(&mCenter[WEI_COUNTRY_INDEX], &mCenter[HAN_COUNTRY_INDEX]);
     }
