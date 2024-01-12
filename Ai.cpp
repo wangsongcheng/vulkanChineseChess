@@ -1,5 +1,5 @@
 #include "Ai.h"
-extern uint32_t g_PlayerCountry;
+extern uint32_t g_PlayerIndex;
 // //返回第一个满足条件的敌人
 // const ChessInfo *GetRival(const std::vector<ChessInfo>&canplays, auto condition){
 //     const ChessInfo *pRival = nullptr;
