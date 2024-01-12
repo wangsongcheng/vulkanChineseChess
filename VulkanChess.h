@@ -5,7 +5,7 @@
 #include "glm/glm.hpp"
 #include "vulkanFrame.h"
 #include "glm/gtc/matrix_transform.hpp"
-#define HAN_CAN_PLAY
+// #define HAN_CAN_PLAY
 #ifdef WIN32
 #define M_PI 3.14159265358979323846
 #endif

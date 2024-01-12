@@ -94,9 +94,10 @@ bool GameOver(uint32_t countryCount){
     return deathCount > 1;
 }
 uint32_t GetNextCountry(uint32_t currentCountry){
-    do{
-        currentCountry = (currentCountry + 1) % g_DefaultCountryCount;
-    } while (g_Chessboard.IsDeath(currentCountry));
+    currentCountry = g_PlayerCountry;
+    // do{
+    //     currentCountry = (currentCountry + 1) % g_DefaultCountryCount;
+    // } while (g_Chessboard.IsDeath(currentCountry));
     //"将"警告
     return currentCountry;
 }
@@ -238,7 +239,6 @@ void MoveChess(uint32_t country, uint32_t chess, const glm::vec2&start, const gl
 #endif
     }
 }
-#ifdef INTERNET_MODE
 void CreateThread(void *(*__start_routine)(void *), void *__arg){
 #ifdef WIN32
     DWORD  threadId;
@@ -250,6 +250,7 @@ void CreateThread(void *(*__start_routine)(void *), void *__arg){
     pthread_create(&pthreadId, nullptr, __start_routine, __arg);
 #endif
 }
+#ifdef INTERNET_MODE
 void JoinsGame(){
 // void JoinsGame(const char *clientName){
     GameMessage message;
@@ -837,14 +838,11 @@ int32_t GetCanPlay(uint32_t row, uint32_t column, const std::vector<ChessInfo>&c
 void PlayChess(uint32_t country, uint32_t chess, const glm::vec2&mousePos){
     std::vector<ChessInfo>canplays;
     const Chess *pChess = g_Chessboard.GetChess(country, chess);
-    pChess->Selected(g_PlayerCountry, (const Chess* (*)[COUNTRY_CHESS_COUNT])g_Chessboard.GetChess(), canplays);
+    pChess->Selected((const Chess* (*)[COUNTRY_CHESS_COUNT])g_Chessboard.GetChess(), canplays);
     const int32_t index = GetCanPlay(mousePos, canplays);
     if(index != -1){
         const ChessInfo *pChessInfo = pChess->GetInfo();
-        //不知道为什么，手动下棋看不到棋移动的效果
-#if (defined JOIN_AI) || (defined INTERNET_MODE)
-        MoveChess(pChessInfo->country, pChessInfo->chess, glm::vec2(COLUMN_TO_X(pChessInfo->column), ROW_TO_Y(pChessInfo->row)), mousePos);
-#endif
+        MoveChess(pChessInfo->country, pChessInfo->chess, glm::vec2(COLUMN_TO_X(pChessInfo->column), ROW_TO_Y(pChessInfo->row)), glm::vec2(COLUMN_TO_X(canplays[index].column), ROW_TO_Y(canplays[index].row)));
         g_Chessboard.Move(g_VulkanDevice.device, country, chess, canplays[index].row, canplays[index].column);
         g_CurrentCountry = GetNextCountry(g_CurrentCountry);
 #ifdef JOIN_AI
@@ -866,12 +864,10 @@ void PlayChess(uint32_t srcCountry, uint32_t srcChess, uint32_t dstCountry, uint
     const char county[][MAX_BYTE] = { "魏", "蜀", "吴", "汉" };
     const Chess *pSrcChess = g_Chessboard.GetChess(srcCountry, srcChess);
     const ChessInfo *pSrcChessInfo = pSrcChess->GetInfo(), *pDstChessInfo = g_Chessboard.GetChessInfo(dstCountry, dstChess);
-    pSrcChess->Selected(g_PlayerCountry, (const Chess* (*)[COUNTRY_CHESS_COUNT])g_Chessboard.GetChess(), canplays);
+    pSrcChess->Selected((const Chess* (*)[COUNTRY_CHESS_COUNT])g_Chessboard.GetChess(), canplays);
     if(GetCanPlay(pDstChessInfo->row, pDstChessInfo->column, canplays) != -1){
-        //不知道为什么，手动下棋看不到棋移动的效果
-#if (defined JOIN_AI) || (defined INTERNET_MODE)
+        //不知道为什么，手动下棋看不到棋移动的效果//即使是重开一个线程也一样
         MoveChess(pSrcChessInfo->country, pSrcChessInfo->chess, glm::vec2(COLUMN_TO_X(pSrcChessInfo->column), ROW_TO_Y(pSrcChessInfo->row)), glm::vec2(COLUMN_TO_X(pDstChessInfo->column), ROW_TO_Y(pDstChessInfo->row)));
-#endif
         g_Chessboard.Play(g_VulkanDevice.device, srcCountry, srcChess, dstCountry, dstChess);
         if(g_Chessboard.IsDeath(dstCountry)){
             printf("%s国被%s国消灭\n", county[dstCountry], county[g_CurrentCountry]);
@@ -958,6 +954,24 @@ const ChessInfo *SelectChess(uint32_t country, const glm::vec2&mousePos){
     }
     return pSelected;
 }
+struct PPC{
+    bool capture;
+    uint32_t srcChess;
+    uint32_t dstChess;
+    glm::vec2 mousePos;
+    uint32_t srcCountry;
+    uint32_t dstCountry;
+};
+void *PlayerPlayChess(void *userData){
+    PPC ppc = *(PPC *)userData;
+    if(ppc.capture){
+        PlayChess(ppc.srcCountry, ppc.srcChess, ppc.dstCountry, ppc.dstChess);
+    }
+    else{
+        PlayChess(ppc.srcCountry, ppc.srcChess, ppc.mousePos);
+    }
+    return nullptr;
+}
 const ChessInfo *g_Selected = nullptr;
 void mousebutton(GLFWwindow *windows, int button, int action, int mods){
     if(action == GLFW_RELEASE && button == GLFW_MOUSE_BUTTON_LEFT){
@@ -990,9 +1004,15 @@ void mousebutton(GLFWwindow *windows, int button, int action, int mods){
                 g_Selected = nullptr;
             }
 #else
+            static PPC ppc;
             if(pTarget){
                 if(pTarget->country != g_CurrentCountry){
-                    PlayChess(g_CurrentCountry, g_Selected->chess, pTarget->country, pTarget->chess);
+                    ppc.capture = true;
+                    ppc.dstChess = pTarget->chess;
+                    ppc.srcChess = g_Selected->chess;
+                    ppc.dstCountry = pTarget->country;
+                    ppc.srcCountry = g_CurrentCountry;
+                    CreateThread(PlayerPlayChess, &ppc);
                     g_Selected = nullptr;
                 }
                 else{
@@ -1003,7 +1023,11 @@ void mousebutton(GLFWwindow *windows, int button, int action, int mods){
                 }
             }
             else{
-                PlayChess(g_CurrentCountry, g_Selected->chess, mousePos);
+                ppc.capture = false;
+                ppc.mousePos = mousePos;
+                ppc.srcChess = g_Selected->chess;
+                ppc.srcCountry = g_CurrentCountry;
+                CreateThread(PlayerPlayChess, &ppc);
                 g_Selected = nullptr;
             }
 #endif
@@ -1011,7 +1035,6 @@ void mousebutton(GLFWwindow *windows, int button, int action, int mods){
         else{
             g_Selected = SelectChess(g_CurrentCountry, mousePos);
         }
-        // aiPlay();//从这边调用就看不到移动效果
 #ifndef INTERNET_MODE
         g_UpdateScreen = true;
 #endif

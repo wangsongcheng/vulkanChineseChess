@@ -520,7 +520,7 @@ void Chessboard::DestroyCountry(VkDevice device, uint32_t country){
 }
 void Chessboard::InitChess(VkDevice device, uint32_t playerCountry){
     ChessInfo chessInfo[4][COUNTRY_CHESS_COUNT];
-    mPlayerCountry = playerCountry;
+    // mPlayerCountry = playerCountry;
     for (size_t i = 0; i < 4; i++){
         InitChessInfo(i, playerCountry, chessInfo);
     }
@@ -609,7 +609,7 @@ void Chessboard::Select(VkDevice device, uint32_t country, uint32_t chess){
     const ChessInfo *pChessInfo = GetChessInfo(country, chess);
     if(!IsBoundary(pChessInfo->row, pChessInfo->column)){
         if(device != VK_NULL_HANDLE)ClearSelectWireframeUnfirom(device);
-        mChess[pChessInfo->country][pChessInfo->chess]->Selected(mPlayerCountry, (const Chess *(*)[COUNTRY_CHESS_COUNT])mChess, canplays);
+        mChess[pChessInfo->country][pChessInfo->chess]->Selected((const Chess *(*)[COUNTRY_CHESS_COUNT])mChess, canplays);
     }
     if(device != VK_NULL_HANDLE){
         VkExtent2D size;

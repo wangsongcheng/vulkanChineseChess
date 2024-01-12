@@ -6,7 +6,7 @@
 #include "glm/gtc/matrix_transform.hpp"
 #define MAX_BYTE 0xff
 class Chessboard:public VulkanChessboard{
-    uint32_t mPlayerCountry;
+    // uint32_t mPlayerCountry;
     Chess *mChess[4][COUNTRY_CHESS_COUNT];
     // std::vector<ChessInfo>mCanplays;
     void GetCountryChess(uint32_t srcCountry, uint32_t dstCountry);

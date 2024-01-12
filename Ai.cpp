@@ -214,7 +214,7 @@ void Ai::GetPlayChessInfo(uint32_t country, const ChessInfo **pPlayer, const Che
             if(*pPlayer){
                 canplays.clear();
                 pChess = pChessboard->GetChess(country, (*pPlayer)->chess);
-                pChess->Selected(g_PlayerCountry, (const Chess* (*)[COUNTRY_CHESS_COUNT])pChessboard->GetChess(), canplays);
+                pChess->Selected((const Chess* (*)[COUNTRY_CHESS_COUNT])pChessboard->GetChess(), canplays);
             }
         }while(!*pPlayer || -1 == CanPlay(country, canplays, pChessboard));//不用担心判断*player后死循环,因为"将"肯定会存在,否则就输了
     }
@@ -222,7 +222,7 @@ void Ai::GetPlayChessInfo(uint32_t country, const ChessInfo **pPlayer, const Che
         //这个分支也有吃子的可能, 只不过是随机的
         canplays.clear();
         pChess = pChessboard->GetChess(country, (*pPlayer)->chess);
-        pChess->Selected(g_PlayerCountry, (const Chess* (*)[COUNTRY_CHESS_COUNT])pChessboard->GetChess(), canplays);
+        pChess->Selected((const Chess* (*)[COUNTRY_CHESS_COUNT])pChessboard->GetChess(), canplays);
         uint32_t index = 0;
         do{
             index = rand() % canplays.size();
