@@ -342,9 +342,13 @@ bool CanUseCountry(uint32_t countryIndex, const char *country){
     }
     return bCanUse;
 }
+void Swap(uint32_t *src, uint32_t *dst){
+    uint32_t temp = *src;
+    *src = *dst;
+    *dst = temp;
+}
 void RandomCountry(){
     uint32_t countryIndex[3];
-    uint32_t playerIndex = 0;
     const char *countryName[4];
     countryName[WU_COUNTRY_INDEX] = "吴";
     countryName[WEI_COUNTRY_INDEX] = "魏";
@@ -353,17 +357,23 @@ void RandomCountry(){
     countryName[HAN_COUNTRY_INDEX] = "汉";
 #endif
     RandomNumber(g_DefaultCountryCount, g_DefaultCountryCount, countryIndex);
-    for (auto it = g_Players.begin(); it != g_Players.end(); ++it, ++playerIndex){
-        if(it->random){
-            for (size_t i = 0; i < g_DefaultCountryCount; ++i){
-                strcpy(it->country, countryName[countryIndex[i]]);
-                if(CanUseCountry(playerIndex, it->country)){
+    for (auto it = g_Players.begin(); it != g_Players.end(); ++it){
+        uint32_t uiCountry = countryToindex(it->country);
+        printf("in function %s:it->random %d country index:%d, country:%s\n", __FUNCTION__, it->random, it->index, it->country);
+        if(!it->random && g_PlayerIndex < g_DefaultCountryCount - 1){
+            for (size_t i = g_PlayerIndex + 1; i < g_DefaultCountryCount; ++i){
+                if(uiCountry == countryIndex[i]){
+                    Swap(&countryIndex[g_PlayerIndex], &countryIndex[i]);
                     break;
                 }
-                printf("尝试将\"%s\"第%d个玩家赋值, 但重复了\n", it->country, playerIndex);
             }
         }
-        it->index = countryToindex(it->country);
+    }
+    printf("---------------------------------\n");
+    uint32_t playerIndex = 0;
+    for (auto it = g_Players.begin(); it != g_Players.end(); ++it, ++playerIndex){
+        strcpy(it->country, countryName[countryIndex[playerIndex]]);
+        it->index = countryIndex[playerIndex];
         printf("in function %s:country index:%d, country:%s\n", __FUNCTION__, it->index, it->country);
     }
 }
@@ -502,7 +512,7 @@ void *process_client(void *userData){
             g_Chessboard.InitChess(g_VulkanDevice.device, g_Players[g_PlayerIndex].index);
         }
         else if(message.event == JOINS_GAME_GAME_EVENT){
-            printf("joins game, index:%d, name:%s\n", message.clientIndex, message.player.name);
+            printf("joins game, client index:%d, country index %d, name:%s, country %s\n", message.clientIndex, message.player.index, message.player.name, message.player.country);
             g_Players[message.clientIndex].ai = message.player.ai;
             g_Players[message.clientIndex].index = message.player.index;
             strcpy(g_Players[message.clientIndex].name, message.player.name);
@@ -528,6 +538,7 @@ void *process_client(void *userData){
             }
             strcpy(g_Players[message.clientIndex].country, message.player.country);
             g_Players[message.clientIndex].random = !strcmp(message.player.country, "?");
+            g_Players[message.clientIndex].index = countryToindex(message.player.country);
         }
         else if(message.event == SELF_PLAYER_INFORMATION_GAME_EVENT){
             g_PlayerIndex = message.clientIndex;
@@ -541,7 +552,7 @@ void *process_client(void *userData){
         // }
         else if(message.event == PLAY_CHESS_GAME_EVENT){
             //这里应该真正下棋而不是发消息
-            const ChessInfo *pTarget  = g_Chessboard.GetChessInfos(message.target.country, message.target.chess), *pSelect = g_Chessboard.GetChessInfos(g_CurrentCountry, message.select.chess);
+            const ChessInfo *pTarget  = g_Chessboard.GetChessInfo(message.target.country, message.target.chess), *pSelect = g_Chessboard.GetChessInfo(g_CurrentCountry, message.select.chess);
             if(pSelect){
                 if(pTarget){
                     printf("catpure chess:country:%d, chess:%d;target country:%d, chess:%d\n", pSelect->country, pSelect->chess, pTarget->country, pTarget->chess);
@@ -597,28 +608,20 @@ void catspace(char *dst, uint32_t count){
         strcat(dst, " ");
     }
 }
-void ShowPlayerCountryCombo(const char *label, const auto it){
-    /*
-        需要选择国家, 就需要知道其他玩家选择的国家
-        如果都没选择(即随机)，该玩家能选择所有国家
-        否则只能选择其他国家
-        //----
-        所以, 需要在玩家加入的时候立即接受所有玩家信息
-        接收后，还要注意。
-        如果玩家在接收所有玩家信息前点开了选择国家消息。
-        怎么做到在接收完所有玩家信息时，让该玩家只能选择某些国家
-    */
-    static const char *currentCountryItem = g_CountryItems[0][0];
-    if(!g_GameStart && (it->index == g_PlayerIndex || (g_ServerAppaction && it->ai))){
-        if(ImGui::BeginCombo(label, currentCountryItem)){
+void ShowPlayerCountryCombo(uint32_t comboIndex, const auto it){
+    char comboName[MAX_BYTE] = " ";
+    catspace(comboName, comboIndex);
+    static const char *currentCountryItem[] = { g_CountryItems[0][0], g_CountryItems[1][0] };
+    if(!g_GameStart && (comboIndex == g_PlayerIndex || (g_ServerAppaction && it->ai))){
+        if(ImGui::BeginCombo(comboName, currentCountryItem[it->ai])){
             for (size_t i = 0; i < g_DefaultCountryCount + 1; ++i){
-                bool is_selected = (!strcmp(currentCountryItem, g_CountryItems[it->ai][i]));
-                if (ImGui::Selectable(currentCountryItem, is_selected)){
-                    currentCountryItem = g_CountryItems[it->ai][i];
+                bool is_selected = (!strcmp(currentCountryItem[it->ai], g_CountryItems[it->ai][i]));
+                if (ImGui::Selectable(g_CountryItems[it->ai][i], is_selected)){
+                    currentCountryItem[it->ai] = g_CountryItems[it->ai][i];
                     it->random = !strcmp(it->country, "?");
-                    strcpy(it->country, currentCountryItem);
-                    printf("发送消息前:玩家更改势力, 新势力为%s\n", it->country);
-                    SendChangeCountryInfomation(it->index, it->country);
+                    strcpy(it->country, currentCountryItem[it->ai]);
+                    printf("玩家更改势力, 新势力为%s\n", it->country);
+                    SendChangeCountryInfomation(g_PlayerIndex, it->country);
                 }
                 if (is_selected)ImGui::SetItemDefaultFocus();   // You may set the initial focus when opening the combo (scrolling + for keyboard navigation support)
             }
@@ -627,13 +630,12 @@ void ShowPlayerCountryCombo(const char *label, const auto it){
     }
     else{
         //这里只给看不给改
-        if(ImGui::BeginCombo(label, it->country)){
+        if(ImGui::BeginCombo(comboName, it->country)){
             ImGui::EndCombo();
         }
     }
 }
 void ShowClientWidget(){
-    // static std::array<int32_t, 2>countryItemIndex;
     //汉是为了在HAN_CAN_PLAY宏定义了的情况下设置的
     if(ImGui::BeginTable("player information", 2)){
         ImGui::TableNextColumn();
@@ -648,9 +650,7 @@ void ShowClientWidget(){
         //combo(或许其他也是)需要靠label查找。所以label不能重复
         for (auto it = g_Players.begin(); it != g_Players.end(); ++it, ++comboIndex){
             if(it->index != INVALID_PLAYER_INDEX){
-                char comboName[MAX_BYTE] = " ";
-                catspace(comboName, comboIndex);
-                ShowPlayerCountryCombo(comboName, it);
+                ShowPlayerCountryCombo(comboIndex, it);
             }
         }
         ImGui::EndTable();
@@ -686,7 +686,8 @@ void UpdateImguiWidget(){
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
 
-    static bool bShowCreateServer = false, bShowConnectServer = false;
+    static bool bShowConnectServer = false;
+    // static bool bShowCreateServer = false, bShowConnectServer = false;
     if(ImGui::Begin("局域网联机")){
         if(g_GameStart){
             ShowGameWidget();
@@ -701,8 +702,9 @@ void UpdateImguiWidget(){
             //如果创建好房间或连接了客户端后, 不应该继续显示下面的按钮
             if(ImGui::BeginTable("客户端信息", 2)){
                 ImGui::TableNextColumn();
-                if(ImGui::Button("创建房间")){
-                    bShowCreateServer = true;
+                if(ImGui::Button("创建服务端")){
+                    CreateServer("name");
+                    // bShowCreateServer = true;
                 }
                 ImGui::TableNextColumn();
                 if(ImGui::Button("连接服务端")){
@@ -713,26 +715,26 @@ void UpdateImguiWidget(){
         }
         ImGui::End();
     }
-    if(bShowCreateServer){
-        if(ImGui::Begin("创建房间")){
-            static char name[MAX_BYTE] = {0};
-            ImGui::InputText("输入房间名", name, sizeof(name));
-            //目前用不到房间名, 所以不需要判断
-            if(ImGui::BeginTable("确定取消按钮", 2)){
-                ImGui::TableNextColumn();
-                if(ImGui::Button("确定")){
-                    bShowCreateServer = false;
-                    CreateServer(name);
-                }
-                ImGui::TableNextColumn();
-                if(ImGui::Button("取消")){
-                    bShowCreateServer = false;
-                }
-                ImGui::EndTable();
-            }
-            ImGui::End();
-        }
-    }
+    // if(bShowCreateServer){
+    //     if(ImGui::Begin("创建房间")){
+    //         static char name[MAX_BYTE] = {0};
+    //         ImGui::InputText("输入房间名", name, sizeof(name));
+    //         //目前用不到房间名, 所以不需要判断
+    //         if(ImGui::BeginTable("确定取消按钮", 2)){
+    //             ImGui::TableNextColumn();
+    //             if(ImGui::Button("确定")){
+    //                 bShowCreateServer = false;
+    //                 CreateServer(name);
+    //             }
+    //             ImGui::TableNextColumn();
+    //             if(ImGui::Button("取消")){
+    //                 bShowCreateServer = false;
+    //             }
+    //             ImGui::EndTable();
+    //         }
+    //         ImGui::End();
+    //     }
+    // }
     if(bShowConnectServer){
         if(ImGui::Begin("连接服务端")){
             static char serverIp[MAX_BYTE] = {0};
