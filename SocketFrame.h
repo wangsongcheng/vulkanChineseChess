@@ -34,7 +34,7 @@ enum GameEvent{
     CHANGE_PLAYER_NAME_GAME_EVENT,
     CHANGE_PLAYER_COUNTRY_GAME_EVENT,
     SELF_PLAYER_INFORMATION_GAME_EVENT,
-    // CHANGE_PLAYER_INFORMATION_GAME_EVENT,
+    CHANGE_PLAYER_INFORMATION_GAME_EVENT,
 };
 //这个结构体不应该放这里
 struct PlayerInfo{
@@ -56,7 +56,7 @@ struct GameMessage{
     ChessInfo target;
     ChessInfo select;
     PlayerInfo player;
-    glm::vec2 mousePos;
+    // glm::vec2 mousePos;
     uint32_t clientIndex;
 };
 void Recv(int __fd, void *__buf, size_t __n, int __flags);

@@ -183,7 +183,7 @@ int Ai::CreatePthread(void *(*__start_routine)(void *), void *__arg){
     return pthread_create(&mPthread, nullptr, __start_routine, __arg);
 #endif
 }
-void Ai::GetPlayChessInfo(uint32_t country, const ChessInfo **pPlayer, const ChessInfo **pTarget, glm::vec2 *mousePos, const Chessboard *pChessboard){
+void Ai::GetPlayChessInfo(uint32_t country, const ChessInfo **pPlayer, const ChessInfo **pTarget, uint32_t *row, uint32_t *column, const Chessboard *pChessboard){
     const Chess *pChess = nullptr;
     std::vector<ChessInfo>canplays;
     // const ChessInfo *pSelect = nullptr, *pRival = nullptr;
@@ -219,7 +219,7 @@ void Ai::GetPlayChessInfo(uint32_t country, const ChessInfo **pPlayer, const Che
         }while(!*pPlayer || -1 == CanPlay(country, canplays, pChessboard));//不用担心判断*player后死循环,因为"将"肯定会存在,否则就输了
     }
     if(!*pTarget){
-        //这个分支也有吃子的可能, 只不过是随机的
+        //这个分支也有吃子的可能
         canplays.clear();
         pChess = pChessboard->GetChess(country, (*pPlayer)->chess);
         pChess->Selected((const Chess* (*)[COUNTRY_CHESS_COUNT])pChessboard->GetChess(), canplays);
@@ -228,6 +228,8 @@ void Ai::GetPlayChessInfo(uint32_t country, const ChessInfo **pPlayer, const Che
             index = rand() % canplays.size();
             *pTarget = pChessboard->GetChessInfos(canplays[index].row, canplays[index].column);
         } while (*pTarget && (*pTarget)->country == country);
-        *mousePos = glm::vec2(COLUMN_TO_X(canplays[index].column), ROW_TO_Y(canplays[index].row));
+        *row = canplays[index].row;
+        *column = canplays[index].column;
+        // *mousePos = glm::vec2(COLUMN_TO_X(canplays[index].column), ROW_TO_Y(canplays[index].row));
     }
 }

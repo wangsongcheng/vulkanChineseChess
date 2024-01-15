@@ -18,6 +18,6 @@ public:
     Ai(/* args */);
     ~Ai();
     int CreatePthread(void *(*__start_routine)(void *), void *__arg);
-    void GetPlayChessInfo(uint32_t country, const ChessInfo **player, const ChessInfo **target, glm::vec2 *mousePos, const Chessboard *pChessboard);
+    void GetPlayChessInfo(uint32_t country, const ChessInfo **player, const ChessInfo **target, uint32_t *row, uint32_t *column, const Chessboard *pChessboard);
 };
 #endif

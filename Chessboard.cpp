@@ -56,30 +56,30 @@ void Chessboard::InitWuChessRowAndColumn(ChessInfo chessInfo[COUNTRY_CHESS_COUNT
     chessInfo[SHI_CHESS_INDEX_2].row = chessInfo[JIANG_CHESS_INDEX].row - 1;
     chessInfo[SHI_CHESS_INDEX_2].column = chessInfo[JIANG_CHESS_INDEX].column;
     
-    chessInfo[CHE_CHESS_INDEX_1].row = 4;
+    chessInfo[CHE_CHESS_INDEX_1].row = chessInfo[JIANG_CHESS_INDEX].row + 4;
     chessInfo[CHE_CHESS_INDEX_1].column = chessInfo[JIANG_CHESS_INDEX].column;
     
-    chessInfo[CHE_CHESS_INDEX_2].row = chessInfo[JIANG_CHESS_INDEX].row + 4;
+    chessInfo[CHE_CHESS_INDEX_2].row = 4;
     chessInfo[CHE_CHESS_INDEX_2].column = chessInfo[JIANG_CHESS_INDEX].column;
     
-    chessInfo[PAO_CHESS_INDEX_1].row = 5;
-    chessInfo[PAO_CHESS_INDEX_1].column = 14;
+    chessInfo[PAO_CHESS_INDEX_2].row = 5;
+    chessInfo[PAO_CHESS_INDEX_2].column = 14;
     
-    chessInfo[PAO_CHESS_INDEX_2].row = chessInfo[PAO_CHESS_INDEX_1].row + 6;
-    chessInfo[PAO_CHESS_INDEX_2].column = chessInfo[PAO_CHESS_INDEX_1].column;
+    chessInfo[PAO_CHESS_INDEX_1].row = chessInfo[PAO_CHESS_INDEX_2].row + 6;
+    chessInfo[PAO_CHESS_INDEX_1].column = chessInfo[PAO_CHESS_INDEX_2].column;
     
-    chessInfo[BING_CHESS_INDEX_1].row = 4;
+    chessInfo[BING_CHESS_INDEX_1].row = 12;
     chessInfo[BING_CHESS_INDEX_1].column = 13;
     for (size_t i = 1; i < BING_CHESS_COUNT; ++i){
-        chessInfo[i + BING_CHESS_INDEX_1].row = chessInfo[i + BING_CHESS_INDEX_1 - 1].row + 2;;
+        chessInfo[i + BING_CHESS_INDEX_1].row = chessInfo[i + BING_CHESS_INDEX_1 - 1].row - 2;;
         chessInfo[i + BING_CHESS_INDEX_1].column = chessInfo[BING_CHESS_INDEX_1].column;
     }
 
-    chessInfo[XIANG_CHESS_INDEX_1].row = chessInfo[JIANG_CHESS_INDEX].row - 2;
-    chessInfo[XIANG_CHESS_INDEX_1].column = chessInfo[JIANG_CHESS_INDEX].column;
-
-    chessInfo[XIANG_CHESS_INDEX_2].row = chessInfo[JIANG_CHESS_INDEX].row + 2;
+    chessInfo[XIANG_CHESS_INDEX_2].row = chessInfo[JIANG_CHESS_INDEX].row - 2;
     chessInfo[XIANG_CHESS_INDEX_2].column = chessInfo[JIANG_CHESS_INDEX].column;
+
+    chessInfo[XIANG_CHESS_INDEX_1].row = chessInfo[JIANG_CHESS_INDEX].row + 2;
+    chessInfo[XIANG_CHESS_INDEX_1].column = chessInfo[JIANG_CHESS_INDEX].column;
 }
 void Chessboard::InitShuChessRowAndColumn(ChessInfo chessInfo[COUNTRY_CHESS_COUNT]){
     chessInfo[JIANG_CHESS_INDEX].row = 16;
@@ -151,10 +151,10 @@ void Chessboard::InitWeiChessRowAndColumn(ChessInfo chessInfo[COUNTRY_CHESS_COUN
     chessInfo[PAO_CHESS_INDEX_2].column = chessInfo[MA_CHESS_INDEX_2].column;
     
     chessInfo[BING_CHESS_INDEX_1].row = 3;
-    chessInfo[BING_CHESS_INDEX_1].column = 4;
+    chessInfo[BING_CHESS_INDEX_1].column = 12;
     for (size_t i = 1; i < BING_CHESS_COUNT; ++i){
         chessInfo[i + BING_CHESS_INDEX_1].row = chessInfo[BING_CHESS_INDEX_1].row;
-        chessInfo[i + BING_CHESS_INDEX_1].column = chessInfo[i + BING_CHESS_INDEX_1 - 1].column + 2;
+        chessInfo[i + BING_CHESS_INDEX_1].column = chessInfo[i + BING_CHESS_INDEX_1 - 1].column - 2;
     }
 
     chessInfo[XIANG_CHESS_INDEX_1].row = chessInfo[JIANG_CHESS_INDEX].row;
@@ -167,17 +167,17 @@ void Chessboard::InitHanChessRowAndColumn(ChessInfo chessInfo[COUNTRY_CHESS_COUN
     chessInfo[JIANG_CHESS_INDEX].row = 8;
     chessInfo[JIANG_CHESS_INDEX].column = 0;
 
-    chessInfo[MA_CHESS_INDEX_1].row = chessInfo[JIANG_CHESS_INDEX].row + 3;
-    chessInfo[MA_CHESS_INDEX_1].column = chessInfo[JIANG_CHESS_INDEX].column;
-
-    chessInfo[MA_CHESS_INDEX_2].row = chessInfo[JIANG_CHESS_INDEX].row - 3;
+    chessInfo[MA_CHESS_INDEX_2].row = chessInfo[JIANG_CHESS_INDEX].row + 3;
     chessInfo[MA_CHESS_INDEX_2].column = chessInfo[JIANG_CHESS_INDEX].column;
 
-    chessInfo[SHI_CHESS_INDEX_1].row = chessInfo[JIANG_CHESS_INDEX].row + 1;
-    chessInfo[SHI_CHESS_INDEX_1].column = chessInfo[JIANG_CHESS_INDEX].column;
-    
-    chessInfo[SHI_CHESS_INDEX_2].row = chessInfo[JIANG_CHESS_INDEX].row - 1;
+    chessInfo[MA_CHESS_INDEX_1].row = chessInfo[JIANG_CHESS_INDEX].row - 3;
+    chessInfo[MA_CHESS_INDEX_1].column = chessInfo[JIANG_CHESS_INDEX].column;
+
+    chessInfo[SHI_CHESS_INDEX_2].row = chessInfo[JIANG_CHESS_INDEX].row + 1;
     chessInfo[SHI_CHESS_INDEX_2].column = chessInfo[JIANG_CHESS_INDEX].column;
+    
+    chessInfo[SHI_CHESS_INDEX_1].row = chessInfo[JIANG_CHESS_INDEX].row - 1;
+    chessInfo[SHI_CHESS_INDEX_1].column = chessInfo[JIANG_CHESS_INDEX].column;
     
     chessInfo[CHE_CHESS_INDEX_1].row = 4;
     chessInfo[CHE_CHESS_INDEX_1].column = chessInfo[JIANG_CHESS_INDEX].column;
@@ -210,14 +210,14 @@ void Chessboard::InitHanChessRowAndColumn(uint32_t country, ChessInfo chessInfo[
         chessInfo[JIANG_CHESS_INDEX].row = 0;
         chessInfo[JIANG_CHESS_INDEX].column = 8;
 
-        chessInfo[CHE_CHESS_INDEX_3].row = 3;
-        chessInfo[CHE_CHESS_INDEX_3].column = 6;
+        chessInfo[CHE_CHESS_INDEX_3].row = chessInfo[JIANG_CHESS_INDEX].row + 3;
+        chessInfo[CHE_CHESS_INDEX_3].column = chessInfo[JIANG_CHESS_INDEX].column + 2;
 
         chessInfo[CHE_CHESS_INDEX_4].row = chessInfo[CHE_CHESS_INDEX_3].row;
         chessInfo[CHE_CHESS_INDEX_4].column = chessInfo[JIANG_CHESS_INDEX].column;
 
         chessInfo[CHE_CHESS_INDEX_5].row = chessInfo[CHE_CHESS_INDEX_3].row;
-        chessInfo[CHE_CHESS_INDEX_5].column = chessInfo[CHE_CHESS_INDEX_4].column + 2;
+        chessInfo[CHE_CHESS_INDEX_5].column = chessInfo[CHE_CHESS_INDEX_4].column - 2;
 
         chessInfo[PAO_CHESS_INDEX_3].row = chessInfo[CHE_CHESS_INDEX_3].row - 1;
         chessInfo[PAO_CHESS_INDEX_3].column = chessInfo[JIANG_CHESS_INDEX].column;
@@ -687,9 +687,25 @@ void Chessboard::CaptureChess(uint32_t srcCountry, uint32_t srcChess, uint32_t d
     }
 }
 void Chessboard::Play(VkDevice device, uint32_t srcCountry, uint32_t srcChess, uint32_t dstCountry, uint32_t dstChess){
-    const char county[][MAX_BYTE] = { "魏", "蜀", "吴", "汉" };
+    char county[4][MAX_BYTE];
     //这里用的字体顺序,修改需要注意
-    const char chess[][MAX_BYTE] = { "魏", "蜀", "吴", "漢", "兵", "炮", "車", "馬", "相", "士" };
+    char chess[10][MAX_BYTE];
+    strcpy(county[WU_COUNTRY_INDEX], "吴");
+    strcpy(county[SHU_COUNTRY_INDEX], "蜀");
+    strcpy(county[WEI_COUNTRY_INDEX], "魏");
+    strcpy(county[HAN_COUNTRY_INDEX], "汉");
+    
+    strcpy(chess[FONT_INDEX_MA], "馬");
+    strcpy(chess[FONT_INDEX_WU], "吴");
+    strcpy(chess[FONT_INDEX_SHU], "蜀");
+    strcpy(chess[FONT_INDEX_WEI], "魏");
+    strcpy(chess[FONT_INDEX_HAN], "漢");
+    strcpy(chess[FONT_INDEX_PAO], "炮");
+    strcpy(chess[FONT_INDEX_CHE], "車");
+    strcpy(chess[FONT_INDEX_SHI], "士");
+    strcpy(chess[FONT_INDEX_BING], "兵");
+    strcpy(chess[FONT_INDEX_XIANG], "相");
+
     Chess *pChess = mChess[srcCountry][srcChess], *pRival = mChess[dstCountry][dstChess];
     const ChessInfo *pChessInfo = pChess->GetInfo(), *pRivalInfo = pRival->GetInfo();
     printf("%s国的%s吃掉了%s国的%s\n", county[pChessInfo->country], chess[pChessInfo->fontIndex], county[pRivalInfo->country], chess[pRivalInfo->fontIndex]);
