@@ -286,7 +286,8 @@ SwapChainSupportDetails querySwapChainSupport(VkPhysicalDevice device, VkSurface
 }
 VkSurfaceFormatKHR chooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats) {
     for (const auto& availableFormat : availableFormats) {
-        if (availableFormat.format == VK_FORMAT_B8G8R8A8_SRGB && availableFormat.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
+        if (availableFormat.format == VK_FORMAT_B8G8R8A8_UNORM && availableFormat.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
+        // if (availableFormat.format == VK_FORMAT_B8G8R8A8_SRGB && availableFormat.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
             return availableFormat;
         }
     }
@@ -555,7 +556,7 @@ VkResult vkf::DrawFrame(VkDevice device, uint32_t currentFrame, const VkCommandB
     VkResult result = SubmitFrame(device, imageIndex, swapchain, vulkanQueue.present, vulkanSynchronize.renderComplete[currentFrame], recreateSwapchain, userData);
 	if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR) {
         vkDeviceWaitIdle(device);
-        //如果在结果等于VK_SUBOPTIMAL_KHR(一般发生在窗口最小化后)时重置栏杆, 会导致得不到回复栏杆对象的解锁
+        //如果在结果等于VK_SUBOPTIMAL_KHR(一般发生在窗口最小化后)时重置栏杆, 会导致得不到回复栏杆对象的解锁;
 		if(result != VK_SUBOPTIMAL_KHR)vkResetFences(device, 1, &vulkanSynchronize.fences[currentFrame]);
         if(recreateSwapchain)recreateSwapchain(userData);
 	}
@@ -624,18 +625,7 @@ void vkf::CreateFontImage(VkDevice device, const VulkanBuffer&dataBuffer, uint32
     image.CreateImage(device, VK_IMAGE_USAGE_TRANSFER_DST_BIT|VK_IMAGE_USAGE_SAMPLED_BIT, VK_FORMAT_R8G8B8A8_UNORM);
     // image.CreateImage(device, VK_IMAGE_USAGE_TRANSFER_DST_BIT|VK_IMAGE_USAGE_SAMPLED_BIT, VK_FORMAT_R8_UNORM);
     image.AllocateAndBindMemory(device, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-	VkCommandBuffer cmd;
-	tool::BeginSingleTimeCommands(device, pool, cmd);
-    tool::SetImageLayout(cmd, image.image, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT);
-    VkBufferImageCopy bufferCopyRegions = {};
-    // bufferCopyRegions.bufferOffset = bufferOffset;
-    bufferCopyRegions.imageSubresource.layerCount = 1;
-    bufferCopyRegions.imageExtent = { width, height, 1 };
-    // bufferCopyRegions.imageSubresource.baseArrayLayer = baseArrayLayer;
-    bufferCopyRegions.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-	vkCmdCopyBufferToImage(cmd, dataBuffer.buffer, image.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &bufferCopyRegions);
-    tool::SetImageLayout(cmd, image.image, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT);
-	tool::EndSingleTimeCommands(device, pool, graphics, cmd);
+    CopyImage(device, dataBuffer, width, height, image, pool, graphics);
 	image.CreateImageView(device, VK_FORMAT_R8G8B8A8_UNORM);
 }
 void vkf::CreateFontImageArray(VkDevice device, const void* datas, uint32_t imageCount, uint32_t width, uint32_t height, VulkanImage& image, VkCommandPool pool, VkQueue graphics){
@@ -654,12 +644,11 @@ void vkf::CreateFontImageArray(VkDevice device, const VulkanBuffer& dataBuffer, 
     image.size.height = height;
     image.CreateImage(device, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_FORMAT_R8_UNORM, imageCount);
     image.AllocateAndBindMemory(device, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-    VkCommandBuffer cmd;
-    tool::BeginSingleTimeCommands(device, pool, cmd);
-
-    tool::SetImageLayout(cmd, image.image, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, imageCount);
-    std::vector<VkBufferImageCopy> bufferCopyRegions(imageCount);
-    for (size_t i = 0; i < imageCount; ++i) {
+	VkCommandBuffer cmd;
+	tool::BeginSingleTimeCommands(device, pool, cmd);
+	tool::SetImageLayout(cmd, image.image, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, imageCount);
+	std::vector<VkBufferImageCopy> bufferCopyRegions(imageCount);
+	for (size_t i = 0; i < imageCount; ++i) {
         bufferCopyRegions[i].imageExtent.depth = 1;
         bufferCopyRegions[i].imageExtent.width = width;
         bufferCopyRegions[i].imageExtent.height = height;
@@ -667,10 +656,10 @@ void vkf::CreateFontImageArray(VkDevice device, const VulkanBuffer& dataBuffer, 
         bufferCopyRegions[i].imageSubresource.layerCount = 1;
         bufferCopyRegions[i].imageSubresource.baseArrayLayer = i;
         bufferCopyRegions[i].imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-    }
-    vkCmdCopyBufferToImage(cmd, dataBuffer.buffer, image.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, bufferCopyRegions.size(), bufferCopyRegions.data());
-    tool::SetImageLayout(cmd, image.image, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, imageCount);
-    tool::EndSingleTimeCommands(device, pool, graphics, cmd);
+	}
+	vkCmdCopyBufferToImage(cmd, dataBuffer.buffer, image.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, bufferCopyRegions.size(), bufferCopyRegions.data());
+	tool::SetImageLayout(cmd, image.image, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, imageCount);
+	tool::EndSingleTimeCommands(device, pool, graphics, cmd);    
     image.CreateImageView(device, VK_FORMAT_R8_UNORM, VK_IMAGE_VIEW_TYPE_2D_ARRAY, imageCount);
 }
 void vkf::CreateTextureImage(VkDevice device, const VulkanBuffer&dataBuffer, uint32_t width, uint32_t height, VulkanImage&image, VkCommandPool pool, VkQueue graphics){
@@ -679,18 +668,7 @@ void vkf::CreateTextureImage(VkDevice device, const VulkanBuffer&dataBuffer, uin
     image.size.height = height;
     image.CreateImage(device, VK_IMAGE_USAGE_TRANSFER_DST_BIT|VK_IMAGE_USAGE_SAMPLED_BIT, VK_FORMAT_R8G8B8A8_UNORM);
     image.AllocateAndBindMemory(device, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-	VkCommandBuffer cmd;
-	tool::BeginSingleTimeCommands(device, pool, cmd);
-    tool::SetImageLayout(cmd, image.image, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT);
-    VkBufferImageCopy bufferCopyRegions = {};
-    // bufferCopyRegions.bufferOffset = bufferOffset;
-    bufferCopyRegions.imageSubresource.layerCount = 1;
-    bufferCopyRegions.imageExtent = { width, height, 1 };
-    // bufferCopyRegions.imageSubresource.baseArrayLayer = baseArrayLayer;
-    bufferCopyRegions.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-	vkCmdCopyBufferToImage(cmd, dataBuffer.buffer, image.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &bufferCopyRegions);
-    tool::SetImageLayout(cmd, image.image, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT);
-	tool::EndSingleTimeCommands(device, pool, graphics, cmd);
+    CopyImage(device, dataBuffer, width, height, image, pool, graphics);
 	image.CreateImageView(device, VK_FORMAT_R8G8B8A8_UNORM);
 }
 void vkf::CreateCubeImage(VkDevice device, const void *datas, uint32_t width, VulkanImage &image, VkCommandPool pool, VkQueue graphics){
@@ -711,8 +689,22 @@ void vkf::CreateImageArray(VkDevice device, const void *datas, uint32_t imageCou
 	CreateImageArray(device, tempStorageBuffer, imageCount, width, height, image, pool, graphics, type);
 	tempStorageBuffer.Destroy(device);
 }
-void vkf::CreateImageArray(VkDevice device, const void*const*datas, uint32_t imageCount, uint32_t width, uint32_t height, VulkanImage&image, VkCommandPool pool, VkQueue graphics, VkImageViewType type){
-	VulkanBuffer tempStorageBuffer;
+void vkf::CopyImage(VkDevice device, const VulkanBuffer &dataBuffer, uint32_t width, uint32_t height, VulkanImage &image, VkCommandPool pool, VkQueue graphics){
+	VkCommandBuffer cmd;
+	tool::BeginSingleTimeCommands(device, pool, cmd);
+    tool::SetImageLayout(cmd, image.image, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT);
+    VkBufferImageCopy bufferCopyRegions = {};
+    // bufferCopyRegions.bufferOffset = bufferOffset;
+    bufferCopyRegions.imageSubresource.layerCount = 1;
+    bufferCopyRegions.imageExtent = { width, height, 1 };
+    // bufferCopyRegions.imageSubresource.baseArrayLayer = baseArrayLayer;
+    bufferCopyRegions.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	vkCmdCopyBufferToImage(cmd, dataBuffer.buffer, image.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &bufferCopyRegions);
+    tool::SetImageLayout(cmd, image.image, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT);
+	tool::EndSingleTimeCommands(device, pool, graphics, cmd);
+}
+void vkf::CreateImageArray(VkDevice device, const void *const *datas, uint32_t imageCount, uint32_t width, uint32_t height, VulkanImage &image, VkCommandPool pool, VkQueue graphics, VkImageViewType type){
+    VulkanBuffer tempStorageBuffer;
 	const VkDeviceSize imageSize = width * height * 4;
 	tempStorageBuffer.CreateBuffer(device, imageSize * imageCount, VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
     tempStorageBuffer.AllocateAndBindMemory(device, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
@@ -723,15 +715,47 @@ void vkf::CreateImageArray(VkDevice device, const void*const*datas, uint32_t ima
 	tempStorageBuffer.Destroy(device);
 }
 void vkf::CreateImageArray(VkDevice device, const VulkanBuffer&dataBuffer, uint32_t imageCount, uint32_t width, uint32_t height, VulkanImage&image, VkCommandPool pool, VkQueue graphics, VkImageViewType type){
-	const VkDeviceSize imageSize = width * height * 4;
     image.size.depth = 1;
     image.size.width = width;
     image.size.height = height;
     image.CreateImage(device, VK_IMAGE_USAGE_TRANSFER_DST_BIT|VK_IMAGE_USAGE_SAMPLED_BIT, VK_FORMAT_R8G8B8A8_UNORM, imageCount);
     image.AllocateAndBindMemory(device, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    CopyImage(device, dataBuffer, imageCount, width, height, image, pool, graphics);
+	image.CreateImageView(device, VK_FORMAT_R8G8B8A8_UNORM, type, imageCount);
+}
+void vkf::CopyImage(VkDevice device, const void *datas, uint32_t width, uint32_t height, VulkanImage&image, VkCommandPool pool, VkQueue graphics){
+	VulkanBuffer tempStorageBuffer;
+	VkDeviceSize imageSize = width * height * 4;
+	tempStorageBuffer.CreateBuffer(device, imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
+    tempStorageBuffer.AllocateAndBindMemory(device, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+    tempStorageBuffer.UpdateData(device, imageSize, datas);
+    CopyImage(device, tempStorageBuffer, width, height, image, pool, graphics);
+    tempStorageBuffer.Destroy(device);
+}
+void vkf::CopyImage(VkDevice device, const void *datas, uint32_t imageCount, uint32_t width, uint32_t height, VulkanImage&image, VkCommandPool pool, VkQueue graphics){
+	VulkanBuffer tempStorageBuffer;
+	VkDeviceSize imageSize = width * height * 4 * imageCount;
+	tempStorageBuffer.CreateBuffer(device, imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
+    tempStorageBuffer.AllocateAndBindMemory(device, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+    tempStorageBuffer.UpdateData(device, imageSize, datas);
+    CopyImage(device, tempStorageBuffer, width, height, image, pool, graphics);
+    tempStorageBuffer.Destroy(device);
+}
+void vkf::CopyImage(VkDevice device, const void*const*datas, uint32_t imageCount, uint32_t width, uint32_t height, VulkanImage&image, VkCommandPool pool, VkQueue graphics){
+    VulkanBuffer tempStorageBuffer;
+	const VkDeviceSize imageSize = width * height * 4;
+	tempStorageBuffer.CreateBuffer(device, imageSize * imageCount, VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
+    tempStorageBuffer.AllocateAndBindMemory(device, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+    for (size_t i = 0; i < imageCount; i++){
+	    tempStorageBuffer.UpdateData(device, imageSize, datas[i], i * imageSize);
+    }
+    CopyImage(device, tempStorageBuffer, imageCount, width, height, image, pool, graphics);
+    tempStorageBuffer.Destroy(device);
+}
+void vkf::CopyImage(VkDevice device, const VulkanBuffer &dataBuffer, uint32_t imageCount, uint32_t width, uint32_t height, VulkanImage &image, VkCommandPool pool, VkQueue graphics){
 	VkCommandBuffer cmd;
+	const VkDeviceSize imageSize = width * height * 4;
 	tool::BeginSingleTimeCommands(device, pool, cmd);
-
 	tool::SetImageLayout(cmd, image.image, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, imageCount);
 	std::vector<VkBufferImageCopy> bufferCopyRegions(imageCount);
 	for (size_t i = 0; i < imageCount; ++i) {
@@ -745,10 +769,9 @@ void vkf::CreateImageArray(VkDevice device, const VulkanBuffer&dataBuffer, uint3
 	}
 	vkCmdCopyBufferToImage(cmd, dataBuffer.buffer, image.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, bufferCopyRegions.size(), bufferCopyRegions.data());
 	tool::SetImageLayout(cmd, image.image, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, imageCount);
-	tool::EndSingleTimeCommands(device, pool, graphics, cmd);
-	image.CreateImageView(device, VK_FORMAT_R8G8B8A8_UNORM, type, imageCount);
+	tool::EndSingleTimeCommands(device, pool, graphics, cmd);    
 }
-VkResult vkf::CreateTextureSampler(VkDevice device, VkSampler&sampler){
+VkResult vkf::CreateTextureSampler(VkDevice device, VkSampler &sampler){
     VkSamplerCreateInfo createInfo = {};
     createInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
     createInfo.magFilter = VK_FILTER_LINEAR;
@@ -817,7 +840,7 @@ void vkf::tool::UpdateDescriptorSets(VkDevice device, uint32_t setlayoutBindingC
         case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER:
         case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER:
         case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC:
-           descriptorBufferInfo[i].offset = 0;
+           descriptorBufferInfo[index[0]].offset = 0;
             descriptorBufferInfo[index[0]].range = descriptorBuffer[index[0]].size;
             descriptorBufferInfo[index[0]].buffer = descriptorBuffer[index[0]].buffer;
             writeDescriptorSet[i].pBufferInfo = &descriptorBufferInfo[index[0]++];
