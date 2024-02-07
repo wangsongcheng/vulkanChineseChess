@@ -27,6 +27,7 @@ std::array<PlayerInfo, 3>g_Players;//用来保存其他玩家的信息//尽管�
 //本来只需要1个,但服务端能改ai的势力, 所以需要加上ai的
 char g_CountryItems[2][5][MAX_BYTE];
 glm::vec2 g_JiangPos[4];//目前只用于RotateChess
+uint32_t g_AIClientIndex = INVALID_PLAYER_INDEX;
 #else
 bool g_UpdateScreen;
 std::vector<VkCommandBuffer>g_CommandBuffers;
@@ -422,10 +423,11 @@ void SendPlayersInfoation(){
     }
 }
 void SendCurrentCountry(){
+    // g_CurrentCountry = WEI_COUNTRY_INDEX;
+    g_CurrentCountry = rand() % g_DefaultCountryCount;
     GameMessage message;
     message.event = CURRENT_COUNTRY_GAME_EVENT;
-    // message.index = WEI_COUNTRY_INDEX;
-    message.clientIndex = rand() % g_DefaultCountryCount;
+    message.clientIndex = g_CurrentCountry;
     g_Server.SendToAllClient(&message, sizeof(message));
 }
 void SendPlayChessMessage(const PlayerInfo&game, const ChessInfo *pSelect, const ChessInfo *pTarget){
@@ -502,6 +504,7 @@ void *server_start(void *userData){
             printf("in function %s:socket index %d\n", __FUNCTION__, i);
             if(message.event == AI_JOIN_GAME_GAME_EVENT){
                 g_Players[i].ai = true;
+                g_AIClientIndex = i;
                 strcpy(message.player.name, "ai");
                 g_Server.ShutdownClient(i);
                 // if(i == 1)DeleteCountryItem(g_Players[0].country, g_CountryItems[1]);
@@ -513,8 +516,8 @@ void *server_start(void *userData){
             strcpy(g_Players[i].name, message.player.name);
 
             SendClientInfoation();
-
-            CreateThread(process_server, &socketIndex[i]);
+            if(message.event != AI_JOIN_GAME_GAME_EVENT)
+                CreateThread(process_server, &socketIndex[i]);
         }        
     }
     RandomCountry();
@@ -621,15 +624,19 @@ void RotateChess(uint32_t row, uint32_t column, uint32_t country, uint32_t&newRo
     //14行11列->11行14列->11行2列
     //0行11列->11行0列->11行16列
     //14行11列->11行14列->5行2列
+    if(g_ServerAppaction && country == g_Players[g_AIClientIndex].index)return;
     if(country != g_Players[g_ClientIndex].index){
-        if(g_JiangPos[country].x == g_JiangPos[g_Players[g_ClientIndex].index].x){
+        uint32_t aiIndex = GetAiPlayerIndex();
+        //因为ai下棋的位置和服务端一样，所以必须用服务端的国家索引
+        uint32_t uiCountry = country == aiIndex?g_Players[0].index:country;
+        if(g_JiangPos[uiCountry].x == g_JiangPos[g_Players[g_ClientIndex].index].x){
             Invert(row, column, newRow, newColumn);
         }
         else{
             newRow = column;
             newColumn = row;
             //要获得country在哪个territory, 但不知道行列
-            const uint32_t territory = GET_TERRITORY_INDEX(country, g_Players[g_ClientIndex].index);
+            const uint32_t territory = GET_TERRITORY_INDEX(uiCountry, g_Players[g_ClientIndex].index);
             if(HAN_COUNTRY_INDEX == territory){
                 newColumn = abs((float)newColumn - CHESSBOARD_COLUMN);
             }
@@ -693,6 +700,7 @@ void *process_client(void *userData){
         }
         else if(message.event == CURRENT_COUNTRY_GAME_EVENT){
             g_CurrentCountry = message.clientIndex;
+            printf("current country %d\n", g_CurrentCountry);
         }
         else if(message.event == CHANGE_PLAYER_COUNTRY_GAME_EVENT){
             const uint32_t aiIndex = GetAiPlayerIndex();
@@ -991,14 +999,14 @@ int32_t GetCanPlay(const glm::vec2&mousePos, const std::vector<ChessInfo>&canpla
     return index;    
 }
 //走子
-void MoveChess(uint32_t country, uint32_t chess, uint32_t row, uint32_t column){
+void MoveChess(uint32_t country, uint32_t chess, const glm::vec2&mousePos){
     std::vector<ChessInfo>canplays;
     const Chess *pChess = g_Chessboard.GetChess(country, chess);
     pChess->Selected((const Chess* (*)[COUNTRY_CHESS_COUNT])g_Chessboard.GetChess(), canplays);
-    const int32_t index = GetCanPlay(row, column, canplays);
+    const int32_t index = GetCanPlay(mousePos, canplays);
     if(index != -1){
         const ChessInfo *pChessInfo = pChess->GetInfo();
-        MoveChess(pChessInfo->country, pChessInfo->chess, glm::vec2(COLUMN_TO_X(pChessInfo->column), ROW_TO_Y(pChessInfo->row)), glm::vec2(COLUMN_TO_X(canplays[index].column), ROW_TO_Y(canplays[index].row)));
+        MoveChess(pChessInfo->country, pChessInfo->chess, glm::vec2(COLUMN_TO_X(pChessInfo->column), ROW_TO_Y(pChessInfo->row)), mousePos);
         g_Chessboard.Move(g_VulkanDevice.device, country, chess, canplays[index].row, canplays[index].column);
         g_CurrentCountry = GetNextCountry(g_CurrentCountry);
 #ifdef JOIN_AI
@@ -1014,13 +1022,41 @@ void MoveChess(uint32_t country, uint32_t chess, uint32_t row, uint32_t column){
 #endif
     }
 }
+void MoveChess(uint32_t country, uint32_t chess, uint32_t row, uint32_t column){
+    std::vector<ChessInfo>canplays;
+    const Chess *pChess = g_Chessboard.GetChess(country, chess);
+    pChess->Selected((const Chess* (*)[COUNTRY_CHESS_COUNT])g_Chessboard.GetChess(), canplays);
+    const int32_t index = GetCanPlay(row, column, canplays);
+    if(index != -1){
+        const ChessInfo *pChessInfo = pChess->GetInfo();
+        MoveChess(pChessInfo->country, pChessInfo->chess, glm::vec2(COLUMN_TO_X(pChessInfo->column), ROW_TO_Y(pChessInfo->row)), glm::vec2(COLUMN_TO_X(canplays[index].column), ROW_TO_Y(canplays[index].row)));
+        g_Chessboard.Move(g_VulkanDevice.device, country, chess, canplays[index].row, canplays[index].column);
+        g_CurrentCountry = GetNextCountry(g_CurrentCountry);
+#ifdef JOIN_AI
+#ifdef INTERNET_MODE
+    if(g_ServerAppaction){
+        for (auto it = g_Players.begin(); it != g_Players.end(); ++it){
+            if(it->ai && it->index == g_CurrentCountry){
+                EnableAi();
+                break;
+            }
+        }
+    }
+#else
+        if(g_CurrentCountry != g_ClientIndex){
+            EnableAi();
+        }
+#endif
+#endif
+    }
+}
 //吃子
 void PlayChess(uint32_t srcCountry, uint32_t srcChess, uint32_t dstCountry, uint32_t dstChess){
-    // std::vector<ChessInfo>canplays;
+    std::vector<ChessInfo>canplays;
     const char county[][MAX_BYTE] = { "魏", "蜀", "吴", "汉" };
     const Chess *pSrcChess = g_Chessboard.GetChess(srcCountry, srcChess);
     const ChessInfo *pSrcChessInfo = pSrcChess->GetInfo(), *pDstChessInfo = g_Chessboard.GetChessInfo(dstCountry, dstChess);
-    // pSrcChess->Selected((const Chess* (*)[COUNTRY_CHESS_COUNT])g_Chessboard.GetChess(), canplays);
+    pSrcChess->Selected((const Chess* (*)[COUNTRY_CHESS_COUNT])g_Chessboard.GetChess(), canplays);
     MoveChess(pSrcChessInfo->country, pSrcChessInfo->chess, glm::vec2(COLUMN_TO_X(pSrcChessInfo->column), ROW_TO_Y(pSrcChessInfo->row)), glm::vec2(COLUMN_TO_X(pDstChessInfo->column), ROW_TO_Y(pDstChessInfo->row)));
     g_Chessboard.Play(g_VulkanDevice.device, srcCountry, srcChess, dstCountry, dstChess);
     if(g_Chessboard.IsDeath(dstCountry)){
@@ -1030,8 +1066,13 @@ void PlayChess(uint32_t srcCountry, uint32_t srcChess, uint32_t dstCountry, uint
     g_CurrentCountry = GetNextCountry(g_CurrentCountry);
 #ifdef JOIN_AI
 #ifdef INTERNET_MODE
-    if(g_Players[g_CurrentCountry].ai){
-        EnableAi();
+    if(g_ServerAppaction){
+        for (auto it = g_Players.begin(); it != g_Players.end(); ++it){
+            if(it->ai && it->index == g_CurrentCountry){
+                EnableAi();
+                break;
+            }
+        }
     }
 #else
     if(g_CurrentCountry != g_ClientIndex){
@@ -1055,10 +1096,10 @@ void aiPlay(){
     //局域网模式下应该发送消息
 #ifdef INTERNET_MODE
     if(pTarget){
-        SendPlayChessMessage(g_Players[g_ClientIndex], pSelect, pTarget);
+        SendPlayChessMessage(g_Players[g_AIClientIndex], pSelect, pTarget);
     }
     else{
-        SendPlayChessMessage(g_Players[g_ClientIndex], pSelect, &target);
+        SendPlayChessMessage(g_Players[g_AIClientIndex], pSelect, &target);
     }
 #else
     g_Chessboard.Select(g_VulkanDevice.device, g_CurrentCountry, pSelect->chess);
@@ -1066,7 +1107,7 @@ void aiPlay(){
         PlayChess(g_CurrentCountry, pSelect->chess, pTarget->country, pTarget->chess);
     }
     else{
-        PlayChess(g_CurrentCountry, pSelect->chess, mousePos);
+        MoveChess(g_CurrentCountry, pSelect->chess, target.row, target.column);
     }
     g_UpdateScreen = true;
     g_Chessboard.UnSelect(g_VulkanDevice.device, g_CurrentCountry, pSelect->chess);
@@ -1074,20 +1115,16 @@ void aiPlay(){
 }
 void *AiPlayChess(void *userData){
 #ifdef __linux__
-#ifdef INTERNET_MODE
-    sem_init(&g_AiSemaphore, 0, g_Players[g_CurrentCountry].ai);
-#else
-    sem_init(&g_AiSemaphore, 0, g_ClientIndex != g_CurrentCountry);
-#endif
+    sem_init(&g_AiSemaphore, 0, g_Players[g_AIClientIndex].index == g_CurrentCountry);
 #endif
 #ifdef WIN32
     g_AiSemaphore = CreateEvent(NULL, FALSE, FALSE, "AiSemaphore");
 #endif
     while(!GameOver(g_DefaultCountryCount)){
         AiWait();
-        // printf("ai下棋了\n");
+        printf("因为当前国家索引为%d, ai国家索引为%d, 所以该ai下棋了\n", g_CurrentCountry, g_Players[g_AIClientIndex].index);
         aiPlay();
-        // printf("ai下完棋了\n");
+        printf("ai下完棋了\n");
     }
 #ifdef __linux__
     sem_destroy(&g_AiSemaphore);
@@ -1122,8 +1159,12 @@ void *PlayerPlayChess(void *userData){
         PlayChess(ppc.srcCountry, ppc.srcChess, ppc.dstCountry, ppc.dstChess);
     }
     else{
-        PlayChess(ppc.srcCountry, ppc.srcChess, ppc.mousePos);
+        uint32_t row, column;
+        MoveChess(ppc.srcCountry, ppc.srcChess, ppc.mousePos);
     }
+#ifndef INTERNET_MODE
+    g_UpdateScreen = true;
+#endif
     return nullptr;
 }
 #endif
@@ -1200,11 +1241,8 @@ void mousebutton(GLFWwindow *windows, int button, int action, int mods){
 #endif
         }
         else{
-            g_Selected = SelectChess(g_CurrentCountry, mousePos);
+            g_Selected = SelectChess(g_Players[g_ClientIndex].index, mousePos);
         }
-#ifndef INTERNET_MODE
-        g_UpdateScreen = true;
-#endif
     }
 }
 void SetupDescriptorSetLayout(VkDevice device){
@@ -1233,10 +1271,10 @@ void setup(GLFWwindow *windows){
     vkf::CreateTextureSampler(g_VulkanDevice.device, g_TextureSampler);
     vkf::CreatePipelineCache(g_VulkanDevice.device, "GraphicsPipelineCache", g_PipelineCache);
 #ifndef INTERNET_MODE
-    g_CurrentCountry = SHU_COUNTRY_INDEX;
-    g_ClientIndex = WEI_COUNTRY_INDEX;
-    // g_CurrentCountry = rand() % g_DefaultCountryCount;
-    // g_ClientIndex = rand() % g_DefaultCountryCount;
+    // g_CurrentCountry = SHU_COUNTRY_INDEX;
+    // g_ClientIndex = WEI_COUNTRY_INDEX;
+    g_CurrentCountry = rand() % g_DefaultCountryCount;
+    g_ClientIndex = rand() % g_DefaultCountryCount;
 #endif
     g_Chessboard.Setup(g_VulkanDevice.physicalDevice, g_VulkanDevice.device, g_SetLayout, g_WindowWidth, g_VulkanQueue.graphics, g_VulkanPool);
     g_Chessboard.CreatePipeline(g_VulkanDevice.device, g_VulkanWindows.renderpass, g_SetLayout, g_PipelineCache, g_WindowWidth);
@@ -1299,7 +1337,9 @@ void setup(GLFWwindow *windows){
     for (size_t i = 0; i < g_VulkanWindows.framebuffers.size(); ++i){
         RecordCommand(g_CommandBuffers[i], i);
     }
+#ifdef JOIN_AI
     g_AI.CreatePthread(AiPlayChess, nullptr);
+#endif
 #endif
 } 
 void cleanup(){
