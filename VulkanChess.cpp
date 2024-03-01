@@ -222,10 +222,10 @@ void VulkanChess::Setup(VkPhysicalDevice physicalDevice, VkDevice device, VkDesc
     mFontMinUniformBufferOffset = ALIGN(sizeof(FontUniform), physicalDeviceProperties.limits.minUniformBufferOffsetAlignment);
 
     vkf::CreateTextureSampler(device, fonts.sampler);
-    CreateFontResource(device, pool.commandPool, graphics);
-    CreateChessResource(device, pool.commandPool, graphics);
+    CreateFontResource(device, pool.command, graphics);
+    CreateChessResource(device, pool.command, graphics);
 
-    SetupDescriptorSet(device, setLayout, pool.descriptorPool);
+    SetupDescriptorSet(device, setLayout, pool.descriptor);
 }
 
 void VulkanChess::RecordCommand(VkCommandBuffer cmd, uint32_t windowWidth, uint32_t currentCountry){

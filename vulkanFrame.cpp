@@ -108,9 +108,9 @@ void VulkanBuffer::Destroy(VkDevice device){
     if(buffer != VK_NULL_HANDLE)vkDestroyBuffer(device, buffer, nullptr);
     if(memory != VK_NULL_HANDLE)vkFreeMemory(device, memory, nullptr);
 }
-VkPhysicalDevice vkf::GetPhysicalDevices(VkInstance instance, VkPhysicalDeviceType deviceType){
+VkPhysicalDevice vkf::GetPhysicalDevices(VkInstance instance, bool (*GetPhysicalDevices)(VkPhysicalDevice)){
     uint32_t count;
-    VkPhysicalDevice physicalDevice;
+    VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;
     VkPhysicalDeviceProperties physicalDeviceProperties;
 	vkEnumeratePhysicalDevices(instance, &count, nullptr);
     if(count == 0){
@@ -119,16 +119,16 @@ VkPhysicalDevice vkf::GetPhysicalDevices(VkInstance instance, VkPhysicalDeviceTy
     }
     std::vector<VkPhysicalDevice>physicalDevices(count);
     vkEnumeratePhysicalDevices(instance, &count, physicalDevices.data());
-    for (size_t i = 0; i < count; i++){
-        vkGetPhysicalDeviceProperties(physicalDevices[i], &physicalDeviceProperties);
-        if(physicalDeviceProperties.deviceType == deviceType){
-            physicalDevice = physicalDevices[i];
-            break;
+    if(GetPhysicalDevices){
+        for (size_t i = 0; i < count; i++){
+            if(GetPhysicalDevices(physicalDevices[i])){
+                physicalDevice = physicalDevices[i];
+                break;
+            }
         }
     }
     if(physicalDevice == VK_NULL_HANDLE){
         physicalDevice = physicalDevices[0];
-    	vkGetPhysicalDeviceProperties(physicalDevice, &physicalDeviceProperties);
     }
     vkGetPhysicalDeviceMemoryProperties(physicalDevice, &g_MemoryProperties);
     return physicalDevice;
@@ -723,8 +723,58 @@ void vkf::CreateImageArray(VkDevice device, const VulkanBuffer&dataBuffer, uint3
     CopyImage(device, dataBuffer, imageCount, width, height, image, pool, graphics);
 	image.CreateImageView(device, VK_FORMAT_R8G8B8A8_UNORM, type, imageCount);
 }
-void vkf::CopyImage(VkDevice device, const void *datas, uint32_t width, uint32_t height, VulkanImage&image, VkCommandPool pool, VkQueue graphics){
-	VulkanBuffer tempStorageBuffer;
+void vkf::CopyImage(VkDevice device, VulkanImage &src, VulkanImage &dst, VkCommandPool pool, VkQueue graphics){
+    VkCommandBuffer command;
+    VkImage srcImage = src.image, dstImage = dst.image;
+    VkDeviceMemory srcImageMemory = src.memory, dstImageMemory = dst.memory;
+    vkf::tool::BeginSingleTimeCommands(device, pool, command);
+    vkf::tool::InsertImageMemoryBarrier(command, dstImage,
+        0, VK_ACCESS_TRANSFER_WRITE_BIT,
+        VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+        VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
+        VkImageSubresourceRange{VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1});
+    vkf::tool::InsertImageMemoryBarrier(command, srcImage,
+        VK_ACCESS_MEMORY_READ_BIT, VK_ACCESS_TRANSFER_READ_BIT,
+        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+        VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
+        VkImageSubresourceRange{VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1});
+        // Otherwise use image copy (requires us to manually flip components)
+        VkImageCopy imageCopyRegion{};
+        imageCopyRegion.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        imageCopyRegion.srcSubresource.layerCount = 1;
+        imageCopyRegion.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        imageCopyRegion.dstSubresource.layerCount = 1;
+        imageCopyRegion.extent.width = src.size.width;
+        imageCopyRegion.extent.height = src.size.height;
+        imageCopyRegion.extent.depth = 1;
+
+        // Issue the copy command
+        vkCmdCopyImage(command,
+            srcImage, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+            dstImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+            1, &imageCopyRegion);
+		// Transition destination image to general layout, which is the required layout for mapping the image memory later on
+		vkf::tool::InsertImageMemoryBarrier(command, dstImage,
+			VK_ACCESS_TRANSFER_WRITE_BIT,
+			VK_ACCESS_MEMORY_READ_BIT,
+			VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+			VK_IMAGE_LAYOUT_GENERAL,
+			VK_PIPELINE_STAGE_TRANSFER_BIT,
+			VK_PIPELINE_STAGE_TRANSFER_BIT,
+			VkImageSubresourceRange{ VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 });
+		// Transition back the swap chain image after the blit is done
+		vkf::tool::InsertImageMemoryBarrier(command, srcImage,
+			VK_ACCESS_TRANSFER_READ_BIT,
+			VK_ACCESS_MEMORY_READ_BIT,
+			VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+			VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+			VK_PIPELINE_STAGE_TRANSFER_BIT,
+			VK_PIPELINE_STAGE_TRANSFER_BIT,
+			VkImageSubresourceRange{ VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 });
+    vkf::tool::EndSingleTimeCommands(device, pool, graphics, command);
+}
+void vkf::CopyImage(VkDevice device, const void *datas, uint32_t width, uint32_t height, VulkanImage &image, VkCommandPool pool, VkQueue graphics){
+    VulkanBuffer tempStorageBuffer;
 	VkDeviceSize imageSize = width * height * 4;
 	tempStorageBuffer.CreateBuffer(device, imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
     tempStorageBuffer.AllocateAndBindMemory(device, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
@@ -900,7 +950,6 @@ void vkf::tool::EndSingleTimeCommands(VkDevice device, VkCommandPool commandPool
 }
 void vkf::tool::BeginRenderPassGeneral(VkCommandBuffer command, VkFramebuffer frame, VkRenderPass renderpass, uint32_t windowWidth, uint32_t windowHeight, bool enableDepth){
     std::vector<VkClearValue> clearValues(2);
-    clearValues[0].color = { 0 , 0 , 0 , 1 };
     clearValues[0].color = { 0.1f , 0.1f , 0.1f , 1.0f };
     if(enableDepth)clearValues[1].depthStencil = { 1.0f , 0 };
     BeginRenderPass(command, frame, renderpass, windowWidth, windowHeight, enableDepth?2:clearValues.size(), clearValues.data());

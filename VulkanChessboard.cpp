@@ -217,7 +217,7 @@ void VulkanChessboard::Setup(VkPhysicalDevice physicalDevice, VkDevice device, V
     vkGetPhysicalDeviceProperties(physicalDevice, &physicalDeviceProperties);
     mMinUniformBufferOffset = ALIGN(sizeof(glm::mat4), physicalDeviceProperties.limits.minUniformBufferOffsetAlignment);
 
-    CreateRectResource(device, pool.commandPool, graphics);
+    CreateRectResource(device, pool.command, graphics);
 
     //绘制所有方格, 即使是被大方格覆盖
     uniforms.grid.CreateBuffer(device, mMinUniformBufferOffset * CHESSBOARD_ROW * CHESSBOARD_COLUMN, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT);
@@ -240,7 +240,7 @@ void VulkanChessboard::Setup(VkPhysicalDevice physicalDevice, VkDevice device, V
     uniforms.background.AllocateAndBindMemory(device, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
     uniforms.background.size = mMinUniformBufferOffset;
 
-    SetupDescriptorSet(device, setLayout, pool.descriptorPool);
+    SetupDescriptorSet(device, setLayout, pool.descriptor);
 
     VulkanChess::Setup(physicalDevice, device, setLayout, pool, graphics);
 }

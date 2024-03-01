@@ -11,7 +11,7 @@
 #include "VulkanChessboard.h"
 //目前的问题是:获取棋子的时候, 汉和其他势力棋子偏移出现冲突问题
 #define JOIN_AI
-#define INTERNET_MODE
+// #define INTERNET_MODE
 #ifdef INTERNET_MODE
 #include <array>
 
@@ -146,7 +146,7 @@ void SetupVulkan(GLFWwindow *window){
     const char** instanceExtension = glfwGetRequiredInstanceExtensions(&count);
     std::vector<const char*> extensions(instanceExtension, instanceExtension + count);
     vkf::CreateInstance(extensions, g_VulkanDevice.instance);
-    g_VulkanDevice.physicalDevice = vkf::GetPhysicalDevices(g_VulkanDevice.instance, VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU);
+    g_VulkanDevice.physicalDevice = vkf::GetPhysicalDevices(g_VulkanDevice.instance, VK_NULL_HANDLE);
     vkf::CreateDebugUtilsMessenger(g_VulkanDevice.instance, g_VulkanMessenger, debugUtilsMessenger);
     glfwCreateWindowSurface(g_VulkanDevice.instance, window, nullptr, &g_VulkanWindows.surface);
     vkf::CreateDevice(g_VulkanDevice.physicalDevice, {}, g_VulkanWindows.surface, g_VulkanDevice.device);
@@ -156,10 +156,10 @@ void SetupVulkan(GLFWwindow *window){
     vkGetDeviceQueue(g_VulkanDevice.device, queueFamilies[1], 0, &g_VulkanQueue.present);
     vkf::CreateSwapchain(g_VulkanDevice.physicalDevice, g_VulkanDevice.device, g_VulkanWindows);
     vkf::CreateRenderPassForSwapchain(g_VulkanDevice.device, g_VulkanWindows.swapchainInfo.format, g_VulkanWindows.renderpass);
-    vkf::CreateCommandPool(g_VulkanDevice.physicalDevice, g_VulkanDevice.device, g_VulkanPool.commandPool, VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
+    vkf::CreateCommandPool(g_VulkanDevice.physicalDevice, g_VulkanDevice.device, g_VulkanPool.command, VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
     vkf::CreateFrameBufferForSwapchain(g_VulkanDevice.device, g_VulkanWindows);
-    vkf::CreateSemaphoreAndFenceForSwapchain(g_VulkanDevice.device, 3, g_VulkanSynchronize);
-    vkf::CreateDescriptorPool(g_VulkanDevice.device, 8, g_VulkanPool.descriptorPool);
+    vkf::CreateSemaphoreAndFenceForSwapchain(g_VulkanDevice.device, g_VulkanWindows.framebuffers.size(), g_VulkanSynchronize);
+    vkf::CreateDescriptorPool(g_VulkanDevice.device, 8, g_VulkanPool.descriptor);
     //显示设备信息
     const char *deviceType;
     VkPhysicalDeviceProperties physicalDeviceProperties;
@@ -208,8 +208,8 @@ void CleanupVulkan(){
     }
     g_VulkanWindows.depthImage.Destroy(g_VulkanDevice.device);
     
-    vkDestroyCommandPool(g_VulkanDevice.device, g_VulkanPool.commandPool, VK_NULL_HANDLE);
-    vkDestroyDescriptorPool(g_VulkanDevice.device, g_VulkanPool.descriptorPool, VK_NULL_HANDLE);
+    vkDestroyCommandPool(g_VulkanDevice.device, g_VulkanPool.command, VK_NULL_HANDLE);
+    vkDestroyDescriptorPool(g_VulkanDevice.device, g_VulkanPool.descriptor, VK_NULL_HANDLE);
 
     vkDestroyRenderPass(g_VulkanDevice.device, g_VulkanWindows.renderpass, VK_NULL_HANDLE);
     vkDestroySwapchainKHR(g_VulkanDevice.device, g_VulkanWindows.swapchain, VK_NULL_HANDLE);
@@ -1115,16 +1115,18 @@ void aiPlay(){
 }
 void *AiPlayChess(void *userData){
 #ifdef __linux__
+#ifdef INTERNET_MODE
     sem_init(&g_AiSemaphore, 0, g_Players[g_AIClientIndex].index == g_CurrentCountry);
+#else
+    sem_init(&g_AiSemaphore, 0, g_ClientIndex != g_CurrentCountry);
+#endif
 #endif
 #ifdef WIN32
     g_AiSemaphore = CreateEvent(NULL, FALSE, FALSE, "AiSemaphore");
 #endif
     while(!GameOver(g_DefaultCountryCount)){
         AiWait();
-        printf("因为当前国家索引为%d, ai国家索引为%d, 所以该ai下棋了\n", g_CurrentCountry, g_Players[g_AIClientIndex].index);
         aiPlay();
-        printf("ai下完棋了\n");
     }
 #ifdef __linux__
     sem_destroy(&g_AiSemaphore);
@@ -1241,7 +1243,11 @@ void mousebutton(GLFWwindow *windows, int button, int action, int mods){
 #endif
         }
         else{
+#ifdef INTERNET_MODE
             g_Selected = SelectChess(g_Players[g_ClientIndex].index, mousePos);
+#else
+            g_Selected = SelectChess(g_ClientIndex, mousePos);
+#endif
         }
     }
 }
@@ -1257,24 +1263,50 @@ void SetupDescriptorSetLayout(VkDevice device){
     descriptorSetLayoutBindings[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     vkf::CreateDescriptorSetLayout(device, sizeof(descriptorSetLayoutBindings) / sizeof(VkDescriptorSetLayoutBinding), descriptorSetLayoutBindings, &g_SetLayout);
 }
-
-void setup(GLFWwindow *windows){
+#ifdef JOIN_AI
+bool isEnableAi;
+uint32_t g_BackupPlayer;
+#endif
+void keybutton(GLFWwindow *window,int key, int scancode, int action, int mods){
+    if(action == GLFW_RELEASE){
+#ifdef JOIN_AI
+        if(key == GLFW_KEY_SPACE){
+            g_BackupPlayer = g_ClientIndex;
+            //玩家不参与游戏
+            g_ClientIndex = INVALID_COUNTRY_INDEX;
+            if(!isEnableAi){
+                g_AI.CreatePthread(AiPlayChess, nullptr);
+                isEnableAi = true;
+            }
+        }
+        else if(key == GLFW_KEY_ENTER){
+            g_ClientIndex = g_BackupPlayer;
+            if(!isEnableAi){
+                g_AI.CreatePthread(AiPlayChess, nullptr);
+                isEnableAi = true;
+            }
+        }
+#endif
+    }
+}
+void setup(GLFWwindow *window){
 #ifdef __linux__
     srandom(time(nullptr));
 #endif
 #ifdef WIN32
     srand(time(nullptr));
 #endif // WIN32
-    glfwSetMouseButtonCallback(windows, mousebutton);
+    glfwSetKeyCallback(window, keybutton);
+    glfwSetMouseButtonCallback(window, mousebutton);
 
     SetupDescriptorSetLayout(g_VulkanDevice.device);
     vkf::CreateTextureSampler(g_VulkanDevice.device, g_TextureSampler);
     vkf::CreatePipelineCache(g_VulkanDevice.device, "GraphicsPipelineCache", g_PipelineCache);
 #ifndef INTERNET_MODE
-    // g_CurrentCountry = SHU_COUNTRY_INDEX;
-    // g_ClientIndex = WEI_COUNTRY_INDEX;
-    g_CurrentCountry = rand() % g_DefaultCountryCount;
-    g_ClientIndex = rand() % g_DefaultCountryCount;
+    g_CurrentCountry = SHU_COUNTRY_INDEX;
+    g_ClientIndex = SHU_COUNTRY_INDEX;
+    // g_CurrentCountry = rand() % g_DefaultCountryCount;
+    // g_ClientIndex = rand() % g_DefaultCountryCount;
 #endif
     g_Chessboard.Setup(g_VulkanDevice.physicalDevice, g_VulkanDevice.device, g_SetLayout, g_WindowWidth, g_VulkanQueue.graphics, g_VulkanPool);
     g_Chessboard.CreatePipeline(g_VulkanDevice.device, g_VulkanWindows.renderpass, g_SetLayout, g_PipelineCache, g_WindowWidth);
@@ -1288,7 +1320,7 @@ void setup(GLFWwindow *windows){
     //先通过ip连接, 后面知道怎么广播再说
     //或者说，先实现简单的网络联机，在解决广播问题
 #ifdef INTERNET_MODE
-    vkf::tool::AllocateCommandBuffers(g_VulkanDevice.device, g_VulkanPool.commandPool, 1, &g_CommandBuffers);
+    vkf::tool::AllocateCommandBuffers(g_VulkanDevice.device, g_VulkanPool.command, 1, &g_CommandBuffers);
     //imgui
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
@@ -1306,7 +1338,7 @@ void setup(GLFWwindow *windows){
     initInfo.QueueFamily = queueFamily;
     initInfo.Queue = g_VulkanQueue.graphics;
     initInfo.PipelineCache = VK_NULL_HANDLE;//g_GraphicsPipline.getCache();
-    initInfo.DescriptorPool = g_VulkanPool.descriptorPool;
+    initInfo.DescriptorPool = g_VulkanPool.descriptor;
     initInfo.MinImageCount = 2;
     initInfo.ImageCount = g_VulkanWindows.framebuffers.size();
     initInfo.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
@@ -1316,7 +1348,7 @@ void setup(GLFWwindow *windows){
 
     io.Fonts->AddFontFromFileTTF("fonts/SourceHanSerifCN-Bold.otf", 20, NULL, io.Fonts->GetGlyphRangesChineseFull());
 
-    ImGui_ImplVulkan_CreateFontsTexture(g_VulkanPool.commandPool, g_VulkanQueue.graphics);
+    ImGui_ImplVulkan_CreateFontsTexture(g_VulkanPool.command, g_VulkanQueue.graphics);
 #ifdef WIN32
     WSADATA wsaData;
     int wsaResult = WSAStartup(MAKEWORD(2, 2), &wsaData);
@@ -1333,13 +1365,10 @@ void setup(GLFWwindow *windows){
     GetLocalIp(g_ServerIp);
 #else
     g_CommandBuffers.resize(g_VulkanWindows.framebuffers.size());
-    vkf::tool::AllocateCommandBuffers(g_VulkanDevice.device, g_VulkanPool.commandPool, g_CommandBuffers.size(), g_CommandBuffers.data());
+    vkf::tool::AllocateCommandBuffers(g_VulkanDevice.device, g_VulkanPool.command, g_CommandBuffers.size(), g_CommandBuffers.data());
     for (size_t i = 0; i < g_VulkanWindows.framebuffers.size(); ++i){
         RecordCommand(g_CommandBuffers[i], i);
     }
-#ifdef JOIN_AI
-    g_AI.CreatePthread(AiPlayChess, nullptr);
-#endif
 #endif
 } 
 void cleanup(){
@@ -1384,8 +1413,8 @@ void RecreateSwapchain(void *userData){
         g_Chessboard.CreatePipeline(g_VulkanDevice.device, g_VulkanWindows.renderpass, g_SetLayout, g_PipelineCache, g_WindowWidth);
     }
 #ifndef INTERNET_MODE
-    vkFreeCommandBuffers(g_VulkanDevice.device, g_VulkanPool.commandPool, g_CommandBuffers.size(), g_CommandBuffers.data());
-    vkf::tool::AllocateCommandBuffers(g_VulkanDevice.device, g_VulkanPool.commandPool, g_CommandBuffers.size(), g_CommandBuffers.data());
+    vkFreeCommandBuffers(g_VulkanDevice.device, g_VulkanPool.command, g_CommandBuffers.size(), g_CommandBuffers.data());
+    vkf::tool::AllocateCommandBuffers(g_VulkanDevice.device, g_VulkanPool.command, g_CommandBuffers.size(), g_CommandBuffers.data());
     for (size_t i = 0; i < g_VulkanWindows.framebuffers.size(); ++i){
         RecordCommand(g_CommandBuffers[i], i);
     }

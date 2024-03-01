@@ -7,19 +7,19 @@ void Chess::SwapCenter(ChessInfo *src, ChessInfo *dst){
 }
 uint32_t Chess::GetTerritoryIndex(uint32_t row, uint32_t column)const{
     if(row < 13 && row > 3){
-        if(column > 4){
+        if(column > 11){
             return WU_TERRITORY_INDEX;
         }
-        else{
+        else if(column < 5){
             return HAN_TERRITORY_INDEX;
         }
     }
     else if(column > 3 && column < 13){
         //魏或蜀
-        if(row > 4){
+        if(row > 11){
             return SHU_TERRITORY_INDEX;
         }
-        else{
+        else if(row < 5){
             return WEI_TERRITORY_INDEX;
         }
     }

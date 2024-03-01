@@ -14,11 +14,11 @@ do{                                                               \
         }                                                    \
 } while (0)
 struct VulkanImage{
-    VkImage image;
     VkExtent3D size;
     std::string name;
-    VkImageView view;
-    VkDeviceMemory memory;
+    VkImage image = VK_NULL_HANDLE;
+    VkImageView view = VK_NULL_HANDLE;
+    VkDeviceMemory memory = VK_NULL_HANDLE;
     //使用这些函数前需要先给size赋值
     VkResult CreateImage(VkDevice device, VkImageUsageFlags usage, VkFormat format, VkImageType type = VK_IMAGE_TYPE_2D);
     VkResult CreateImage(VkDevice device, VkImageUsageFlags usage, VkFormat format, uint32_t arrayLayer, VkImageType type = VK_IMAGE_TYPE_2D);
@@ -76,8 +76,8 @@ struct VulkanWindows{
     std::vector<VulkanImage>swapchainImages;
 };
 struct VulkanPool{
-    VkCommandPool commandPool;
-    VkDescriptorPool descriptorPool;
+    VkCommandPool command;
+    VkDescriptorPool descriptor;
 };
 struct VulkanQueue{
     VkQueue present;
@@ -90,7 +90,7 @@ struct VulkanSynchronize{
 };
 //vkf::device;vkf::windows;vkf::tool;vkf::initinalize;vkf::image;vk::buffer;
 namespace vkf{
-    VkPhysicalDevice GetPhysicalDevices(VkInstance instance, VkPhysicalDeviceType deviceType = VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU);
+    VkPhysicalDevice GetPhysicalDevices(VkInstance instance, bool (*GetPhysicalDevices)(VkPhysicalDevice));
     VkResult CreateDevice(VkPhysicalDevice physicalDevice, const std::vector<const char*>& deviceExtensions, VkSurfaceKHR surface, VkDevice&device);
     VkResult CreateDebugUtilsMessenger(VkInstance instance, VkDebugUtilsMessengerEXT&messenger, PFN_vkDebugUtilsMessengerCallbackEXT debugUtilsMessenger);
     void DestoryDebugUtilsMessenger(VkInstance instance, VkDebugUtilsMessengerEXT&messenger);
@@ -111,6 +111,7 @@ namespace vkf{
     void DestroyPipelineCache(VkDevice device, const std::string&cacheFile, VkPipelineCache&cache);
     VkResult CreatePipelineCache(VkDevice device, const std::string&cacheFile, VkPipelineCache&cache);
 
+    void CopyImage(VkDevice device, VulkanImage&src, VulkanImage&dst, VkCommandPool pool, VkQueue graphics);
     void CopyImage(VkDevice device, const void *datas, uint32_t width, uint32_t height, VulkanImage&image, VkCommandPool pool, VkQueue graphics);
     void CopyImage(VkDevice device, const VulkanBuffer&dataBuffer, uint32_t width, uint32_t height, VulkanImage&image, VkCommandPool pool, VkQueue graphics);
     void CopyImage(VkDevice device, const void *datas, uint32_t imageCount, uint32_t width, uint32_t height, VulkanImage&image, VkCommandPool pool, VkQueue graphics);
@@ -162,8 +163,8 @@ namespace vkf{
         void CopyBuffer(VkDevice device, VkDeviceSize size, const void *pData, VkQueue graphics, VkCommandPool pool, VulkanBuffer&buffer);
         
         VkResult BeginCommands(VkCommandBuffer command, VkCommandBufferUsageFlags flags);
-        VkResult BeginSingleTimeCommands(VkDevice device, VkCommandPool commandPool, VkCommandBuffer&command);
-        void EndSingleTimeCommands(VkDevice device, VkCommandPool commandPool, VkQueue graphics, VkCommandBuffer command);
+        VkResult BeginSingleTimeCommands(VkDevice device, VkCommandPool command, VkCommandBuffer&commandBuffer);
+        void EndSingleTimeCommands(VkDevice device, VkCommandPool command, VkQueue graphics, VkCommandBuffer commandBuffer);
 
         void SetImageLayout(VkCommandBuffer cmdbuffer, VkImage image, VkImageAspectFlags aspectMask, VkImageLayout oldImageLayout, VkImageLayout newImageLayout, VkPipelineStageFlags srcStageMask, VkPipelineStageFlags dstStageMask);
         void SetImageLayout(VkCommandBuffer cmdbuffer, VkImage image, VkImageLayout oldImageLayout, VkImageLayout newImageLayout, VkImageSubresourceRange subresourceRange, VkPipelineStageFlags srcStageMask, VkPipelineStageFlags dstStageMask);
