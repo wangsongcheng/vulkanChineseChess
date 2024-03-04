@@ -52,7 +52,7 @@ void VulkanChess::GetCircularVertex(const glm::vec3 &color, std::vector<Vertex> 
     Vertex v = Vertex(glm::vec3(.0f), color);
     vertices.push_back(v);
     for (float i = 0; i <= 360.0f; ++i){
-        float r = i * M_PI / 180.0f;
+        const float r = glm::radians(i);
         v.pos = glm::vec3(sin(r), cos(r), .0f);
         vertices.push_back(v);
     }
