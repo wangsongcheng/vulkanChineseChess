@@ -382,17 +382,14 @@ void Chessboard::InitChessInfo(uint32_t country, ChessInfo chessInfo[4][COUNTRY_
 #endif
 }
 void Chessboard::InitCountryRowAndColumn(uint32_t playerCountry, ChessInfo chessInfo[4][COUNTRY_CHESS_COUNT]){
-    //以蜀为参照
+    //以蜀为参照//把函数名中的国家坐标复制给chessInfo[playerCountry]
     InitShuChessRowAndColumn(chessInfo[playerCountry]);
 #ifndef HAN_CAN_PLAY
     InitHanChessRowAndColumn(playerCountry, chessInfo[HAN_COUNTRY_INDEX]);
 #endif
     if(WU_COUNTRY_INDEX == playerCountry){
-        //魏位置, 相当于原吴位置
         InitWuChessRowAndColumn(chessInfo[WEI_COUNTRY_INDEX]);
-        //蜀位置, 相当于原汉位置
         InitHanChessRowAndColumn(chessInfo[SHU_COUNTRY_INDEX]);
-        //汉位置, 相当于原魏位置
 #ifdef HAN_CAN_PLAY
         InitWeiChessRowAndColumn(chessInfo[HAN_COUNTRY_INDEX]);
 #endif
@@ -413,9 +410,9 @@ void Chessboard::InitCountryRowAndColumn(uint32_t playerCountry, ChessInfo chess
     }
 #ifdef HAN_CAN_PLAY
     else if(HAN_COUNTRY_INDEX == playerCountry){
-        InitShuChessRowAndColumn(chessInfo[SHU_COUNTRY_INDEX]);
+        InitHanChessRowAndColumn(chessInfo[WEI_COUNTRY_INDEX]);
         InitWeiChessRowAndColumn(chessInfo[WU_COUNTRY_INDEX]);
-        InitWuChessRowAndColumn(chessInfo[WEI_COUNTRY_INDEX]);
+        InitWuChessRowAndColumn(chessInfo[SHU_COUNTRY_INDEX]);
     }
 #endif
 }

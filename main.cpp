@@ -9,7 +9,6 @@
 
 #include "Chessboard.h"
 #include "VulkanChessboard.h"
-//目前的问题是:获取棋子的时候, 汉和其他势力棋子偏移出现冲突问题
 #define JOIN_AI
 // #define INTERNET_MODE
 #ifdef INTERNET_MODE
@@ -1303,10 +1302,10 @@ void setup(GLFWwindow *window){
     vkf::CreateTextureSampler(g_VulkanDevice.device, g_TextureSampler);
     vkf::CreatePipelineCache(g_VulkanDevice.device, "GraphicsPipelineCache", g_PipelineCache);
 #ifndef INTERNET_MODE
-    g_CurrentCountry = SHU_COUNTRY_INDEX;
-    g_ClientIndex = SHU_COUNTRY_INDEX;
-    // g_CurrentCountry = rand() % g_DefaultCountryCount;
-    // g_ClientIndex = rand() % g_DefaultCountryCount;
+    g_CurrentCountry = rand() % g_DefaultCountryCount;
+    g_ClientIndex = rand() % g_DefaultCountryCount;
+    // g_CurrentCountry = HAN_COUNTRY_INDEX;
+    // g_ClientIndex = HAN_COUNTRY_INDEX;
 #endif
     g_Chessboard.Setup(g_VulkanDevice.physicalDevice, g_VulkanDevice.device, g_SetLayout, g_WindowWidth, g_VulkanQueue.graphics, g_VulkanPool);
     g_Chessboard.CreatePipeline(g_VulkanDevice.device, g_VulkanWindows.renderpass, g_SetLayout, g_PipelineCache, g_WindowWidth);
@@ -1328,7 +1327,7 @@ void setup(GLFWwindow *window){
     // io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;//启用手柄
     ImGui::StyleColorsDark();
 
-    ImGui_ImplGlfw_InitForVulkan(windows, true);
+    ImGui_ImplGlfw_InitForVulkan(window, true);
     uint32_t queueFamily;
     vkf::tool::GetGraphicAndPresentQueueFamiliesIndex(g_VulkanDevice.physicalDevice, VK_NULL_HANDLE, &queueFamily);
     ImGui_ImplVulkan_InitInfo initInfo = {};

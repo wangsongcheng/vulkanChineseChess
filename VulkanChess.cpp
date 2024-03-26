@@ -1,7 +1,6 @@
 #include "Chess.h"
 #include "VulkanChess.h"
 #define STB_TRUETYPE_IMPLEMENTATION
-// #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stb_truetype.h"
 void GetFontImageData(const unsigned char *fontData, int bitmap_w, int bitmap_h, wchar_t word, unsigned char *out){
 	stbtt_fontinfo info;
@@ -21,7 +20,6 @@ void GetFontImageData(const unsigned char *fontData, int bitmap_w, int bitmap_h,
     int y = ascent +c_y1;
     int byteOffset = roundf(leftSideBearing * scale) + (y * bitmap_w);
     stbtt_MakeCodepointBitmap(&info, out + byteOffset, c_x2 - c_x1, c_y2 - c_y1, bitmap_w, scale, scale, word);
-    // stbtt_MakeCodepointBitmap(&info, bitmap + byteOffset, c_x2 - c_x1, c_y2 - c_y1, bitmap_w, scale, scale, word);
 }
 void VulkanChess::DestroyFontResource(VkDevice device){
     mFont.index.Destroy(device);
