@@ -10,6 +10,7 @@
 #include "Chessboard.h"
 #include "VulkanChessboard.h"
 #define JOIN_AI
+//HAN_CAN_PLAY在VulkanChess.h文件
 // #define INTERNET_MODE
 #ifdef INTERNET_MODE
 #include <array>
