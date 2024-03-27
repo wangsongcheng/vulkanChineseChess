@@ -1277,6 +1277,7 @@ void keybutton(GLFWwindow *window,int key, int scancode, int action, int mods){
             if(!isEnableAi){
                 g_AI.CreatePthread(AiPlayChess, nullptr);
                 isEnableAi = true;
+                printf("启用ai并且玩家无法参与\n");
             }
         }
         else if(key == GLFW_KEY_ENTER){
@@ -1284,6 +1285,7 @@ void keybutton(GLFWwindow *window,int key, int scancode, int action, int mods){
             if(!isEnableAi){
                 g_AI.CreatePthread(AiPlayChess, nullptr);
                 isEnableAi = true;
+                printf("启用ai并且玩家可以参与\n");
             }
         }
 #endif
