@@ -83,14 +83,6 @@ struct FontVertex {
         this->uv = uv;
     }
 };
-struct BaseGraphics{
-    VulkanBuffer index;
-    VulkanBuffer vertex;
-    uint32_t indexCount;
-    uint32_t vertexCount;
-    // uint32_t indexOffset;
-    // uint32_t vertexOffset;
-};
 struct FontUniform{
     glm::mat4 model;
     float imageIndex;
@@ -114,7 +106,7 @@ class VulkanChess{
         VulkanImage image;//魏, 蜀, 吴, 漢, 兵, 炮, 車, 馬, 相, 士
     }fonts;
     //mChess保存4种颜色的圆以及颜色较深的4种圆(魏蜀吴汉'不到该玩家颜色')
-    BaseGraphics mChess, mFont;
+    BaseGraphic mChess, mFont;
     uint32_t mMinUniformBufferOffset;
     uint32_t mFontMinUniformBufferOffset;
     void DestroyFontResource(VkDevice device);

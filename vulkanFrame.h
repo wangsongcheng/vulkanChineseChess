@@ -88,9 +88,32 @@ struct VulkanSynchronize{
     std::vector<VkSemaphore>imageAcquired;
     std::vector<VkSemaphore>renderComplete;
 };
+struct BaseGraphic{
+    VulkanBuffer index;
+    VulkanBuffer vertex;
+    uint32_t indexCount;
+    uint32_t vertexCount;
+    void Destroy(VkDevice device){
+        vertex.Destroy(device);
+        index.Destroy(device);
+    }
+    void Bind(VkCommandBuffer command, VkIndexType indexType = VK_INDEX_TYPE_UINT16){
+        VkDeviceSize offset = 0;
+        if(vertex.buffer != VK_NULL_HANDLE)vkCmdBindVertexBuffers(command, 0, 1, &vertex.buffer, &offset);
+        if(index.buffer != VK_NULL_HANDLE)vkCmdBindIndexBuffer(command, index.buffer, offset, indexType);
+    }
+    void Draw(VkCommandBuffer command, uint32_t vertexOffset = 0, uint32_t firstIndex = 0)const{
+        if(index.buffer != VK_NULL_HANDLE){
+            vkCmdDrawIndexed(command, indexCount, 1, firstIndex, vertexOffset, 0);
+        }
+        else if(vertex.buffer != VK_NULL_HANDLE){
+            vkCmdDraw(command, vertexCount, 1, vertexOffset, 0);
+        }
+    }
+};
 //vkf::device;vkf::windows;vkf::tool;vkf::initinalize;vkf::image;vk::buffer;
 namespace vkf{
-    VkPhysicalDevice GetPhysicalDevices(VkInstance instance, bool (*GetPhysicalDevices)(VkPhysicalDevice));
+    VkPhysicalDevice GetPhysicalDevices(VkInstance instance, bool (*GetPhysicalDevices)(VkPhysicalDevice) = nullptr);
     VkResult CreateDevice(VkPhysicalDevice physicalDevice, const std::vector<const char*>& deviceExtensions, VkSurfaceKHR surface, VkDevice&device);
     VkResult CreateDebugUtilsMessenger(VkInstance instance, VkDebugUtilsMessengerEXT&messenger, PFN_vkDebugUtilsMessengerCallbackEXT debugUtilsMessenger);
     void DestoryDebugUtilsMessenger(VkInstance instance, VkDebugUtilsMessengerEXT&messenger);

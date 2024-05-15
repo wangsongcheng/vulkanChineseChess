@@ -41,7 +41,7 @@ class VulkanChessboard:public VulkanChess{
         GraphicsPipeline wireframe;
     }pipelines;
     //2种颜色的方格;顺便用来画线框
-    BaseGraphics mRect;
+    BaseGraphic mRect;
     uint32_t mMinUniformBufferOffset;
     void GetRectVertices(const glm::vec3&color, Vertex *ptrVertices);
     void CreateRectResource(VkDevice device, VkCommandPool pool, VkQueue graphics);

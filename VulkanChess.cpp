@@ -22,19 +22,14 @@ void GetFontImageData(const unsigned char *fontData, int bitmap_w, int bitmap_h,
     stbtt_MakeCodepointBitmap(&info, out + byteOffset, c_x2 - c_x1, c_y2 - c_y1, bitmap_w, scale, scale, word);
 }
 void VulkanChess::DestroyFontResource(VkDevice device){
-    mFont.index.Destroy(device);
-    mFont.vertex.Destroy(device);
-
-    uniform.font.Destroy(device);
-
+    mFont.Destroy(device);
     fonts.image.Destroy(device);
+    uniform.font.Destroy(device);
 
     vkDestroySampler(device, fonts.sampler, nullptr);
 }
 void VulkanChess::DestroyChessResource(VkDevice device){
-    mChess.index.Destroy(device);
-    mChess.vertex.Destroy(device);
-
+    mChess.Destroy(device);
     uniform.chess.Destroy(device);
 }
 void VulkanChess::DrawFont(VkCommandBuffer command, const GraphicsPipeline &pipeline){
@@ -42,14 +37,13 @@ void VulkanChess::DrawFont(VkCommandBuffer command, const GraphicsPipeline &pipe
     for (size_t i = 0; i < CHESSBOARD_CHESS_TOTAL; ++i){
         dynamicOffsets = i * mFontMinUniformBufferOffset;
         pipeline.BindDescriptorSet(command, descriptorSet.font, 1, &dynamicOffsets);
-        vkCmdDrawIndexed(command, mFont.indexCount, 1, 0, 0, 0);
-        // DrawGraphics(command, &mFont);
+        mFont.Draw(command);
     }
 }
 void VulkanChess::GetCircularVertex(const glm::vec3 &color, std::vector<Vertex> &vertices){
     Vertex v = Vertex(glm::vec3(.0f), color);
     vertices.push_back(v);
-    for (float i = 0; i <= 360.0f; ++i){
+    for (float i = 0; i < 360.0f; ++i){
         const float r = glm::radians(i);
         v.pos = glm::vec3(sin(r), cos(r), .0f);
         vertices.push_back(v);
@@ -64,7 +58,6 @@ void VulkanChess::CreateFontResource(VkDevice device, VkCommandPool pool, VkQueu
         FontVertex(glm::vec3(1.0f, 1.0f, .0f), glm::vec2(1.0f, 1.0f))//右下
     };
     mFont.indexCount = 6;
-    mFont.vertexCount = 0;
     mFont.index.CreateBuffer(device, sizeof(indices), VK_BUFFER_USAGE_INDEX_BUFFER_BIT|VK_BUFFER_USAGE_TRANSFER_DST_BIT);
     mFont.vertex.CreateBuffer(device, sizeof(vertices), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT|VK_BUFFER_USAGE_TRANSFER_DST_BIT);
     mFont.index.AllocateAndBindMemory(device, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
@@ -125,7 +118,7 @@ void VulkanChess::CreateChessResource(VkDevice device, VkCommandPool pool, VkQue
     GetCircularVertex(countryColor[0], circularVertices);
     mChess.vertexCount = circularVertices.size();
     std::vector<uint16_t> circularIndices;
-    for (size_t i = 1; i <= circularVertices.size(); ++i){
+    for (size_t i = 1; i < circularVertices.size(); ++i){
         circularIndices.push_back(0);
         circularIndices.push_back(i);
         circularIndices.push_back(i + 1);
@@ -177,8 +170,7 @@ void VulkanChess::DrawChess(VkCommandBuffer command, uint32_t currentCountry, co
         for (size_t uiChess = 0; uiChess < COUNTRY_CHESS_COUNT; ++uiChess){
             dynamicOffsets = ROW_COLUMN_INDEX(uiCountry, uiChess, COUNTRY_CHESS_COUNT) * mMinUniformBufferOffset;
             pipeline.BindDescriptorSet(command, descriptorSet.chess, 1, &dynamicOffsets);
-            vkCmdDrawIndexed(command, mChess.indexCount, 1, 0, uiCountry == currentCountry?uiCountry * mChess.vertexCount:(4 + uiCountry) * mChess.vertexCount, 0);
-            // DrawGraphics(command, &mChess);
+            mChess.Draw(command, uiCountry == currentCountry?uiCountry * mChess.vertexCount:(4 + uiCountry) * mChess.vertexCount);
         }
     }
     // for (size_t uiChess = 0; uiChess < HAN_CHESS_COUNT; ++uiChess){
@@ -231,17 +223,13 @@ void VulkanChess::RecordCommand(VkCommandBuffer cmd, uint32_t windowWidth, uint3
     pipelines.chess.BindPipeline(cmd);
     pipelines.chess.PushConstant(cmd, VK_SHADER_STAGE_VERTEX_BIT, sizeof(glm::mat4), &projection);
     
-    VkDeviceSize offset = 0;
-    vkCmdBindVertexBuffers(cmd, 0, 1, &mChess.vertex.buffer, &offset);
-    vkCmdBindIndexBuffer(cmd, mChess.index.buffer, 0, VK_INDEX_TYPE_UINT16);
-
+    mChess.Bind(cmd);
     DrawChess(cmd, currentCountry, pipelines.chess);
 
     pipelines.font.BindPipeline(cmd);
     pipelines.font.PushConstant(cmd, VK_SHADER_STAGE_VERTEX_BIT, sizeof(glm::mat4), &projection);
 
-    vkCmdBindVertexBuffers(cmd, 0, 1, &mFont.vertex.buffer, &offset);
-    vkCmdBindIndexBuffer(cmd, mFont.index.buffer, 0, VK_INDEX_TYPE_UINT16);
+    mFont.Bind(cmd);
     DrawFont(cmd, pipelines.font);
 }
 

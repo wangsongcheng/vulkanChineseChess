@@ -50,8 +50,7 @@ void VulkanChessboard::DrawGrid(VkCommandBuffer command, const GraphicsPipeline&
     for (size_t i = 0; i < CHESSBOARD_ROW * CHESSBOARD_COLUMN; ++i){
         dynamicOffsets = i * mMinUniformBufferOffset;
         pipeline.BindDescriptorSet(command, descriptorSet.grid, 1, &dynamicOffsets);
-        vkCmdDrawIndexed(command, mRect.indexCount, 1, 0, 0, 0);
-        // DrawGraphics(command, &mRect);
+        mRect.Draw(command);
     }
 }
 void VulkanChessboard::DrawBigGrid(VkCommandBuffer command, const GraphicsPipeline&pipeline){
@@ -59,13 +58,11 @@ void VulkanChessboard::DrawBigGrid(VkCommandBuffer command, const GraphicsPipeli
     for (size_t i = 0; i < CHESSBOARD_BIG_GRID_COUNT; ++i){
         dynamicOffsets = i * mMinUniformBufferOffset;
         pipeline.BindDescriptorSet(command, descriptorSet.bigGrid, 1, &dynamicOffsets);
-        vkCmdDrawIndexed(command, mRect.indexCount, 1, 0, 0, 0);
-        // DrawGraphics(command, &mRect);
+        mRect.Draw(command);
     }
 }
 void VulkanChessboard::DrawWireframe(VkCommandBuffer command, const GraphicsPipeline&pipeline){
     uint32_t dynamicOffsets;
-    // mRect.vertexOffset = 4;
     uint32_t indexOffset = 0;
     for (size_t i = 0; i < CHESSBOARD_WIREFRAME_COUNT; ++i){
         dynamicOffsets = i * mMinUniformBufferOffset;
@@ -74,8 +71,7 @@ void VulkanChessboard::DrawWireframe(VkCommandBuffer command, const GraphicsPipe
         else
             indexOffset = mRect.indexCount;
         pipeline.BindDescriptorSet(command, descriptorSet.wireframe.jiugongge, 1, &dynamicOffsets);
-        vkCmdDrawIndexed(command, mRect.indexCount, 1, indexOffset, 4, 0);
-        // DrawGraphics(command, &mRect);
+        mRect.Draw(command, 4, indexOffset);
     }
 }
 void VulkanChessboard::DrawBackground(VkCommandBuffer command, const GraphicsPipeline&pipeline  ){
@@ -83,8 +79,7 @@ void VulkanChessboard::DrawBackground(VkCommandBuffer command, const GraphicsPip
     for (size_t i = 0; i < 2; i++){
         dynamicOffsets = i * mMinUniformBufferOffset;
         pipeline.BindDescriptorSet(command, descriptorSet.background, 1, &dynamicOffsets);
-        vkCmdDrawIndexed(command, mRect.indexCount, 1, 0, i * mRect.vertexCount, 0);
-        // DrawGraphics(command, &mRect);
+        mRect.Draw(command, i * mRect.vertexCount);
     }    
 }
 void VulkanChessboard::DrawSelectWireframe(VkCommandBuffer command, const GraphicsPipeline &pipeline){
@@ -92,8 +87,7 @@ void VulkanChessboard::DrawSelectWireframe(VkCommandBuffer command, const Graphi
     for (size_t i = 0; i < CHESSBOARD_ROW * 2; ++i){
         dynamicOffsets = i * mMinUniformBufferOffset;
         pipeline.BindDescriptorSet(command, descriptorSet.wireframe.selectChess, 1, &dynamicOffsets);
-        vkCmdDrawIndexed(command, mRect.indexCount, 1, 0, mRect.vertexCount, 0);
-        // DrawGraphics(command, &mRect);
+        mRect.Draw(command, mRect.vertexCount);
     }
 }
 void VulkanChessboard::UpdateGridUniform(VkDevice device){
@@ -250,10 +244,7 @@ void VulkanChessboard::RecordCommand(VkCommandBuffer cmd, uint32_t windowWidth, 
     pipelines.grid.BindPipeline(cmd);
     pipelines.grid.PushConstant(cmd, VK_SHADER_STAGE_VERTEX_BIT, sizeof(glm::mat4), &projection);
     
-    VkDeviceSize offset = 0;
-    vkCmdBindVertexBuffers(cmd, 0, 1, &mRect.vertex.buffer, &offset);
-    vkCmdBindIndexBuffer(cmd, mRect.index.buffer, 0, VK_INDEX_TYPE_UINT16);
-
+    mRect.Bind(cmd);
     DrawBackground(cmd, pipelines.grid);
     DrawGrid(cmd, pipelines.grid);
     DrawBigGrid(cmd, pipelines.grid);
