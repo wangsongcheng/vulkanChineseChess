@@ -34,6 +34,7 @@ public:
     void Select(VkDevice device, uint32_t country, uint32_t chess);
     void UnSelect(VkDevice device, uint32_t country, uint32_t chess);
     const ChessInfo *GetChessInfos(uint32_t row, uint32_t column)const;
+    void Select(const ChessInfo *pChessInfo, std::vector<ChessInfo>&canplays);
     const ChessInfo *GetChessInfos(uint32_t country, const glm::vec2&mousePos)const;
     const ChessInfo *GetChessInfos(uint32_t country, uint32_t row, uint32_t column)const;
     void Move(VkDevice device, uint32_t country, uint32_t chess, uint32_t row, uint32_t column);

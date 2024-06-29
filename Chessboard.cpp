@@ -616,7 +616,7 @@ void Chessboard::Select(VkDevice device, uint32_t country, uint32_t chess){
     const ChessInfo *pChessInfo = GetChessInfo(country, chess);
     if(!IsBoundary(pChessInfo->row, pChessInfo->column)){
         if(device != VK_NULL_HANDLE)ClearSelectWireframeUnfirom(device);
-        mChess[pChessInfo->country][pChessInfo->chess]->Selected((const Chess *(*)[COUNTRY_CHESS_COUNT])mChess, canplays);
+        Select(pChessInfo, canplays);
     }
     if(device != VK_NULL_HANDLE){
         VkExtent2D size;
@@ -638,6 +638,11 @@ const ChessInfo *Chessboard::GetChessInfos(uint32_t row, uint32_t column)const{
         }
     }
     return pInfor;
+}
+void Chessboard::Select(const ChessInfo *pChessInfo, std::vector<ChessInfo> &canplays){
+    if(!IsBoundary(pChessInfo->row, pChessInfo->column)){
+        mChess[pChessInfo->country][pChessInfo->chess]->Selected((const Chess *(*)[COUNTRY_CHESS_COUNT])mChess, canplays);
+    }
 }
 const ChessInfo *Chessboard::GetChessInfos(uint32_t country, const glm::vec2 &mousePos)const{
     const ChessInfo *pInfor = nullptr;

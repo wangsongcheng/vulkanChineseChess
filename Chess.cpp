@@ -34,21 +34,16 @@ const ChessInfo *Chess::GetChessInfo(uint32_t row, uint32_t column, const Chess 
     return pChessInfo;
 }
 const ChessInfo *Chess::GetChessInfo(uint32_t country, uint32_t row, uint32_t column, const Chess *pChess[4][COUNTRY_CHESS_COUNT])const{
-    const ChessInfo *pChessInfo = nullptr;
     for (uint32_t uiChess = 0; uiChess < COUNTRY_CHESS_COUNT; ++uiChess){
         const Chess *pC = pChess[country][uiChess];
         if(pC){
-            pChessInfo = pC->GetInfo();
-            if(pChessInfo->row == row && pChessInfo->column == column){
-                break;
-            }
-            else{
-                pChessInfo = nullptr;
+            if(mInfo.row == row && mInfo.column == column){
+                return &mInfo;
             }
         }
     }
     // printf("-------------\n");
-    return pChessInfo;    
+    return nullptr;
 }
 // #include "Chessboard.h"
 Chess::Chess(const ChessInfo&info){

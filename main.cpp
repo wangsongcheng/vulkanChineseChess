@@ -1137,6 +1137,14 @@ void *AiPlayChess(void *userData){
     return nullptr;
 }
 #endif
+bool CanSelect(const ChessInfo *pTarget, const std::vector<ChessInfo>&canplays){
+    for (auto it = canplays.begin(); it != canplays.end(); ++it){
+        if(pTarget->row == it->row && pTarget->column == it->column){
+            return true;
+        }
+    }
+    return false;
+}
 //一般情况下, ai不需要调用该函数
 const ChessInfo *SelectChess(uint32_t country, const glm::vec2&mousePos){
     const ChessInfo *pSelected = nullptr;
@@ -1183,8 +1191,10 @@ void mousebutton(GLFWwindow *windows, int button, int action, int mods){
         if(g_Selected){
             g_Chessboard.UnSelect(g_VulkanDevice.device, g_Selected->country, g_Selected->chess);
             const ChessInfo *pTarget = g_Chessboard.GetChessInfos(mousePos);
+            std::vector<ChessInfo>canplays;
+            g_Chessboard.Select(g_Selected, canplays);
 #ifdef INTERNET_MODE
-            if(pTarget){
+            if(pTarget && CanSelect(pTarget, canplays)){
                 if(pTarget->country != g_CurrentCountry){
                     //单机和局域网联机差不多。无非就是要接收和发送消息
                     SendPlayChessMessage(g_Players[g_ClientIndex], g_Selected, pTarget);
@@ -1215,7 +1225,7 @@ void mousebutton(GLFWwindow *windows, int button, int action, int mods){
             }
 #else
             static PPC ppc;
-            if(pTarget){
+            if(pTarget && CanSelect(pTarget, canplays)){
                 if(pTarget->country != g_CurrentCountry){
                     ppc.capture = true;
                     ppc.dstChess = pTarget->chess;
