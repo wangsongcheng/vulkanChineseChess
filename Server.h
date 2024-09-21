@@ -8,7 +8,7 @@ class Server{
     char mName[MAX_BYTE];
     std::array<Client, 3>mClients;
     void SendSelfInfoation(uint32_t clientIndex);
-    void SendPlayerNameInfoation(uint32_t count, const std::array<PlayerInfo, 3>&players);
+    void SendPlayerNameInfoation(uint32_t count, const std::array<Player, 3>&players);
 public:
     Server(/* args */);
     ~Server();
@@ -17,7 +17,7 @@ public:
     SOCKET AcceptClient(uint32_t client, void *__buf, size_t __n);
     void RecvFromClient(uint32_t client, void *__buf, size_t __n);
     void SendToClient(uint32_t client, const void *__buf, size_t __n);
-    // SOCKET AcceptClient(uint32_t count, std::array<PlayerInfo, 3>&players);
+    // SOCKET AcceptClient(uint32_t count, std::array<Player, 3>&players);
 
     inline auto GetClientInfo(){
         return mClients;

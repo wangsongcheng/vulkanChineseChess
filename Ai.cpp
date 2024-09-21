@@ -156,11 +156,11 @@ extern uint32_t g_PlayerIndex;
 //     }   
 //     // g_Chessboard.ClearCanPlay(VK_NULL_HANDLE);
 // }
-int32_t Ai::CanPlay(uint32_t country, const std::vector<ChessInfo>&canplays, const Chessboard *pChessboard){
+int32_t Ai::CanPlay(uint32_t country, const std::vector<Chess>&canplays, const Game *pGame){
     int32_t index = -1;
     for (size_t i = 0; i < canplays.size(); ++i){
-        const ChessInfo *pInfo = pChessboard->GetChessInfos(canplays[i].row, canplays[i].column);
-        if(!pInfo || pInfo->country != country){
+        const Chess *pInfo = pGame->GetChess(canplays[i].GetRow(), canplays[i].GetColumn());
+        if(!pInfo || pInfo->GetCountry() != country){
             index = i;
             break;
         }
@@ -183,9 +183,8 @@ int Ai::CreatePthread(void *(*__start_routine)(void *), void *__arg){
     return pthread_create(&mPthread, nullptr, __start_routine, __arg);
 #endif
 }
-void Ai::GetPlayChessInfo(uint32_t country, const ChessInfo **pPlayer, const ChessInfo **pTarget, uint32_t *row, uint32_t *column, const Chessboard *pChessboard){
-    const Chess *pChess = nullptr;
-    std::vector<ChessInfo>canplays;
+void Ai::GetPlayChess(uint32_t country, const Chess **pSelect, const Chess **pTarget, uint32_t *row, uint32_t *column, Game *pGame){
+    std::vector<Chess>canplays;
     // const ChessInfo *pSelect = nullptr, *pRival = nullptr;
     // const uint32_t nextCountry = GetNextCountry(g_CurrentCountry);
     // const ChessInfo * = GetRival(g_CurrentCountry, (uint32_t)JIANG_CHESS_INDEX);
@@ -208,28 +207,27 @@ void Ai::GetPlayChessInfo(uint32_t country, const ChessInfo **pPlayer, const Che
     //         }
     //     }
     // }
-    if(!*pPlayer){
+    auto pChess = pGame->GetChess();
+    if(!*pSelect){
         do{
-            *pPlayer = pChessboard->GetChessInfo(country, rand() % COUNTRY_CHESS_COUNT);
-            if(*pPlayer){
+            *pSelect = pChess[country][rand() % DRAW_COUNTRY_CHESS_COUNT];
+            if(*pSelect){
                 canplays.clear();
-                pChess = pChessboard->GetChess(country, (*pPlayer)->chess);
-                pChess->Selected((const Chess* (*)[COUNTRY_CHESS_COUNT])pChessboard->GetChess(), canplays);
+                pChess[country][(*pSelect)->GetChess()]->Selected(pGame->GetChess(), canplays);
             }
-        }while(!*pPlayer || -1 == CanPlay(country, canplays, pChessboard));//不用担心判断*player后死循环,因为"将"肯定会存在,否则就输了
+        }while(!*pSelect || -1 == CanPlay(country, canplays, pGame));//不用担心判断*player后死循环,因为"将"肯定会存在,否则就输了
     }
     if(!*pTarget){
         //这个分支也有吃子的可能
         canplays.clear();
-        pChess = pChessboard->GetChess(country, (*pPlayer)->chess);
-        pChess->Selected((const Chess* (*)[COUNTRY_CHESS_COUNT])pChessboard->GetChess(), canplays);
+        pChess[country][(*pSelect)->GetChess()]->Selected(pGame->GetChess(), canplays);
         uint32_t index = 0;
         do{
             index = rand() % canplays.size();
-            *pTarget = pChessboard->GetChessInfos(canplays[index].row, canplays[index].column);
-        } while (*pTarget && (*pTarget)->country == country);
-        *row = canplays[index].row;
-        *column = canplays[index].column;
-        // *mousePos = glm::vec2(COLUMN_TO_X(canplays[index].column), ROW_TO_Y(canplays[index].row));
+            *pTarget = pGame->GetChess(canplays[index].GetRow(), canplays[index].GetColumn());
+        } while (*pTarget && (*pTarget)->GetCountry() == country);
+        *row = canplays[index].GetRow();
+        *column = canplays[index].GetColumn();
+        // *mousePos = glm::vec2(COLUMN_TO_X(canplays[index].GetColumn()), ROW_TO_Y(canplays[index].GetRow()));
     }
 }

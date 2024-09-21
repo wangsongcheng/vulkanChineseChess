@@ -43,8 +43,8 @@ struct VulkanBuffer{
     VkDeviceSize size;
     VkBuffer buffer = VK_NULL_HANDLE;
     VkDeviceMemory memory = VK_NULL_HANDLE;
-    VkResult CreateBuffer(VkDevice device, VkDeviceSize size, VkBufferUsageFlags usage);
-    void AllocateAndBindMemory(VkDevice device, VkMemoryPropertyFlags properties);
+    VkResult CreateBuffer(VkDevice device, VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties);
+
     void UpdateData(VkDevice device, const void * pData, VkDeviceSize offset = 0);
     void UpdateData(VkDevice device, VkDeviceSize size, const void * pData, VkDeviceSize offset = 0);
 
@@ -97,7 +97,7 @@ struct BaseGraphic{
         vertex.Destroy(device);
         index.Destroy(device);
     }
-    void Bind(VkCommandBuffer command, VkIndexType indexType = VK_INDEX_TYPE_UINT16){
+    void Bind(VkCommandBuffer command, VkIndexType indexType = VK_INDEX_TYPE_UINT16)const{
         VkDeviceSize offset = 0;
         if(vertex.buffer != VK_NULL_HANDLE)vkCmdBindVertexBuffers(command, 0, 1, &vertex.buffer, &offset);
         if(index.buffer != VK_NULL_HANDLE)vkCmdBindIndexBuffer(command, index.buffer, offset, indexType);
@@ -130,9 +130,6 @@ namespace vkf{
     VkResult CreateDescriptorPool(VkDevice device, uint32_t descriptorCount, VkDescriptorPool&pool);
 
     void CreateDepthImage(VkDevice device, const VkExtent2D&swapchainExtent, VulkanImage&image);
-    //文件名设置为""则不把管线缓存写到文件
-    void DestroyPipelineCache(VkDevice device, const std::string&cacheFile, VkPipelineCache&cache);
-    VkResult CreatePipelineCache(VkDevice device, const std::string&cacheFile, VkPipelineCache&cache);
 
     void CopyImage(VkDevice device, VulkanImage&src, VulkanImage&dst, VkCommandPool pool, VkQueue graphics);
     void CopyImage(VkDevice device, const void *datas, uint32_t width, uint32_t height, VulkanImage&image, VkCommandPool pool, VkQueue graphics);
@@ -170,7 +167,6 @@ namespace vkf{
     namespace tool{
         uint32_t GetFileSize(FILE *fp);
         uint32_t GetFileContent(const std::string&file, std::vector<uint32_t>&data);
-        bool WriteFileContent(const std::string&file, const void *data, uint32_t size);
 
         const char* cvmx_chip_type_to_string(VkResult type);
         uint32_t findMemoryTypeIndex(uint32_t typeFilter, VkMemoryPropertyFlags properties);

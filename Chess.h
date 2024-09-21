@@ -1,187 +1,176 @@
-#ifndef CHESS_INCLUDE_H
-#define CHESS_INCLUDE_H
+#ifndef CHESS_INCLUDE
+#define CHESS_INCLUDE
 #include <vector>
+#include <cstdint>
+//需要用到以下文件几个宏, 所以包含
 #include "VulkanChess.h"
-#include "glm/glm.hpp"
-#include "glm/gtc/matrix_transform.hpp"
+#include "VulkanChessboard.h"
+#define JIANG_CHESS_INDEX 0
+#define MA_CHESS_INDEX (JIANG_CHESS_INDEX + JIANG_CHESS_COUNT)
+#define PAO_CHESS_INDEX (MA_CHESS_INDEX + MA_CHESS_COUNT)
+#define CHE_CHESS_INDEX (PAO_CHESS_INDEX + PAO_CHESS_COUNT)
+#define SHI_CHESS_INDEX (CHE_CHESS_INDEX + CHE_CHESS_COUNT)
+#define XIANG_CHESS_INDEX (SHI_CHESS_INDEX + SHI_CHESS_COUNT)
+#define BING_CHESS_INDEX (XIANG_CHESS_INDEX + XIANG_CHESS_COUNT)
+
+#define HAN_PAO_CHESS_INDEX 1
+#define HAN_CHE_CHESS_INDEX (HAN_PAO_CHESS_INDEX + HAN_PAO_CHESS_COUNT)
+
 #define WU_TERRITORY_INDEX WU_COUNTRY_INDEX
 #define WEI_TERRITORY_INDEX WEI_COUNTRY_INDEX
 #define SHU_TERRITORY_INDEX SHU_COUNTRY_INDEX
 #define HAN_TERRITORY_INDEX HAN_COUNTRY_INDEX
+#define CENTER_TERRITORY_INDEX MAX_COUNTRY_INDEX
 #define INVALID_TERRITORY_INDEX INVALID_COUNTRY_INDEX
-//以下索引、魏国索引。现在变成不能随意修改了。这确实是痛点
-//除非增加新棋,否则在不包括汉棋子的情况下, 其他棋子的值应该在16以下;这些值主要用于动态偏移
-#define MA_CHESS_INDEX_1 1
-#define MA_CHESS_INDEX_2 2
-#define JIANG_CHESS_INDEX 0
-#define PAO_CHESS_INDEX_1 3
-#define PAO_CHESS_INDEX_2 4
-#define CHE_CHESS_INDEX_1 5
-#define SHI_CHESS_INDEX_1 6
-#define SHI_CHESS_INDEX_2 7
-#define CHE_CHESS_INDEX_2 8
-#define BING_CHESS_INDEX_1 9
-#define BING_CHESS_INDEX_2 10
-#define BING_CHESS_INDEX_3 11
-#define BING_CHESS_INDEX_4 12
-#define BING_CHESS_INDEX_5 13
-#define XIANG_CHESS_INDEX_1 14
-#define XIANG_CHESS_INDEX_2 15
 
-#define PAO_CHESS_INDEX_3 1
-#define CHE_CHESS_INDEX_3 2
-#define CHE_CHESS_INDEX_4 3
-#define CHE_CHESS_INDEX_5 4
-
-#define MAX_CHESS_INDEX XIANG_CHESS_INDEX_2
-// #define PAO_CHESS_INDEX_3 16
-// #define CHE_CHESS_INDEX_3 17
-// #define CHE_CHESS_INDEX_4 18
-// #define CHE_CHESS_INDEX_5 19
-
-#define CHESS_WIDTH 20
-#define CHESS_HEIGHT CHESS_WIDTH
-#define ROW_TO_Y(ROW)((CHESSBOARD_GRID_SIZE) + (ROW) * (CHESSBOARD_GRID_SIZE) + ((ROW) + 1) * CHESSBOARD_LINE_WIDTH)
-#define COLUMN_TO_X(COLUMN)(ROW_TO_Y(COLUMN))
-//获得COUNTRY在TERRITORY上时, 蜀地的国家
-#define GET_PLAYER_COUNTRY(COUNTRY, TERRITORY)((COUNTRY - TERRITORY) % 4)
 #define GET_TERRITORY_INDEX(COUNTRY, PLAYERCOUNTRY)((COUNTRY - PLAYERCOUNTRY) % 4)
-struct ChessInfo{
-    uint32_t row;
-    uint32_t chess;//一般用上面的宏赋值(*_CHESS_INDEX_*)
-    uint32_t column;
-    uint32_t country;
-    uint32_t fontIndex;
-    ChessInfo(){
-        country = -1;//该值为-1时, chess和fontIndex无效
-        row = 100;
-        column = 100;
-    }
-    ChessInfo(uint32_t row, uint32_t column){
-        this->row = row;
-        this->column = column;
-    }
-    // ChessInfo(uint32_t country, uint32_t row, uint32_t column){
-    //     this->row = row;
-    //     this->column = column;
-    //     this->country = country;
-    // }
-    ~ChessInfo(){
-
-    }
-};
 class Chess{
-    glm::vec2 mPos;
+    uint32_t mRow;
+    glm::vec3 mPos;
+    uint32_t mChess;//一般用上面的宏赋值(*_CHESS_INDEX_*)
+    uint32_t mColumn;
+    uint32_t mCountry;
+    uint32_t mFontIndex;
 protected:
-    ChessInfo mInfo;
-    void SwapCenter(ChessInfo *src, ChessInfo *dst);
-    //以蜀为参考视角;位置不准确但能用
-    uint32_t GetTerritoryIndex(uint32_t row, uint32_t column)const;
-    // //country是在territory上的势力
-    // uint32_t GetPlayerCountry(uint32_t country, uint32_t territory)const;
-    const ChessInfo *GetChessInfo(uint32_t row, uint32_t column, const Chess *pChess[4][COUNTRY_CHESS_COUNT])const;
-    const ChessInfo *GetChessInfo(uint32_t country, uint32_t row, uint32_t column, const Chess *pChess[4][COUNTRY_CHESS_COUNT])const;
+    uint32_t mTerriory;
 public:
-    Chess(const ChessInfo&info);
+    Chess(/* args */);
+    Chess(uint32_t row, uint32_t column);
+    Chess(uint32_t chess, uint32_t country, uint32_t row, uint32_t column);
+    Chess(uint32_t chess, uint32_t country, uint32_t fontIndex, uint32_t row, uint32_t column);
     ~Chess();
-    void ResetPos(uint32_t row, uint32_t column);
-    //返回真表示在边界上，不能下棋
-    bool IsBoundary(uint32_t row, uint32_t column)const;
-    bool IsPalaceCenter(uint32_t centerCount, const ChessInfo *center)const;
-    bool IsInPalace(uint32_t row, uint32_t column, const ChessInfo *pCenter)const;
-    void SelectChessInPalace(const Chess *pChess[4][COUNTRY_CHESS_COUNT], uint32_t centerCount, const ChessInfo *center, std::vector<ChessInfo>&canplays)const;
+    inline uint32_t GetRow()const{
+        return mRow;
+    }
+    inline glm::vec2 GetPos()const{
+        return mPos;
+    }
+    inline uint32_t GetColumn()const{
+        return mColumn;
+    }
+    inline uint32_t GetChess()const{
+        return mChess;
+    }
+    inline uint32_t GetCountry()const{
+        return mCountry;
+    }
+    inline uint32_t GetFontIndex()const{
+        return mFontIndex ;
+    }
+    inline void SetChess(uint32_t chess){
+        mChess = chess;
+    }
+    inline void SetCountry(uint32_t country){
+        mCountry = country;
+    }
+    inline void SetFontIndex(uint32_t fontIndex){
+        mFontIndex = fontIndex;        
+    }
+    void SetPos(uint32_t row, uint32_t column);
 
-    inline const ChessInfo *GetInfo()const{
-        return &mInfo;
-    }
-    inline void ResetInfo(const ChessInfo&info){
-        mInfo = info;
-        ResetPos(info.row, info.column);
-    }
-    inline bool IsSelect(uint32_t row, uint32_t column)const{
-        return mInfo.row == row && mInfo.column == column;
-    }
     inline bool IsSelect(const glm::vec2&pos)const{
         return abs(pos.x - mPos.x) < CHESS_WIDTH && abs(pos.y - mPos.y) < CHESS_HEIGHT;
     }
 
-    virtual void Selected(const Chess *pChess[4][COUNTRY_CHESS_COUNT], std::vector<ChessInfo>&canplays)const = 0;
+    virtual void Selected(Chess *pChess[MAX_COUNTRY_INDEX][DRAW_COUNTRY_CHESS_COUNT], std::vector<Chess>&canplays)const;
+    // virtual void Selected(Chess *pChess[MAX_COUNTRY_INDEX][DRAW_COUNTRY_CHESS_COUNT], std::vector<Chess>&canplays)const = 0;
 };
-
 class Wei:public Chess{
-    ChessInfo mCenter;//九宫格中心
 public:
-    Wei(const ChessInfo&info);
+    Wei();
+    Wei(uint32_t row, uint32_t column);
+    Wei(uint32_t chess, uint32_t country, uint32_t row, uint32_t column);
+    Wei(uint32_t chess, uint32_t country, uint32_t fontIndex, uint32_t row, uint32_t column);
     ~Wei();
-    virtual void Selected(const Chess *pChess[4][COUNTRY_CHESS_COUNT], std::vector<ChessInfo>&canplays)const;
+    virtual void Selected(Chess *pChess[MAX_COUNTRY_INDEX][DRAW_COUNTRY_CHESS_COUNT], std::vector<Chess>&canplays)const;
 };
 
 class Shu:public Chess{
-    ChessInfo mCenter;//九宫格中心
 public:
-    Shu(const ChessInfo&info);
+    Shu();
+    Shu(uint32_t row, uint32_t column);
+    Shu(uint32_t chess, uint32_t country, uint32_t row, uint32_t column);
+    Shu(uint32_t chess, uint32_t country, uint32_t fontIndex, uint32_t row, uint32_t column);
     ~Shu();
-    virtual void Selected(const Chess *pChess[4][COUNTRY_CHESS_COUNT], std::vector<ChessInfo>&canplays)const;
+    virtual void Selected(Chess *pChess[MAX_COUNTRY_INDEX][DRAW_COUNTRY_CHESS_COUNT], std::vector<Chess>&canplays)const;
 };
 
 class Wu:public Chess{
-    ChessInfo mCenter;//九宫格中心
 public:
-    Wu(const ChessInfo&info);
+    Wu();
+    Wu(uint32_t row, uint32_t column);
+    Wu(uint32_t chess, uint32_t country, uint32_t row, uint32_t column);
+    Wu(uint32_t chess, uint32_t country, uint32_t fontIndex, uint32_t row, uint32_t column);
     ~Wu();
-    virtual void Selected(const Chess *pChess[4][COUNTRY_CHESS_COUNT], std::vector<ChessInfo>&canplays)const;
+    virtual void Selected(Chess *pChess[MAX_COUNTRY_INDEX][DRAW_COUNTRY_CHESS_COUNT], std::vector<Chess>&canplays)const;
 };
 
 class Han:public Chess{
-    ChessInfo mCenter;//九宫格中心
 public:
-    Han(const ChessInfo&info);
+    Han();
+    Han(uint32_t row, uint32_t column);
+    Han(uint32_t chess, uint32_t country, uint32_t row, uint32_t column);
+    Han(uint32_t chess, uint32_t country, uint32_t fontIndex, uint32_t row, uint32_t column);
     ~Han();
-    virtual void Selected(const Chess *pChess[4][COUNTRY_CHESS_COUNT], std::vector<ChessInfo>&canplays)const;
+    virtual void Selected(Chess *pChess[MAX_COUNTRY_INDEX][DRAW_COUNTRY_CHESS_COUNT], std::vector<Chess>&canplays)const;
 };
 class Bing:public Chess{
-    uint32_t mTerriory;
-    ChessInfo mCenter[4];//汉能走时, 3个
     glm::vec2 GetBingBack()const;
     bool IsAbroad(uint32_t row, uint32_t column)const;
 public:
-    Bing(const ChessInfo&info);
+    Bing();
+    Bing(uint32_t row, uint32_t column);
+    Bing(uint32_t chess, uint32_t country, uint32_t row, uint32_t column);
+    Bing(uint32_t chess, uint32_t country, uint32_t fontIndex, uint32_t row, uint32_t column);
     ~Bing();
-    virtual void Selected(const Chess *pChess[4][COUNTRY_CHESS_COUNT], std::vector<ChessInfo>&canplays)const;
+    virtual void Selected(Chess *pChess[MAX_COUNTRY_INDEX][DRAW_COUNTRY_CHESS_COUNT], std::vector<Chess>&canplays)const;
 };
 class Pao:public Chess{
-    ChessInfo mCenter[4];//汉能走时, 4个
 public:
-    Pao(const ChessInfo&info);
+    Pao();
+    Pao(uint32_t row, uint32_t column);
+    Pao(uint32_t chess, uint32_t country, uint32_t row, uint32_t column);
+    Pao(uint32_t chess, uint32_t country, uint32_t fontIndex, uint32_t row, uint32_t column);
     ~Pao();
-    virtual void Selected(const Chess *pChess[4][COUNTRY_CHESS_COUNT], std::vector<ChessInfo>&canplays)const;
+    virtual void Selected(Chess *pChess[MAX_COUNTRY_INDEX][DRAW_COUNTRY_CHESS_COUNT], std::vector<Chess>&canplays)const;
 };
 class Che:public Chess{
-    ChessInfo mCenter[4];//汉能走时, 4个
 public:
-    Che(const ChessInfo&info);
+    Che();
+    Che(uint32_t row, uint32_t column);
+    Che(uint32_t chess, uint32_t country, uint32_t row, uint32_t column);
+    Che(uint32_t chess, uint32_t country, uint32_t fontIndex, uint32_t row, uint32_t column);
     ~Che();
-    virtual void Selected(const Chess *pChess[4][COUNTRY_CHESS_COUNT], std::vector<ChessInfo>&canplays)const;
+    virtual void Selected(Chess *pChess[MAX_COUNTRY_INDEX][DRAW_COUNTRY_CHESS_COUNT], std::vector<Chess>&canplays)const;
 };
 class Ma:public Chess{
 public:
-    Ma(const ChessInfo&info);
+    Ma();
+    Ma(uint32_t row, uint32_t column);
+    Ma(uint32_t chess, uint32_t country, uint32_t row, uint32_t column);
+    Ma(uint32_t chess, uint32_t country, uint32_t fontIndex, uint32_t row, uint32_t column);
     ~Ma();
-    virtual void Selected(const Chess *pChess[4][COUNTRY_CHESS_COUNT], std::vector<ChessInfo>&canplays)const;
+    virtual void Selected(Chess *pChess[MAX_COUNTRY_INDEX][DRAW_COUNTRY_CHESS_COUNT], std::vector<Chess>&canplays)const;
 };
 class Xiang:public Chess{
-    uint32_t mTerriory;
     bool IsAbroad(uint32_t row, uint32_t column)const;
 public:
-    Xiang(const ChessInfo&info);
+    Xiang();
+    Xiang(uint32_t row, uint32_t column);
+    Xiang(uint32_t chess, uint32_t country, uint32_t row, uint32_t column);
+    Xiang(uint32_t chess, uint32_t country, uint32_t fontIndex, uint32_t row, uint32_t column);
     ~Xiang();
-    virtual void Selected(const Chess *pChess[4][COUNTRY_CHESS_COUNT], std::vector<ChessInfo>&canplays)const;
+    virtual void Selected(Chess *pChess[MAX_COUNTRY_INDEX][DRAW_COUNTRY_CHESS_COUNT], std::vector<Chess>&canplays)const;
 };
 class Shi:public Chess{
-    ChessInfo mCenter;//九宫格中心
 public:
-    Shi(const ChessInfo&info);
+    Shi();
+    Shi(uint32_t row, uint32_t column);
+    Shi(uint32_t chess, uint32_t country, uint32_t row, uint32_t column);
+    Shi(uint32_t chess, uint32_t country, uint32_t fontIndex, uint32_t row, uint32_t column);
     ~Shi();
-    virtual void Selected(const Chess *pChess[4][COUNTRY_CHESS_COUNT], std::vector<ChessInfo>&canplays)const;
+    virtual void Selected(Chess *pChess[MAX_COUNTRY_INDEX][DRAW_COUNTRY_CHESS_COUNT], std::vector<Chess>&canplays)const;
 };
+//main.cpp需要用到
+uint32_t GetTerritoryIndex(uint32_t row, uint32_t column);
 #endif

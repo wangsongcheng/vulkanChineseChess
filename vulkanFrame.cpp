@@ -78,22 +78,21 @@ void VulkanImage::Destroy(VkDevice device){
     if(view != VK_NULL_HANDLE)vkDestroyImageView(device, view, nullptr);
     if(memory != VK_NULL_HANDLE)vkFreeMemory(device, memory, nullptr);
 }
-VkResult VulkanBuffer::CreateBuffer(VkDevice device, VkDeviceSize size, VkBufferUsageFlags usage){
+VkResult VulkanBuffer::CreateBuffer(VkDevice device, VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties){
     this->size = size;
     VkBufferCreateInfo info = {};
     info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
     info.size = size;
     info.usage = usage;
     info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-    return vkCreateBuffer(device, &info, nullptr, &buffer);
-}
-void VulkanBuffer::AllocateAndBindMemory(VkDevice device, VkMemoryPropertyFlags properties){
-    // VK_MEMORY_PROPERTY_HOST_COHERENT_BIT可以保证数据写入后立即更新到buffer。但会导致性能下降(废话)
-    // 这种方式只使用于VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT应该用vkCmdCopyBuffer
+    VkResult result = vkCreateBuffer(device, &info, nullptr, &buffer);
+    // VK_MEMORY_PROPERTY_HOST_COHERENT_BIT可以保证数据写入后立即更新到buffer。但会导致性能下降
+    // 这种方式只使用于VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT应该用vkCmdCopyBuffer
 	VkMemoryRequirements memoryRequirements;
 	vkGetBufferMemoryRequirements(device, buffer, &memoryRequirements);
     vkf::tool::AllocateMemory(device, memoryRequirements.size, memoryRequirements.memoryTypeBits, properties, memory);
 	vkBindBufferMemory(device, buffer, memory, 0);
+    return result;
 }
 void VulkanBuffer::UpdateData(VkDevice device, const void * pData, VkDeviceSize offset){
     UpdateData(device, size, pData, offset);
@@ -579,32 +578,10 @@ void vkf::CreateDepthImage(VkDevice device, const VkExtent2D&swapchainExtent, Vu
     image.AllocateAndBindMemory(device, VK_MEMORY_HEAP_DEVICE_LOCAL_BIT);
     image.CreateImageView(device, VK_FORMAT_D32_SFLOAT_S8_UINT, VK_IMAGE_ASPECT_DEPTH_BIT|VK_IMAGE_ASPECT_STENCIL_BIT);
 }
-VkResult vkf::CreatePipelineCache(VkDevice device, const std::string&cacheFile, VkPipelineCache &cache){
-    std::vector<uint32_t>cacheData;
-    VkPipelineCacheCreateInfo cacheInfo = {};
-    cacheInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO;
-    if(vkf::tool::GetFileContent(cacheFile.c_str(), cacheData)){
-        cacheInfo.initialDataSize = cacheData.size() * sizeof(uint32_t);
-        cacheInfo.pInitialData = cacheData.data();
-    }
-    return vkCreatePipelineCache(device, &cacheInfo, nullptr, &cache);
-}
-void vkf::DestroyPipelineCache(VkDevice device, const std::string&cacheFile, VkPipelineCache &cache){
-    if(cacheFile != ""){
-        size_t cacheDataSize;
-        std::vector<uint32_t>cacheData;
-        vkGetPipelineCacheData(device, cache, &cacheDataSize, nullptr);
-        cacheData.resize(cacheDataSize / sizeof(char));
-        vkGetPipelineCacheData(device, cache, &cacheDataSize, cacheData.data());
-        vkf::tool::WriteFileContent(cacheFile, cacheData.data(), cacheData.size() * sizeof(uint32_t));
-    }
-    if(cache != VK_NULL_HANDLE)vkDestroyPipelineCache(device, cache, nullptr);
-}
 void vkf::CreateFontImage(VkDevice device, const void *datas, uint32_t width, uint32_t height, VulkanImage &image, VkCommandPool pool, VkQueue graphics){
     VulkanBuffer tempStorageBuffer;
 	VkDeviceSize imageSize = width * height * 4;//用于imgui的字体,原本没有乘4。
-	tempStorageBuffer.CreateBuffer(device, imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
-    tempStorageBuffer.AllocateAndBindMemory(device, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+	tempStorageBuffer.CreateBuffer(device, imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
     tempStorageBuffer.UpdateData(device, imageSize, datas);
 	CreateFontImage(device, tempStorageBuffer, width, height, image, pool, graphics);
 	tempStorageBuffer.Destroy(device);
@@ -612,8 +589,7 @@ void vkf::CreateFontImage(VkDevice device, const void *datas, uint32_t width, ui
 void vkf::CreateTextureImage(VkDevice device, const void *datas, uint32_t width, uint32_t height, VulkanImage&image, VkCommandPool pool, VkQueue graphics){
 	VulkanBuffer tempStorageBuffer;
 	VkDeviceSize imageSize = width * height * 4;
-	tempStorageBuffer.CreateBuffer(device, imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
-    tempStorageBuffer.AllocateAndBindMemory(device, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+	tempStorageBuffer.CreateBuffer(device, imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
     tempStorageBuffer.UpdateData(device, imageSize, datas);
 	CreateTextureImage(device, tempStorageBuffer, width, height, image, pool, graphics);
 	tempStorageBuffer.Destroy(device);
@@ -631,8 +607,7 @@ void vkf::CreateFontImage(VkDevice device, const VulkanBuffer&dataBuffer, uint32
 void vkf::CreateFontImageArray(VkDevice device, const void* datas, uint32_t imageCount, uint32_t width, uint32_t height, VulkanImage& image, VkCommandPool pool, VkQueue graphics){
     VulkanBuffer tempStorageBuffer;
     const VkDeviceSize imageSize = width * height;
-    tempStorageBuffer.CreateBuffer(device, imageSize * imageCount, VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
-    tempStorageBuffer.AllocateAndBindMemory(device, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+    tempStorageBuffer.CreateBuffer(device, imageSize * imageCount, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
     tempStorageBuffer.UpdateData(device, imageSize * imageCount, datas);
     CreateFontImageArray(device, tempStorageBuffer, imageCount, width, height, image, pool, graphics);
     tempStorageBuffer.Destroy(device);
@@ -671,23 +646,11 @@ void vkf::CreateTextureImage(VkDevice device, const VulkanBuffer&dataBuffer, uin
     CopyImage(device, dataBuffer, width, height, image, pool, graphics);
 	image.CreateImageView(device, VK_FORMAT_R8G8B8A8_UNORM);
 }
-void vkf::CreateCubeImage(VkDevice device, const void *datas, uint32_t width, VulkanImage &image, VkCommandPool pool, VkQueue graphics){
-    CreateImageArray(device, datas, 6, width, width, image, pool, graphics, VK_IMAGE_VIEW_TYPE_CUBE);
-}
 void vkf::CreateCubeImage(VkDevice device, const void*const*datas, uint32_t width, VulkanImage&image, VkCommandPool pool, VkQueue graphics){
     CreateImageArray(device, datas, 6, width, width, image, pool, graphics, VK_IMAGE_VIEW_TYPE_CUBE);
 }
 void vkf::CreateCubeImage(VkDevice device, const VulkanBuffer &dataBuffer, uint32_t width, VulkanImage &image, VkCommandPool pool, VkQueue graphics){
     CreateImageArray(device, dataBuffer, 6, width, width, image, pool, graphics, VK_IMAGE_VIEW_TYPE_CUBE);
-}
-void vkf::CreateImageArray(VkDevice device, const void *datas, uint32_t imageCount, uint32_t width, uint32_t height, VulkanImage &image, VkCommandPool pool, VkQueue graphics, VkImageViewType type){
-	VulkanBuffer tempStorageBuffer;
-	const VkDeviceSize imageSize = width * height * 4;
-	tempStorageBuffer.CreateBuffer(device, imageSize * imageCount, VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
-    tempStorageBuffer.AllocateAndBindMemory(device, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-	tempStorageBuffer.UpdateData(device, imageSize * imageCount, datas);
-	CreateImageArray(device, tempStorageBuffer, imageCount, width, height, image, pool, graphics, type);
-	tempStorageBuffer.Destroy(device);
 }
 void vkf::CopyImage(VkDevice device, const VulkanBuffer &dataBuffer, uint32_t width, uint32_t height, VulkanImage &image, VkCommandPool pool, VkQueue graphics){
 	VkCommandBuffer cmd;
@@ -706,8 +669,7 @@ void vkf::CopyImage(VkDevice device, const VulkanBuffer &dataBuffer, uint32_t wi
 void vkf::CreateImageArray(VkDevice device, const void *const *datas, uint32_t imageCount, uint32_t width, uint32_t height, VulkanImage &image, VkCommandPool pool, VkQueue graphics, VkImageViewType type){
     VulkanBuffer tempStorageBuffer;
 	const VkDeviceSize imageSize = width * height * 4;
-	tempStorageBuffer.CreateBuffer(device, imageSize * imageCount, VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
-    tempStorageBuffer.AllocateAndBindMemory(device, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+	tempStorageBuffer.CreateBuffer(device, imageSize * imageCount, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
     for (size_t i = 0; i < imageCount; i++){
 	    tempStorageBuffer.UpdateData(device, imageSize, datas[i], i * imageSize);
     }
@@ -776,8 +738,7 @@ void vkf::CopyImage(VkDevice device, VulkanImage &src, VulkanImage &dst, VkComma
 void vkf::CopyImage(VkDevice device, const void *datas, uint32_t width, uint32_t height, VulkanImage &image, VkCommandPool pool, VkQueue graphics){
     VulkanBuffer tempStorageBuffer;
 	VkDeviceSize imageSize = width * height * 4;
-	tempStorageBuffer.CreateBuffer(device, imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
-    tempStorageBuffer.AllocateAndBindMemory(device, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+	tempStorageBuffer.CreateBuffer(device, imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
     tempStorageBuffer.UpdateData(device, imageSize, datas);
     CopyImage(device, tempStorageBuffer, width, height, image, pool, graphics);
     tempStorageBuffer.Destroy(device);
@@ -785,8 +746,7 @@ void vkf::CopyImage(VkDevice device, const void *datas, uint32_t width, uint32_t
 void vkf::CopyImage(VkDevice device, const void *datas, uint32_t imageCount, uint32_t width, uint32_t height, VulkanImage&image, VkCommandPool pool, VkQueue graphics){
 	VulkanBuffer tempStorageBuffer;
 	VkDeviceSize imageSize = width * height * 4 * imageCount;
-	tempStorageBuffer.CreateBuffer(device, imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
-    tempStorageBuffer.AllocateAndBindMemory(device, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+	tempStorageBuffer.CreateBuffer(device, imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
     tempStorageBuffer.UpdateData(device, imageSize, datas);
     CopyImage(device, tempStorageBuffer, width, height, image, pool, graphics);
     tempStorageBuffer.Destroy(device);
@@ -794,8 +754,7 @@ void vkf::CopyImage(VkDevice device, const void *datas, uint32_t imageCount, uin
 void vkf::CopyImage(VkDevice device, const void*const*datas, uint32_t imageCount, uint32_t width, uint32_t height, VulkanImage&image, VkCommandPool pool, VkQueue graphics){
     VulkanBuffer tempStorageBuffer;
 	const VkDeviceSize imageSize = width * height * 4;
-	tempStorageBuffer.CreateBuffer(device, imageSize * imageCount, VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
-    tempStorageBuffer.AllocateAndBindMemory(device, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+	tempStorageBuffer.CreateBuffer(device, imageSize * imageCount, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
     for (size_t i = 0; i < imageCount; i++){
 	    tempStorageBuffer.UpdateData(device, imageSize, datas[i], i * imageSize);
     }
@@ -903,8 +862,7 @@ void vkf::tool::UpdateDescriptorSets(VkDevice device, uint32_t setlayoutBindingC
 }
 void vkf::tool::CopyBuffer(VkDevice device, VkDeviceSize size, const void *pData, VkQueue graphics, VkCommandPool pool, VulkanBuffer &buffer){
     VulkanBuffer temporary;
-    temporary.CreateBuffer(device, size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
-    temporary.AllocateAndBindMemory(device, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+    temporary.CreateBuffer(device, size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
     temporary.UpdateData(device, size, pData);
     VkCommandBuffer cmd;
     VkBufferCopy regions = {};
@@ -985,21 +943,6 @@ uint32_t vkf::tool::GetFileContent(const std::string&file, std::vector<uint32_t>
     fread(data.data(), size, 1, fp);
     fclose(fp);
     return size;
-}
-bool vkf::tool::WriteFileContent(const std::string&file, const void *data, uint32_t size){
-    if(data == nullptr){
-        printf("write file content error:data is nullptr\n");
-        return false;
-    }
-    FILE *fp = fopen(file.c_str(), "wb");
-    if(!fp){
-        perror("open file error");
-        printf("file name is %s\n", file.c_str());
-        return false;
-    }
-    fwrite(data, size, 1, fp);
-    fclose(fp);
-    return true; 
 }
 void vkf::tool::SetImageLayout(VkCommandBuffer cmdbuffer, VkImage image, VkImageLayout oldImageLayout, VkImageLayout newImageLayout, VkImageSubresourceRange subresourceRange, VkPipelineStageFlags srcStageMask, VkPipelineStageFlags dstStageMask){
 	// Create an image barrier object

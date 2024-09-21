@@ -5,7 +5,7 @@ void Server::SendSelfInfoation(uint32_t clientIndex){
     message.clientIndex = clientIndex;
     SendToClient(clientIndex, &message, sizeof(message));
 }
-void Server::SendPlayerNameInfoation(uint32_t count, const std::array<PlayerInfo, 3>&players){
+void Server::SendPlayerNameInfoation(uint32_t count, const std::array<Player, 3>&players){
     GameMessage message;
     message.event = JOINS_GAME_GAME_EVENT;
     for (uint32_t uiClient = 0; uiClient < count; ++uiClient){
@@ -70,7 +70,7 @@ void Server::RecvFromClient(uint32_t client, void *__buf, size_t __n){
 void Server::SendToClient(uint32_t client, const void *__buf, size_t __n){
     mClients[client].SendTo(__buf, __n);
 }
-// SOCKET Server::AcceptClient(uint32_t count, std::array<PlayerInfo, 3>&players) {
+// SOCKET Server::AcceptClient(uint32_t count, std::array<Player, 3>&players) {
 //     GameMessage message;
 //     struct sockaddr_in client_addr;
 //     socklen_t size = sizeof(client_addr);

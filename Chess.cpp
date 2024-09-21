@@ -1,17 +1,15 @@
 #include "Chess.h"
-#include "VulkanChessboard.h"
-void Chess::SwapCenter(ChessInfo *src, ChessInfo *dst){
-    ChessInfo temp = *src;
-    *src = *dst;
-    *dst = temp;
-}
-uint32_t Chess::GetTerritoryIndex(uint32_t row, uint32_t column)const{
+const Chess g_Center[] = { Chess(CHESSBOARD_ROW - 1, 8), Chess(8, CHESSBOARD_COLUMN - 1), Chess(1, 8), Chess(8, 1) };
+uint32_t GetTerritoryIndex(uint32_t row, uint32_t column){
     if(row < 13 && row > 3){
         if(column > 11){
             return WU_TERRITORY_INDEX;
         }
         else if(column < 5){
             return HAN_TERRITORY_INDEX;
+        }
+        else{
+            return CENTER_TERRITORY_INDEX;
         }
     }
     else if(column > 3 && column < 13){
@@ -22,45 +20,13 @@ uint32_t Chess::GetTerritoryIndex(uint32_t row, uint32_t column)const{
         else if(row < 5){
             return WEI_TERRITORY_INDEX;
         }
+        else{
+            return CENTER_TERRITORY_INDEX;
+        }
     }
     return INVALID_TERRITORY_INDEX;
 }
-const ChessInfo *Chess::GetChessInfo(uint32_t row, uint32_t column, const Chess *pChess[4][COUNTRY_CHESS_COUNT]) const{
-    const ChessInfo *pChessInfo = nullptr;
-    for (uint32_t uiCountry = 0; uiCountry < 4; ++uiCountry){
-        pChessInfo = GetChessInfo(uiCountry, row, column, pChess);
-        if(pChessInfo)break;
-    }
-    return pChessInfo;
-}
-const ChessInfo *Chess::GetChessInfo(uint32_t country, uint32_t row, uint32_t column, const Chess *pChess[4][COUNTRY_CHESS_COUNT])const{
-    for (uint32_t uiChess = 0; uiChess < COUNTRY_CHESS_COUNT; ++uiChess){
-        const Chess *pC = pChess[country][uiChess];
-        if(pC){
-            if(mInfo.row == row && mInfo.column == column){
-                return &mInfo;
-            }
-        }
-    }
-    // printf("-------------\n");
-    return nullptr;
-}
-// #include "Chessboard.h"
-Chess::Chess(const ChessInfo&info){
-    mInfo = info;
-    ResetPos(info.row, info.column);
-}
-
-Chess::~Chess(){
-
-}
-void Chess::ResetPos(uint32_t row, uint32_t column){
-    mInfo.row = row;
-    mInfo.column = column;
-    mPos.y = ROW_TO_Y(row);
-    mPos.x = COLUMN_TO_X(column);
-}
-bool Chess::IsBoundary(uint32_t row, uint32_t column) const{
+bool IsBoundary(uint32_t row, uint32_t column){
     if(row > CHESSBOARD_ROW || column > CHESSBOARD_COLUMN){
         // printf("到达边界, row:%u, column:%u\n", row, column);
         return true;
@@ -71,198 +37,214 @@ bool Chess::IsBoundary(uint32_t row, uint32_t column) const{
     }
     return false;
 }
-bool Chess::IsPalaceCenter(uint32_t centerCount, const ChessInfo *center)const{
-    bool bIsPalaceCenter = false;
-    for (size_t i = 0; i < centerCount; ++i){
-        if(mInfo.row == center[i].row && mInfo.column == center[i].column){
-            // printf("%d国,%d行%d列的棋子:%d, 在中心为%d行%d列的九宫格内\n", mInfo.country, mInfo.row, mInfo.column, mInfo.chess, center[i].row, center[i].column);
-            bIsPalaceCenter = true;
+//返回所在九宫格的势力
+uint32_t IsPalaceCenter(uint32_t row, uint32_t column){
+    uint32_t country = MAX_COUNTRY_INDEX;
+    for (size_t i = 0; i < MAX_COUNTRY_INDEX; ++i){
+        if(row == g_Center[i].GetRow() && column == g_Center[i].GetColumn()){
+            // printf("%d国,%d行%d列的棋子:%d, 在中心为%d行%d列的九宫格内\n", mInfo.country, row, column, mInfo.chess, g_Center[i].GetRow(), g_Center[i].GetColumn());
+            country = i;
             break;
         }   
     }
-    return bIsPalaceCenter;
+    return country;
 }
-bool Chess::IsInPalace(uint32_t row, uint32_t column, const ChessInfo *pCenter) const{
-    bool bInIsPalace = false;
-    if(IsPalaceCenter(1, pCenter))return true;
-    if(abs((float)row - pCenter->row) < 2 && abs((float)column - pCenter->column) < 2){
-    // if(abs((float)row - center[i].row) < 2 && abs((float)column - center[i].column) < 2){
-        // printf("%d国, %d行%d列的棋子:%d, 行绝对值:%.0f, 列绝对值:%.0f, 属于中心位置为%d行, %d列九宫格内\n", mInfo.country, row, column, mInfo.chess, uiRow, uiColumn, center[i].row, center[i].column);
-        bInIsPalace = true;
+uint32_t IsInPalace(uint32_t row, uint32_t column){
+    uint32_t country = IsPalaceCenter(row, column);
+    if(country != MAX_COUNTRY_INDEX)return country;
+    for (size_t i = 0; i < MAX_COUNTRY_INDEX; ++i){
+        if(abs((float)row - g_Center[i].GetRow()) < 2 && abs((float)column - g_Center[i].GetColumn()) < 2){
+            country = i;
+            break;
+        }
     }
-    return bInIsPalace;
+    return country;
 }
-void Chess::SelectChessInPalace(const Chess *pChess[4][COUNTRY_CHESS_COUNT], uint32_t centerCount, const ChessInfo *center, std::vector<ChessInfo>&canplays)const{
+const Chess *GetChess(uint32_t country, uint32_t row, uint32_t column, Chess *pChess[MAX_COUNTRY_INDEX][DRAW_COUNTRY_CHESS_COUNT]){
+    for (uint32_t uiChess = 0; uiChess < DRAW_COUNTRY_CHESS_COUNT; ++uiChess){
+        const Chess *pc = pChess[country][uiChess];
+        if(pc && pc->GetRow() == row && pc->GetColumn() == column){
+            return pc;
+        }
+    }
+    return nullptr;
+}
+const Chess *GetChess(uint32_t row, uint32_t column, Chess *pChess[MAX_COUNTRY_INDEX][DRAW_COUNTRY_CHESS_COUNT]){
+    const Chess *pc = nullptr;
+    for (uint32_t uiCountry = 0; uiCountry < MAX_COUNTRY_INDEX; ++uiCountry){
+        pc = GetChess(uiCountry, row, column, pChess);
+        if(pc)break;
+    }
+    return pc;
+}
+void SelectChessInPalace(uint32_t currentCountry, uint32_t row, uint32_t column, Chess *pChess[MAX_COUNTRY_INDEX][DRAW_COUNTRY_CHESS_COUNT], std::vector<Chess>&canplays){
     //只需要管斜线，其他位置归棋子子类管
-    //因为我们确实在自己的九宫格内，所以该条件直接通过，后面就是想去谁的九宫格都行
-    const ChessInfo *pChessInfo = nullptr;
-    for (size_t i = 0; i < centerCount; ++i){
-        if(IsInPalace(mInfo.row, mInfo.column, &center[i])){
-            //上面的if已经排除了不在九宫格内的情况
-            if(center[i].row == mInfo.row && center[i].column == mInfo.column){
-                //除馬、相外, 其他棋子在中心点时，能走的肯定就是斜线边的点
-                const glm::vec2 pos[] = {
-                    glm::vec2(center[i].column - 1, center[i].row - 1),
-                    glm::vec2(center[i].column + 1, center[i].row - 1),
-                    glm::vec2(center[i].column - 1, center[i].row + 1),
-                    glm::vec2(center[i].column + 1, center[i].row + 1)
-                };
-                for (size_t i = 0; i < sizeof(pos) / sizeof(glm::vec2); ++i){
-                    pChessInfo = GetChessInfo(pos[i].y, pos[i].x, pChess);
-                    if(!pChessInfo || pChessInfo->country != mInfo.country){
-                        canplays.push_back(ChessInfo(pos[i].y, pos[i].x));
-                    }
-                }
-                break;
-            }
-            else if((mInfo.row == center[i].row - 1 || mInfo.row == center[i].row + 1) && (mInfo.column == center[i].column - 1 || mInfo.column == center[i].column + 1)){
-                //在斜线边的点上时, 能走的只有中心点
-                pChessInfo = GetChessInfo(center[i].row, center[i].column, pChess);
-                if(!pChessInfo || pChessInfo->country != mInfo.country)canplays.push_back(ChessInfo(center[i].row, center[i].column));
-                break;
+    const Chess *pc = nullptr;
+    uint32_t country = IsPalaceCenter(row, column);
+    if(country != MAX_COUNTRY_INDEX){
+        const Chess pos[] = {
+            Chess(g_Center[country].GetRow() - 1, g_Center[country].GetColumn() - 1),
+            Chess(g_Center[country].GetRow() - 1, g_Center[country].GetColumn() + 1),
+            Chess(g_Center[country].GetRow() + 1, g_Center[country].GetColumn() - 1),
+            Chess(g_Center[country].GetRow() + 1, g_Center[country].GetColumn() + 1)
+        };
+        //除馬、相外, 其他棋子在中心点时，能走的肯定就是斜线边的点
+        for (size_t i = 0; i < sizeof(pos) / sizeof(glm::vec2); ++i){
+            pc = GetChess(pos[i].GetRow(), pos[i].GetColumn(), pChess);
+            if(!pc || pc->GetCountry() != currentCountry){
+                canplays.push_back(pos[i]);
             }
         }
     }
-}
-Wei::Wei(const ChessInfo &info) : Chess(info){
-    uint32_t territory = GetTerritoryIndex(info.row, info.column);
-    if(territory == WU_TERRITORY_INDEX){
-        mCenter.row = info.row;
-        mCenter.column = info.column - 1;
-    }
-    else if(territory == WEI_TERRITORY_INDEX){
-        mCenter.row = info.row + 1;
-        mCenter.column = info.column;
-    }
-    else if(territory == SHU_TERRITORY_INDEX){
-        mCenter.row = info.row - 1;
-        mCenter.column = info.column;
-    }
-    else if(territory == HAN_TERRITORY_INDEX){
-        mCenter.row = info.row;
-        mCenter.column = info.column + 1;
+    else if((country = IsInPalace(row, column)) != MAX_COUNTRY_INDEX){
+        //在斜线边的点上时, 能走的只有中心点
+        pc = GetChess(g_Center[country].GetRow(), g_Center[country].GetColumn(), pChess);
+        if(!pc || pc->GetCountry() != currentCountry)canplays.push_back(g_Center[country]);
     }
 }
+
+Chess::Chess(/* args */){
+}
+
+Chess::Chess(uint32_t row, uint32_t column){
+    SetPos(row, column);
+}
+
+Chess::Chess(uint32_t chess, uint32_t country, uint32_t row, uint32_t column){
+    SetChess(chess);
+    SetPos(row, column);
+    SetCountry(country);
+}
+
+Chess::Chess(uint32_t chess, uint32_t country, uint32_t fontIndex, uint32_t row, uint32_t column){
+    SetChess(chess);
+    SetPos(row, column);
+    SetCountry(country);
+    SetFontIndex(fontIndex);
+}
+Chess::~Chess(){
+}
+
+void Chess::SetPos(uint32_t row, uint32_t column){
+    mRow = row;
+    mColumn = column;
+    mPos.y = ROW_TO_Y(mRow);
+    mPos.x = COLUMN_TO_X(mColumn);
+    mTerriory = GetTerritoryIndex(row, column);
+}
+
+void Chess::Selected(Chess *pChess[MAX_COUNTRY_INDEX][DRAW_COUNTRY_CHESS_COUNT], std::vector<Chess> &canplays) const{
+}
+
+Wei::Wei(uint32_t row, uint32_t column):Chess(row, column){
+}
+
+Wei::Wei(){
+}
+
+Wei::Wei(uint32_t chess, uint32_t country, uint32_t row, uint32_t column):Chess(chess, country, row, column){
+}
+
+Wei::Wei(uint32_t chess, uint32_t country, uint32_t fontIndex, uint32_t row, uint32_t column):Chess(chess, country, fontIndex, row, column){
+}
+
 Wei::~Wei(){
-
 }
-void Wei::Selected(const Chess *pChess[4][COUNTRY_CHESS_COUNT], std::vector<ChessInfo>&canplays)const{
-    //需要知道某个地方有没有棋子，该棋子的信息
-    const ChessInfo cInfo[] = { ChessInfo(mInfo.row + 1, mInfo.column), ChessInfo(mInfo.row - 1, mInfo.column), ChessInfo(mInfo.row, mInfo.column + 1), ChessInfo(mInfo.row, mInfo.column - 1) };
-    for(uint32_t i = 0; i < sizeof(cInfo) / sizeof(ChessInfo); ++i){
-        if(!IsBoundary(cInfo[i].row, cInfo[i].column) && IsInPalace(cInfo[i].row, cInfo[i].column, &mCenter)){//将不能出九宫格
-            const ChessInfo *pChessInfo = GetChessInfo(cInfo[i].row, cInfo[i].column, pChess);
-            if(!pChessInfo || pChessInfo->country != mInfo.country)
-                canplays.push_back(ChessInfo(cInfo[i].row, cInfo[i].column));
+
+void Wei::Selected(Chess *pChess[MAX_COUNTRY_INDEX][DRAW_COUNTRY_CHESS_COUNT], std::vector<Chess> &canplays) const{
+    const Chess cInfo[] = { Chess(GetRow() + 1, GetColumn()), Chess(GetRow() - 1, GetColumn()), Chess(GetRow(), GetColumn() + 1), Chess(GetRow(), GetColumn() - 1) };
+    for(uint32_t i = 0; i < sizeof(cInfo) / sizeof(Chess); ++i){
+        if(!IsBoundary(cInfo[i].GetRow(), cInfo[i].GetColumn()) && IsInPalace(cInfo[i].GetRow(), cInfo[i].GetColumn())){//将不能出九宫格
+            const Chess *pc = ::GetChess(cInfo[i].GetRow(), cInfo[i].GetColumn(), pChess);
+            if(!pc || pc->GetCountry() != GetCountry())
+                canplays.push_back(Chess(cInfo[i].GetRow(), cInfo[i].GetColumn()));
         }
     }
-    SelectChessInPalace(pChess, 1, &mCenter, canplays);
+    SelectChessInPalace(GetCountry(), GetRow(), GetColumn(), pChess, canplays);
 }
 
-Shu::Shu(const ChessInfo&info):Chess(info){
-    uint32_t territory = GetTerritoryIndex(info.row, info.column);
-    if(territory == WU_TERRITORY_INDEX){
-        mCenter.row = info.row;
-        mCenter.column = info.column - 1;
-    }
-    else if(territory == WEI_TERRITORY_INDEX){
-        mCenter.row = info.row + 1;
-        mCenter.column = info.column;
-    }
-    else if(territory == SHU_TERRITORY_INDEX){
-        mCenter.row = info.row - 1;
-        mCenter.column = info.column;
-    }
-    else if(territory == HAN_TERRITORY_INDEX){
-        mCenter.row = info.row;
-        mCenter.column = info.column + 1;
-    }
+Shu::Shu(){
 }
+
+Shu::Shu(uint32_t row, uint32_t column):Chess(row, column){
+}
+
+Shu::Shu(uint32_t chess, uint32_t country, uint32_t row, uint32_t column):Chess(chess, country, row, column){
+}
+
+Shu::Shu(uint32_t chess, uint32_t country, uint32_t fontIndex, uint32_t row, uint32_t column):Chess(chess, country, fontIndex, row, column){
+}
+
 Shu::~Shu(){
-
 }
-void Shu::Selected(const Chess *pChess[4][COUNTRY_CHESS_COUNT], std::vector<ChessInfo>&canplays)const{
-    const ChessInfo cInfo[] = { ChessInfo(mInfo.row + 1, mInfo.column), ChessInfo(mInfo.row - 1, mInfo.column), ChessInfo(mInfo.row, mInfo.column + 1), ChessInfo(mInfo.row, mInfo.column - 1) };
-    for(uint32_t i = 0; i < sizeof(cInfo) / sizeof(ChessInfo); ++i){
-        if(!IsBoundary(cInfo[i].row, cInfo[i].column) && IsInPalace(cInfo[i].row, cInfo[i].column, &mCenter)){//将不能出九宫格
-            const ChessInfo *pChessInfo = GetChessInfo(cInfo[i].row, cInfo[i].column, pChess);
-            if(!pChessInfo || pChessInfo->country != mInfo.country)
-                canplays.push_back(ChessInfo(cInfo[i].row, cInfo[i].column));
+
+void Shu::Selected(Chess *pChess[MAX_COUNTRY_INDEX][DRAW_COUNTRY_CHESS_COUNT], std::vector<Chess> &canplays) const{
+    const Chess cInfo[] = { Chess(GetRow() + 1, GetColumn()), Chess(GetRow() - 1, GetColumn()), Chess(GetRow(), GetColumn() + 1), Chess(GetRow(), GetColumn() - 1) };
+    for(uint32_t i = 0; i < sizeof(cInfo) / sizeof(Chess); ++i){
+        if(!IsBoundary(cInfo[i].GetRow(), cInfo[i].GetColumn()) && IsInPalace(cInfo[i].GetRow(), cInfo[i].GetColumn())){//将不能出九宫格
+            const Chess *pc = ::GetChess(cInfo[i].GetRow(), cInfo[i].GetColumn(), pChess);
+            if(!pc || pc->GetCountry() != GetCountry())
+                canplays.push_back(Chess(cInfo[i].GetRow(), cInfo[i].GetColumn()));
         }
     }
-    SelectChessInPalace(pChess, 1, &mCenter, canplays);
+    SelectChessInPalace(GetCountry(), GetRow(), GetColumn(), pChess, canplays);
 }
-Wu::Wu(const ChessInfo&info):Chess(info){
-    uint32_t territory = GetTerritoryIndex(info.row, info.column);
-    if(territory == WU_TERRITORY_INDEX){
-        mCenter.row = info.row;
-        mCenter.column = info.column - 1;
-    }
-    else if(territory == WEI_TERRITORY_INDEX){
-        mCenter.row = info.row + 1;
-        mCenter.column = info.column;
-    }
-    else if(territory == SHU_TERRITORY_INDEX){
-        mCenter.row = info.row - 1;
-        mCenter.column = info.column;
-    }
-    else if(territory == HAN_TERRITORY_INDEX){
-        mCenter.row = info.row;
-        mCenter.column = info.column + 1;
-    }
+
+Wu::Wu(){
 }
+
+Wu::Wu(uint32_t row, uint32_t column):Chess(row, column){
+}
+
+Wu::Wu(uint32_t chess, uint32_t country, uint32_t row, uint32_t column):Chess(chess, country, row, column){
+}
+
+Wu::Wu(uint32_t chess, uint32_t country, uint32_t fontIndex, uint32_t row, uint32_t column):Chess(chess, country, fontIndex, row, column){
+}
+
 Wu::~Wu(){
-
 }
-void Wu::Selected(const Chess *pChess[4][COUNTRY_CHESS_COUNT], std::vector<ChessInfo>&canplays)const{
-    const ChessInfo cInfo[] = { ChessInfo(mInfo.row + 1, mInfo.column), ChessInfo(mInfo.row - 1, mInfo.column), ChessInfo(mInfo.row, mInfo.column + 1), ChessInfo(mInfo.row, mInfo.column - 1) };
-    for(uint32_t i = 0; i < sizeof(cInfo) / sizeof(ChessInfo); ++i){
-        if(!IsBoundary(cInfo[i].row, cInfo[i].column) && IsInPalace(cInfo[i].row, cInfo[i].column, &mCenter)){//将不能出九宫格
-            const ChessInfo *pChessInfo = GetChessInfo(cInfo[i].row, cInfo[i].column, pChess);
-            if(!pChessInfo || pChessInfo->country != mInfo.country)
-                canplays.push_back(ChessInfo(cInfo[i].row, cInfo[i].column));
+
+void Wu::Selected(Chess *pChess[MAX_COUNTRY_INDEX][DRAW_COUNTRY_CHESS_COUNT], std::vector<Chess> &canplays) const{
+    const Chess cInfo[] = { Chess(GetRow() + 1, GetColumn()), Chess(GetRow() - 1, GetColumn()), Chess(GetRow(), GetColumn() + 1), Chess(GetRow(), GetColumn() - 1) };
+    for(uint32_t i = 0; i < sizeof(cInfo) / sizeof(Chess); ++i){
+        if(!IsBoundary(cInfo[i].GetRow(), cInfo[i].GetColumn()) && IsInPalace(cInfo[i].GetRow(), cInfo[i].GetColumn())){//将不能出九宫格
+            const Chess *pc = ::GetChess(cInfo[i].GetRow(), cInfo[i].GetColumn(), pChess);
+            if(!pc || pc->GetCountry() != GetCountry())
+                canplays.push_back(Chess(cInfo[i].GetRow(), cInfo[i].GetColumn()));
         }
     }
-    SelectChessInPalace(pChess, 1, &mCenter, canplays);
+    SelectChessInPalace(GetCountry(), GetRow(), GetColumn(), pChess, canplays);
 }
-Han::Han(const ChessInfo&info):Chess(info){
-#ifdef HAN_CAN_PLAY
-    uint32_t territory = GetTerritoryIndex(info.row, info.column);
-    if(territory == WU_TERRITORY_INDEX){
-        mCenter.row = info.row;
-        mCenter.column = info.column - 1;
-    }
-    else if(territory == WEI_TERRITORY_INDEX){
-        mCenter.row = info.row + 1;
-        mCenter.column = info.column;
-    }
-    else if(territory == SHU_TERRITORY_INDEX){
-        mCenter.row = info.row - 1;
-        mCenter.column = info.column;
-    }
-    else if(territory == HAN_TERRITORY_INDEX){
-        mCenter.row = info.row;
-        mCenter.column = info.column + 1;
-    }
-#endif
+
+Han::Han(){
 }
+
+Han::Han(uint32_t row, uint32_t column):Chess(row, column){
+}
+
+Han::Han(uint32_t chess, uint32_t country, uint32_t row, uint32_t column):Chess(chess, country, row, column){
+}
+
+Han::Han(uint32_t chess, uint32_t country, uint32_t fontIndex, uint32_t row, uint32_t column):Chess(chess, country, fontIndex, row, column){
+}
+
 Han::~Han(){
-
 }
-void Han::Selected(const Chess *pChess[4][COUNTRY_CHESS_COUNT], std::vector<ChessInfo>&canplays)const{
-#ifdef HAN_CAN_PLAY
-    const ChessInfo cInfo[] = { ChessInfo(mInfo.row + 1, mInfo.column), ChessInfo(mInfo.row - 1, mInfo.column), ChessInfo(mInfo.row, mInfo.column + 1), ChessInfo(mInfo.row, mInfo.column - 1) };
-    for(uint32_t i = 0; i < sizeof(cInfo) / sizeof(ChessInfo); ++i){
-        if(!IsBoundary(cInfo[i].row, cInfo[i].column) && IsInPalace(cInfo[i].row, cInfo[i].column, &mCenter)){//将不能出九宫格
-            const ChessInfo *pChessInfo = GetChessInfo(cInfo[i].row, cInfo[i].column, pChess);
-            if(!pChessInfo || pChessInfo->country != mInfo.country)
-                canplays.push_back(ChessInfo(cInfo[i].row, cInfo[i].column));
+
+void Han::Selected(Chess *pChess[MAX_COUNTRY_INDEX][DRAW_COUNTRY_CHESS_COUNT], std::vector<Chess> &canplays) const{
+    const Chess cInfo[] = { Chess(GetRow() + 1, GetColumn()), Chess(GetRow() - 1, GetColumn()), Chess(GetRow(), GetColumn() + 1), Chess(GetRow(), GetColumn() - 1) };
+    for(uint32_t i = 0; i < sizeof(cInfo) / sizeof(Chess); ++i){
+        if(!IsBoundary(cInfo[i].GetRow(), cInfo[i].GetColumn()) && IsInPalace(cInfo[i].GetRow(), cInfo[i].GetColumn())){//将不能出九宫格
+            const Chess *pc = ::GetChess(cInfo[i].GetRow(), cInfo[i].GetColumn(), pChess);
+            if(!pc || pc->GetCountry() != GetCountry())
+                canplays.push_back(Chess(cInfo[i].GetRow(), cInfo[i].GetColumn()));
         }
     }
-    SelectChessInPalace(pChess, 1, &mCenter, canplays);
-#endif
+    SelectChessInPalace(GetCountry(), GetRow(), GetColumn(), pChess, canplays);
 }
-glm::vec2 Bing::GetBingBack()const{
+
+glm::vec2 Bing::GetBingBack() const{
     glm::vec2 back = glm::vec2(0);
     if(mTerriory == WU_TERRITORY_INDEX){
         back.x = 1;
@@ -278,103 +260,75 @@ glm::vec2 Bing::GetBingBack()const{
     }
     return back;
 }
-bool Bing::IsAbroad(uint32_t row, uint32_t column)const{
+
+bool Bing::IsAbroad(uint32_t row, uint32_t column) const{
     return mTerriory != GetTerritoryIndex(row, column);
 }
-Bing::Bing(const ChessInfo &info) : Chess(info){
-    mTerriory = GetTerritoryIndex(info.row, info.column);
-    mCenter[WU_COUNTRY_INDEX].row = 8;
-    mCenter[WU_COUNTRY_INDEX].column = 15;
 
-    mCenter[WEI_COUNTRY_INDEX].row = 1;
-    mCenter[WEI_COUNTRY_INDEX].column = 8;
-
-    mCenter[SHU_COUNTRY_INDEX].row = 15;
-    mCenter[SHU_COUNTRY_INDEX].column = 8;
-    //因为汉在最后面,如果没定义,后面没用到,所以不需要管
-    mCenter[HAN_COUNTRY_INDEX].row = 8;
-    mCenter[HAN_COUNTRY_INDEX].column = 1;
-    const uint32_t playerCountry = GET_PLAYER_COUNTRY(info.country, mTerriory);
-    //位置不固定,所以不能直接用
-    SwapCenter(&mCenter[mTerriory], &mCenter[HAN_COUNTRY_INDEX]);
-#ifndef HAN_CAN_PLAY
-    if(playerCountry == WU_COUNTRY_INDEX){
-        SwapCenter(&mCenter[WEI_COUNTRY_INDEX], &mCenter[SHU_COUNTRY_INDEX]);
-    }
-    else if(playerCountry == WEI_COUNTRY_INDEX){
-        SwapCenter(&mCenter[WU_COUNTRY_INDEX], &mCenter[SHU_COUNTRY_INDEX]);
-    }
-    // else if(playerCountry == SHU_COUNTRY_INDEX){
-    //     SwapCenter(HAN_COUNTRY_INDEX, HAN_COUNTRY_INDEX);
-    // }
-#endif
+Bing::Bing(){
 }
+
+Bing::Bing(uint32_t row, uint32_t column):Chess(row, column){
+    mTerriory = GetTerritoryIndex(row, column);
+}
+
+Bing::Bing(uint32_t chess, uint32_t country, uint32_t row, uint32_t column):Chess(chess, country, row, column){
+    mTerriory = GetTerritoryIndex(row, column);
+}
+
+Bing::Bing(uint32_t chess, uint32_t country, uint32_t fontIndex, uint32_t row, uint32_t column):Chess(chess, country, fontIndex, row, column){
+    mTerriory = GetTerritoryIndex(row, column);
+}
+
 Bing::~Bing(){
-
 }
-void Bing::Selected(const Chess *pChess[4][COUNTRY_CHESS_COUNT], std::vector<ChessInfo>&canplays)const{
+
+void Bing::Selected(Chess *pChess[MAX_COUNTRY_INDEX][DRAW_COUNTRY_CHESS_COUNT], std::vector<Chess> &canplays) const{
     //兵在自身境内不能后退
     const glm::vec2 back = GetBingBack();
-    const bool bAbroad = IsAbroad(mInfo.row, mInfo.column);
+    const bool bAbroad = IsAbroad(GetRow(), GetColumn());
     // const const ChessInfo *pChessInfo[] = { ChessInfo(mRow + 1, mColumn), ChessInfo(mRow - 1, mColumn), ChessInfo(mRow, mColumn + 1), ChessInfo(mRow, mColumn - 1) };
     const glm::vec2 cInfo[] = { glm::vec2(0, 1), glm::vec2(0, -1), glm::vec2(1, 0), glm::vec2(-1, 0) };
     for(uint32_t i = 0; i < sizeof(cInfo) / sizeof(glm::vec2); ++i){
         if(!bAbroad && cInfo[i].x == back.x && cInfo[i].y == back.y)continue;
-        const glm::vec2 currentPos = glm::vec2(mInfo.column, mInfo.row) + cInfo[i];
+        const glm::vec2 currentPos = glm::vec2(GetColumn(), GetRow()) + cInfo[i];
         if(!IsBoundary(currentPos.y, currentPos.x)){
-            const ChessInfo *pChessInfo = GetChessInfo(currentPos.y, currentPos.x, pChess);
-            if(!pChessInfo || pChessInfo->country != mInfo.country)
-                canplays.push_back(ChessInfo(currentPos.y, currentPos.x));
+            const Chess *pc = ::GetChess(currentPos.y, currentPos.x, pChess);
+            if(!pc || pc->GetCountry() != GetCountry())
+                canplays.push_back(Chess(currentPos.y, currentPos.x));
         }
     }
-#ifdef HAN_CAN_PLAY
-    SelectChessInPalace(pChess, 3, mCenter, canplays);
-#else
-    SelectChessInPalace(pChess, 2, mCenter, canplays);
-#endif
+    SelectChessInPalace(GetCountry(), GetRow(), GetColumn(), pChess, canplays);
 }
 
-Pao::Pao(const ChessInfo&info):Chess(info){
-    uint32_t territory = GetTerritoryIndex(info.row, info.column);
-    mCenter[WU_COUNTRY_INDEX].row = 8;
-    mCenter[WU_COUNTRY_INDEX].column = 15;
-
-    mCenter[WEI_COUNTRY_INDEX].row = 1;
-    mCenter[WEI_COUNTRY_INDEX].column = 8;
-
-    mCenter[SHU_COUNTRY_INDEX].row = 15;
-    mCenter[SHU_COUNTRY_INDEX].column = 8;
-
-    mCenter[HAN_COUNTRY_INDEX].row = 8;
-    mCenter[HAN_COUNTRY_INDEX].column = 1;
-#ifndef HAN_CAN_PLAY
-    uint32_t playerCountry = GET_PLAYER_COUNTRY(info.country, territory);
-    if(playerCountry == WU_COUNTRY_INDEX){
-        SwapCenter(&mCenter[WEI_COUNTRY_INDEX], &mCenter[HAN_COUNTRY_INDEX]);
-    }
-    else if(playerCountry == WEI_COUNTRY_INDEX){
-        SwapCenter(&mCenter[WU_COUNTRY_INDEX], &mCenter[HAN_COUNTRY_INDEX]);
-    }
-    //蜀视角的汉仍然在原位不用管
-#endif
+Pao::Pao(){
 }
+
+Pao::Pao(uint32_t row, uint32_t column):Chess(row, column){
+}
+
+Pao::Pao(uint32_t chess, uint32_t country, uint32_t row, uint32_t column):Chess(chess, country, row, column){
+}
+
+Pao::Pao(uint32_t chess, uint32_t country, uint32_t fontIndex, uint32_t row, uint32_t column):Chess(chess, country, fontIndex, row, column){
+}
+
 Pao::~Pao(){
-    
 }
-void Pao::Selected(const Chess *pChess[4][COUNTRY_CHESS_COUNT], std::vector<ChessInfo>&canplays)const{
-    // bool bCapture = false;
+
+void Pao::Selected(Chess *pChess[MAX_COUNTRY_INDEX][DRAW_COUNTRY_CHESS_COUNT], std::vector<Chess> &canplays) const{
     const glm::vec2 direction[] = { glm::vec2(1, 0), glm::vec2(-1, 0), glm::vec2(0, 1), glm::vec2(0, -1) };
     for(uint32_t i = 0; i < sizeof(direction) / sizeof(glm::vec2); ++i){
-        const glm::vec2 currentPos = glm::vec2(mInfo.column, mInfo.row);
+        const glm::vec2 currentPos = glm::vec2(GetColumn(), GetRow());
         glm::vec2 pos = currentPos + direction[i];
         while(!IsBoundary(pos.y, pos.x)){
-            const ChessInfo *pChessInfo = GetChessInfo(pos.y, pos.x, pChess);
+            const Chess *pChessInfo = ::GetChess(pos.y, pos.x, pChess);
             if(pChessInfo){
                 pos += direction[i];
                 while(!IsBoundary(pos.y, pos.x)){
-                    pChessInfo = GetChessInfo(pos.y, pos.x, pChess);
-                    if(pChessInfo && pChessInfo->country != mInfo.country){
-                        canplays.push_back(ChessInfo(pos.y, pos.x));
+                    pChessInfo = ::GetChess(pos.y, pos.x, pChess);
+                    if(pChessInfo && pChessInfo->GetCountry() != GetCountry()){
+                        canplays.push_back(Chess(pos.y, pos.x));
                         break;
                     }
                     pos += direction[i];
@@ -382,144 +336,128 @@ void Pao::Selected(const Chess *pChess[4][COUNTRY_CHESS_COUNT], std::vector<Ches
                 break;
             }
             else{
-                canplays.push_back(ChessInfo(pos.y, pos.x));
+                canplays.push_back(Chess(pos.y, pos.x));
             }
             pos += direction[i];
         }
     }
-#ifdef HAN_CAN_PLAY
-    SelectChessInPalace(pChess, 4, mCenter, canplays);
-#else
-    SelectChessInPalace(pChess, 3, mCenter, canplays);
-#endif
+    SelectChessInPalace(GetCountry(), GetRow(), GetColumn(), pChess, canplays);
 }
 
-Che::Che(const ChessInfo&info):Chess(info){
-    uint32_t territory = GetTerritoryIndex(info.row, info.column);
-    mCenter[WU_COUNTRY_INDEX].row = 8;
-    mCenter[WU_COUNTRY_INDEX].column = 15;
-
-    mCenter[WEI_COUNTRY_INDEX].row = 1;
-    mCenter[WEI_COUNTRY_INDEX].column = 8;
-
-    mCenter[SHU_COUNTRY_INDEX].row = 15;
-    mCenter[SHU_COUNTRY_INDEX].column = 8;
-
-    mCenter[HAN_COUNTRY_INDEX].row = 8;
-    mCenter[HAN_COUNTRY_INDEX].column = 1;
-#ifndef HAN_CAN_PLAY
-    uint32_t playerCountry = GET_PLAYER_COUNTRY(info.country, territory);
-    if(playerCountry == WU_COUNTRY_INDEX){
-        SwapCenter(&mCenter[WEI_COUNTRY_INDEX], &mCenter[HAN_COUNTRY_INDEX]);
-    }
-    else if(playerCountry == WEI_COUNTRY_INDEX){
-        SwapCenter(&mCenter[WU_COUNTRY_INDEX], &mCenter[HAN_COUNTRY_INDEX]);
-    }
-    //蜀视角的汉仍然在原位不用管
-#endif
+Che::Che(){
 }
+
+Che::Che(uint32_t row, uint32_t column):Chess(row, column){
+}
+
+Che::Che(uint32_t chess, uint32_t country, uint32_t row, uint32_t column):Chess(chess, country, row, column){
+}
+
+Che::Che(uint32_t chess, uint32_t country, uint32_t fontIndex, uint32_t row, uint32_t column):Chess(chess, country, fontIndex, row, column){
+}
+
 Che::~Che(){
-    
 }
-void Che::Selected(const Chess *pChess[4][COUNTRY_CHESS_COUNT], std::vector<ChessInfo>&canplays)const{
+
+void Che::Selected(Chess *pChess[MAX_COUNTRY_INDEX][DRAW_COUNTRY_CHESS_COUNT], std::vector<Chess> &canplays) const{
     const glm::vec2 direction[] = { glm::vec2(1, 0), glm::vec2(-1, 0), glm::vec2(0, 1), glm::vec2(0, -1) };
     for(uint32_t i = 0; i < sizeof(direction) / sizeof(glm::vec2); ++i){
-        const glm::vec2 currentPos = glm::vec2(mInfo.column, mInfo.row);
+        const glm::vec2 currentPos = glm::vec2(GetColumn(), GetRow());
         glm::vec2 pos = currentPos + direction[i];
         while(!IsBoundary(pos.y, pos.x)){
-            const ChessInfo *pChessInfo = GetChessInfo(pos.y, pos.x, pChess);
-            if(pChessInfo){
-                if(pChessInfo->country != mInfo.country){
-                    canplays.push_back(ChessInfo(pos.y, pos.x));
+            const Chess *pc = ::GetChess(pos.y, pos.x, pChess);
+            if(pc){
+                if(pc->GetCountry() != GetCountry()){
+                    canplays.push_back(Chess(pos.y, pos.x));
                 }
                 break;
             }
             else{
-                canplays.push_back(ChessInfo(pos.y, pos.x));
+                canplays.push_back(Chess(pos.y, pos.x));
             }
             pos += direction[i];
         }
     }
-#ifdef HAN_CAN_PLAY
-    SelectChessInPalace(pChess, 4, mCenter, canplays);
-#else
-    SelectChessInPalace(pChess, 3, mCenter, canplays);
-#endif
+    SelectChessInPalace(GetCountry(), GetRow(), GetColumn(), pChess, canplays);
 }
 
-Ma::Ma(const ChessInfo&info):Chess(info){
+Ma::Ma(){
 }
+
+Ma::Ma(uint32_t row, uint32_t column):Chess(row, column){
+}
+
+Ma::Ma(uint32_t chess, uint32_t country, uint32_t row, uint32_t column):Chess(chess, country, row, column){
+}
+
+Ma::Ma(uint32_t chess, uint32_t country, uint32_t fontIndex, uint32_t row, uint32_t column):Chess(chess, country, fontIndex, row, column){
+}
+
 Ma::~Ma(){
-    
 }
-void Ma::Selected(const Chess *pChess[4][COUNTRY_CHESS_COUNT], std::vector<ChessInfo>&canplays)const{
-    const ChessInfo cInfo[] = {
-        ChessInfo(mInfo.row - 1, mInfo.column - 2), ChessInfo(mInfo.row - 2, mInfo.column - 1), ChessInfo(mInfo.row - 2, mInfo.column + 1), ChessInfo(mInfo.row - 1, mInfo.column + 2),
-        ChessInfo(mInfo.row + 1, mInfo.column + 2), ChessInfo(mInfo.row + 2, mInfo.column + 1), ChessInfo(mInfo.row + 2, mInfo.column - 1), ChessInfo(mInfo.row + 1, mInfo.column - 2)
+
+void Ma::Selected(Chess *pChess[MAX_COUNTRY_INDEX][DRAW_COUNTRY_CHESS_COUNT], std::vector<Chess> &canplays) const{
+    const Chess cInfo[] = {
+        Chess(GetRow() - 1, GetColumn() - 2), Chess(GetRow() - 2, GetColumn() - 1), Chess(GetRow() - 2, GetColumn() + 1), Chess(GetRow() - 1, GetColumn() + 2),
+        Chess(GetRow() + 1, GetColumn() + 2), Chess(GetRow() + 2, GetColumn() + 1), Chess(GetRow() + 2, GetColumn() - 1), Chess(GetRow() + 1, GetColumn() - 2)
     };
-    for(uint32_t i = 0; i < sizeof(cInfo) / sizeof(ChessInfo); ++i){
-        if(!IsBoundary(cInfo[i].row, cInfo[i].column)){//这里的马和相不会被"蹩马腿",所以不需要判断
-            const ChessInfo *pChessInfo = GetChessInfo(cInfo[i].row, cInfo[i].column, pChess);
-            if(!pChessInfo || pChessInfo->country != mInfo.country)
-                canplays.push_back(ChessInfo(cInfo[i].row, cInfo[i].column));
+    for(uint32_t i = 0; i < sizeof(cInfo) / sizeof(Chess); ++i){
+        if(!IsBoundary(cInfo[i].GetRow(), cInfo[i].GetColumn())){//这里的马和相不会被"蹩马腿",所以不需要判断
+            const Chess *pc = ::GetChess(cInfo[i].GetRow(), cInfo[i].GetColumn(), pChess);
+            if(!pc || pc->GetCountry() != GetCountry())
+                canplays.push_back(Chess(cInfo[i].GetRow(), cInfo[i].GetColumn()));
         }
     }
 }
-bool Xiang::IsAbroad(uint32_t row, uint32_t column)const{
+
+Xiang::Xiang(){
+}
+
+bool Xiang::IsAbroad(uint32_t row, uint32_t column) const{
     return mTerriory != GetTerritoryIndex(row, column);
-    // uint32_t terriory = GetTerritoryIndex(row, column);
-    // if(terriory == WU_TERRITORY_INDEX){
-    //     if(column < 12 || row < 4 || row > 12)return true;
-    // }
-    // else if(terriory == HAN_TERRITORY_INDEX){
-    //     if(row < 4 || row > 12 || column > 12)return true;
-    // }
-    // else if(terriory == WEI_TERRITORY_INDEX){
-    //     if(row > 4 || column < 4 || column > 12)return true;
-    // }
-    // else if(terriory == SHU_TERRITORY_INDEX){
-    //     if(row < 12 || column < 4 || column > 12)return true;
-    // }
-    // return false;
 }
-Xiang::Xiang(const ChessInfo&info):Chess(info){
-    mTerriory = GetTerritoryIndex(info.row, info.column);
+
+Xiang::Xiang(uint32_t row, uint32_t column) : Chess(row, column){
+    mTerriory = GetTerritoryIndex(row, column);
 }
+
+Xiang::Xiang(uint32_t chess, uint32_t country, uint32_t row, uint32_t column):Chess(chess, country, row, column){
+    mTerriory = GetTerritoryIndex(row, column);
+}
+
+Xiang::Xiang(uint32_t chess, uint32_t country, uint32_t fontIndex, uint32_t row, uint32_t column):Chess(chess, country, fontIndex, row, column){
+    mTerriory = GetTerritoryIndex(row, column);
+}
+
 Xiang::~Xiang(){
-    
 }
-void Xiang::Selected(const Chess *pChess[4][COUNTRY_CHESS_COUNT], std::vector<ChessInfo>&canplays)const{
-    const ChessInfo cInfo[] = { ChessInfo(mInfo.row + 2, mInfo.column + 2), ChessInfo(mInfo.row - 2, mInfo.column - 2), ChessInfo(mInfo.row - 2, mInfo.column + 2), ChessInfo(mInfo.row + 2, mInfo.column - 2) };
-    for(uint32_t i = 0; i < sizeof(cInfo) / sizeof(ChessInfo); ++i){
-        if(!IsBoundary(cInfo[i].row, cInfo[i].column) && !IsAbroad(cInfo[i].row, cInfo[i].column)){
-            const ChessInfo *pChessInfo = GetChessInfo(cInfo[i].row, cInfo[i].column, pChess);
-            if(!pChessInfo || pChessInfo->country != mInfo.country)
-                canplays.push_back(ChessInfo(cInfo[i].row, cInfo[i].column));
+
+void Xiang::Selected(Chess *pChess[MAX_COUNTRY_INDEX][DRAW_COUNTRY_CHESS_COUNT], std::vector<Chess> &canplays) const{
+    const Chess cInfo[] = { Chess(GetRow() + 2, GetColumn() + 2), Chess(GetRow() - 2, GetColumn() - 2), Chess(GetRow() - 2, GetColumn() + 2), Chess(GetRow() + 2, GetColumn() - 2) };
+    for(uint32_t i = 0; i < sizeof(cInfo) / sizeof(Chess); ++i){
+        if(!IsBoundary(cInfo[i].GetRow(), cInfo[i].GetColumn()) && !IsAbroad(cInfo[i].GetRow(), cInfo[i].GetColumn())){
+            const Chess *pc = ::GetChess(cInfo[i].GetRow(), cInfo[i].GetColumn(), pChess);
+            if(!pc || pc->GetColumn() != GetCountry())
+                canplays.push_back(Chess(cInfo[i].GetRow(), cInfo[i].GetColumn()));
         }
     }
 }
-Shi::Shi(const ChessInfo&info):Chess(info){
-    uint32_t territory = GetTerritoryIndex(info.row, info.column);
-    if(territory == WU_TERRITORY_INDEX){
-        mCenter.row = 8;
-        mCenter.column = CHESSBOARD_COLUMN - 1;
-    }
-    else if(territory == WEI_TERRITORY_INDEX){
-        mCenter.row = 1;
-        mCenter.column = 8;
-    }
-    else if(territory == SHU_TERRITORY_INDEX){
-        mCenter.row = CHESSBOARD_ROW - 1;
-        mCenter.column = 8;
-    }
-    else if(territory == HAN_TERRITORY_INDEX){
-        mCenter.row = 8;
-        mCenter.column = 1;
-    }
+
+Shi::Shi(){
 }
+
+Shi::Shi(uint32_t row, uint32_t column):Chess(row, column){
+}
+
+Shi::Shi(uint32_t chess, uint32_t country, uint32_t row, uint32_t column):Chess(chess, country, row, column){
+}
+
+Shi::Shi(uint32_t chess, uint32_t country, uint32_t fontIndex, uint32_t row, uint32_t column):Chess(chess, country, fontIndex, row, column){
+}
+
 Shi::~Shi(){
-    
 }
-void Shi::Selected(const Chess *pChess[4][COUNTRY_CHESS_COUNT], std::vector<ChessInfo>&canplays)const{
-    SelectChessInPalace(pChess, 1, &mCenter, canplays);
+
+void Shi::Selected(Chess *pChess[MAX_COUNTRY_INDEX][DRAW_COUNTRY_CHESS_COUNT], std::vector<Chess> &canplays) const{
+    SelectChessInPalace(GetCountry(), GetRow(), GetColumn(), pChess, canplays);
 }

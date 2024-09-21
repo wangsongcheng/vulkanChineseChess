@@ -1,5 +1,6 @@
 #ifndef SOCKSET_FRAME_INCLUDE_H
 #define SOCKSET_FRAME_INCLUDE_H
+#include <string.h>
 #include <iostream>
 #ifdef WIN32
 #define WIN32_LEAN_AND_MEAN
@@ -37,14 +38,14 @@ enum GameEvent{
     CHANGE_PLAYER_INFORMATION_GAME_EVENT,
 };
 //这个结构体不应该放这里
-struct PlayerInfo{
+struct Player{
     bool ai;
     bool random;
     uint32_t index;//国家索引
     // glm::vec3 color;
     char name[MAX_BYTE];
     char country[MAX_BYTE];
-    PlayerInfo(){
+    Player(){
         ai = false;
         random = true;
         strcpy(country, "?");
@@ -52,10 +53,10 @@ struct PlayerInfo{
     }
 };
 struct GameMessage{
+    Chess target;
+    Chess select;
+    Player player;
     GameEvent event;
-    ChessInfo target;
-    ChessInfo select;
-    PlayerInfo player;
     // glm::vec2 mousePos;
     uint32_t clientIndex;
 };
