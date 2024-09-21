@@ -28,7 +28,7 @@ Ai g_AI;
 
 #define MAX_BYTE 0xff
 // #define HAN_CAN_PLAY
-#define INTERNET_MODE
+// #define INTERNET_MODE
 #ifdef INTERNET_MODE
 #include <array>
 
@@ -804,26 +804,6 @@ void Invert(uint32_t row, uint32_t column, uint32_t&newRow, uint32_t&newColumn){
 //country为下棋的国家
 void RotateChess(uint32_t country, uint32_t row, uint32_t column, uint32_t&newRow, uint32_t&newColumn){
     // if((g_ServerAppaction && country == g_Players[g_AIClientIndex].index) || country == g_Players[g_ClientIndex].index)return;
-        // const uint32_t chessTerritory = GetTerritoryIndex(row, column), countryTerritory = GET_TERRITORY_INDEX(country, g_Players[g_ClientIndex].index);
-        // if(chessTerritory == countryTerritory){
-        //     if(chessTerritory == WEI_TERRITORY_INDEX){
-        //         Invert(row, column, newRow, newColumn);
-        //     }
-        //     else{
-
-        //     }
-        // }
-        // // if(territory == CENTER_TERRITORY_INDEX){
-        // //     //棋子在中间那一块地方
-        // // }
-        // if(territory == WEI_TERRITORY_INDEX){
-        //     //row 3;column 11
-            //row 14; column 4
-        //     newRow = abs((float)CHESSBOARD_ROW - row);
-        //     newColumn = abs((float)CHESSBOARD_COLUMN - column);;
-        // }
-        // else if(territory == HAN_TERRITORY_INDEX){
-        // }
     if(g_ServerAppaction && country == g_Players[g_AIClientIndex].index)return;
     if(country != g_Players[g_ClientIndex].index){
         uint32_t aiIndex = GetAiPlayerIndex();
@@ -1165,11 +1145,10 @@ HANDLE g_AiPlayChess;
 #endif
 void aiPlay(){
     uint32_t dstRow, dstColumn;
-    const Chess *pSelect = nullptr, *pTarget = nullptr;
+    Chess *pSelect = nullptr, *pTarget = nullptr;
     g_AI.GetPlayChess(g_CurrentCountry, &pSelect, &pTarget, &dstRow, &dstColumn, &g_Game);
     Chess target(dstRow, dstColumn);
-    //想下的棋子、敌人上面设置
-    //局域网模式下应该发送消息
+    // SelectChess(g_VulkanDevice.device, pSelect);
 #ifdef INTERNET_MODE
     if(pTarget){
         SendPlayChessMessage(g_Players[g_AIClientIndex], pSelect, pTarget);
@@ -1179,16 +1158,9 @@ void aiPlay(){
         SendPlayChessMessage(g_Players[g_AIClientIndex], pSelect, &target);
     }
 #else
-    // g_Chessboard.Select(g_VulkanDevice.device, g_CurrentCountry, pSelect->chess);
-    // if(pTarget){
-    //     PlayChess(g_CurrentCountry, pSelect->chess, pTarget->country, pTarget->chess);
-    // }
-    // else{
-    //     MoveChess(g_CurrentCountry, pSelect->chess, target.row, target.column);
-    // }
-    // g_UpdateScreen = true;
-    // g_Chessboard.UnSelect(g_VulkanDevice.device, g_CurrentCountry, pSelect->chess);
+    PlayChess(pSelect, dstRow, dstColumn);
 #endif
+    // UnSelectChess(g_VulkanDevice.device);
 }
 void *AiPlayChess(void *userData){
 #ifdef __linux__
@@ -1292,11 +1264,15 @@ void PreparePlayChess(const Chess *pSelect, const glm::vec2&mousePos){
 #ifndef INTERNET_MODE
     static PPC ppc;
 #endif
+    std::vector<Chess>canplays;
+    pSelect->Selected(g_Game.GetChess(), canplays);
+    int32_t index = GetCanPlay(mousePos, canplays);
+
     UnSelectChess(g_VulkanDevice.device);
     Chess *pTarget = GetChess(mousePos);
     if(pTarget){
         //选到的是棋子，不论是否自己的
-        if(pTarget->GetCountry() != pSelect->GetCountry()){
+        if(pTarget->GetCountry() != pSelect->GetCountry() && -1 != index){
 #ifdef INTERNET_MODE
                 //单机和局域网联机差不多。无非就是要接收和发送消息
                 SendPlayChessMessage(g_Players[g_ClientIndex], pSelect, pTarget);
@@ -1312,9 +1288,6 @@ void PreparePlayChess(const Chess *pSelect, const glm::vec2&mousePos){
         }
     }
     else{
-        std::vector<Chess>canplays;
-        pSelect->Selected(g_Game.GetChess(), canplays);
-        int32_t index = GetCanPlay(mousePos, canplays);
         if(index != -1){
 #ifdef INTERNET_MODE
                 //单机和局域网联机差不多。无非就是要接收和发送消息
@@ -1353,28 +1326,30 @@ bool isEnableAi;
 uint32_t g_BackupPlayer;
 #endif
 void keybutton(GLFWwindow *window,int key, int scancode, int action, int mods){
-//     if(action == GLFW_RELEASE){
-// #ifdef JOIN_AI
-//         if(key == GLFW_KEY_SPACE){
-//             g_BackupPlayer = g_ClientIndex;
-//             //玩家不参与游戏
-//             g_ClientIndex = INVALID_COUNTRY_INDEX;
-//             if(!isEnableAi){
-//                 g_AI.CreatePthread(AiPlayChess, nullptr);
-//                 isEnableAi = true;
-//                 printf("启用ai并且玩家无法参与\n");
-//             }
-//         }
-//         else if(key == GLFW_KEY_ENTER){
-//             g_ClientIndex = g_BackupPlayer;
-//             if(!isEnableAi){
-//                 g_AI.CreatePthread(AiPlayChess, nullptr);
-//                 isEnableAi = true;
-//                 printf("启用ai并且玩家可以参与\n");
-//             }
-//         }
-// #endif
-//     }
+    if(action == GLFW_RELEASE){
+#ifndef INTERNET_MODE
+#ifdef JOIN_AI
+        if(key == GLFW_KEY_SPACE){
+            if(g_Player != INVALID_COUNTRY_INDEX)g_BackupPlayer = g_Player;
+            //玩家不参与游戏
+            g_Player = INVALID_COUNTRY_INDEX;
+            if(!isEnableAi){
+                g_AI.CreatePthread(AiPlayChess, nullptr);
+                isEnableAi = true;
+                printf("启用ai并且玩家无法参与\n");
+            }
+        }
+        else if(key == GLFW_KEY_ENTER){
+            if(g_Player == INVALID_COUNTRY_INDEX)g_Player = g_BackupPlayer;
+            if(!isEnableAi){
+                g_AI.CreatePthread(AiPlayChess, nullptr);
+                isEnableAi = true;
+                printf("启用ai并且玩家可以参与\n");
+            }
+        }
+#endif
+#endif
+    }
 }
 void Setup(GLFWwindow *window){
     glfwSetKeyCallback(window, keybutton);

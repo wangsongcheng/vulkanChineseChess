@@ -32,7 +32,7 @@ class Chess{
     uint32_t mCountry;
     uint32_t mFontIndex;
 protected:
-    uint32_t mTerriory;
+    uint32_t mTerriory = INVALID_TERRITORY_INDEX;
 public:
     Chess(/* args */);
     Chess(uint32_t row, uint32_t column);

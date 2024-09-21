@@ -183,7 +183,7 @@ int Ai::CreatePthread(void *(*__start_routine)(void *), void *__arg){
     return pthread_create(&mPthread, nullptr, __start_routine, __arg);
 #endif
 }
-void Ai::GetPlayChess(uint32_t country, const Chess **pSelect, const Chess **pTarget, uint32_t *row, uint32_t *column, Game *pGame){
+void Ai::GetPlayChess(uint32_t country, Chess **pSelect, Chess **pTarget, uint32_t *row, uint32_t *column, Game *pGame){
     std::vector<Chess>canplays;
     // const ChessInfo *pSelect = nullptr, *pRival = nullptr;
     // const uint32_t nextCountry = GetNextCountry(g_CurrentCountry);

@@ -18,6 +18,6 @@ public:
     Ai(/* args */);
     ~Ai();
     int CreatePthread(void *(*__start_routine)(void *), void *__arg);
-    void GetPlayChess(uint32_t country, const Chess **pSelect, const Chess **target, uint32_t *row, uint32_t *column, Game *pChessboard);
+    void GetPlayChess(uint32_t country, Chess **pSelect, Chess **target, uint32_t *row, uint32_t *column, Game *pChessboard);
 };
 #endif

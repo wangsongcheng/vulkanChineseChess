@@ -124,7 +124,8 @@
     "typeinfo": "cpp",
     "valarray": "cpp",
     "variant": "cpp",
-    "any": "cpp"
+    "any": "cpp",
+    "text_encoding": "cpp"
   },
   "cmake.sourceDirectory": "/home/beginner/Documents/SourceCode/ModelDemo/include/glm"
 }

@@ -130,7 +130,7 @@ void Chess::SetPos(uint32_t row, uint32_t column){
     mColumn = column;
     mPos.y = ROW_TO_Y(mRow);
     mPos.x = COLUMN_TO_X(mColumn);
-    mTerriory = GetTerritoryIndex(row, column);
+    if(INVALID_TERRITORY_INDEX == mTerriory)mTerriory = GetTerritoryIndex(row, column);
 }
 
 void Chess::Selected(Chess *pChess[MAX_COUNTRY_INDEX][DRAW_COUNTRY_CHESS_COUNT], std::vector<Chess> &canplays) const{
@@ -154,7 +154,7 @@ Wei::~Wei(){
 void Wei::Selected(Chess *pChess[MAX_COUNTRY_INDEX][DRAW_COUNTRY_CHESS_COUNT], std::vector<Chess> &canplays) const{
     const Chess cInfo[] = { Chess(GetRow() + 1, GetColumn()), Chess(GetRow() - 1, GetColumn()), Chess(GetRow(), GetColumn() + 1), Chess(GetRow(), GetColumn() - 1) };
     for(uint32_t i = 0; i < sizeof(cInfo) / sizeof(Chess); ++i){
-        if(!IsBoundary(cInfo[i].GetRow(), cInfo[i].GetColumn()) && IsInPalace(cInfo[i].GetRow(), cInfo[i].GetColumn())){//将不能出九宫格
+        if(!IsBoundary(cInfo[i].GetRow(), cInfo[i].GetColumn()) && MAX_COUNTRY_INDEX !=  IsInPalace(cInfo[i].GetRow(), cInfo[i].GetColumn())){//将不能出九宫格
             const Chess *pc = ::GetChess(cInfo[i].GetRow(), cInfo[i].GetColumn(), pChess);
             if(!pc || pc->GetCountry() != GetCountry())
                 canplays.push_back(Chess(cInfo[i].GetRow(), cInfo[i].GetColumn()));
@@ -181,7 +181,7 @@ Shu::~Shu(){
 void Shu::Selected(Chess *pChess[MAX_COUNTRY_INDEX][DRAW_COUNTRY_CHESS_COUNT], std::vector<Chess> &canplays) const{
     const Chess cInfo[] = { Chess(GetRow() + 1, GetColumn()), Chess(GetRow() - 1, GetColumn()), Chess(GetRow(), GetColumn() + 1), Chess(GetRow(), GetColumn() - 1) };
     for(uint32_t i = 0; i < sizeof(cInfo) / sizeof(Chess); ++i){
-        if(!IsBoundary(cInfo[i].GetRow(), cInfo[i].GetColumn()) && IsInPalace(cInfo[i].GetRow(), cInfo[i].GetColumn())){//将不能出九宫格
+        if(!IsBoundary(cInfo[i].GetRow(), cInfo[i].GetColumn()) && MAX_COUNTRY_INDEX !=  IsInPalace(cInfo[i].GetRow(), cInfo[i].GetColumn())){//将不能出九宫格
             const Chess *pc = ::GetChess(cInfo[i].GetRow(), cInfo[i].GetColumn(), pChess);
             if(!pc || pc->GetCountry() != GetCountry())
                 canplays.push_back(Chess(cInfo[i].GetRow(), cInfo[i].GetColumn()));
@@ -208,7 +208,7 @@ Wu::~Wu(){
 void Wu::Selected(Chess *pChess[MAX_COUNTRY_INDEX][DRAW_COUNTRY_CHESS_COUNT], std::vector<Chess> &canplays) const{
     const Chess cInfo[] = { Chess(GetRow() + 1, GetColumn()), Chess(GetRow() - 1, GetColumn()), Chess(GetRow(), GetColumn() + 1), Chess(GetRow(), GetColumn() - 1) };
     for(uint32_t i = 0; i < sizeof(cInfo) / sizeof(Chess); ++i){
-        if(!IsBoundary(cInfo[i].GetRow(), cInfo[i].GetColumn()) && IsInPalace(cInfo[i].GetRow(), cInfo[i].GetColumn())){//将不能出九宫格
+        if(!IsBoundary(cInfo[i].GetRow(), cInfo[i].GetColumn()) && MAX_COUNTRY_INDEX != IsInPalace(cInfo[i].GetRow(), cInfo[i].GetColumn())){//将不能出九宫格
             const Chess *pc = ::GetChess(cInfo[i].GetRow(), cInfo[i].GetColumn(), pChess);
             if(!pc || pc->GetCountry() != GetCountry())
                 canplays.push_back(Chess(cInfo[i].GetRow(), cInfo[i].GetColumn()));
@@ -235,7 +235,7 @@ Han::~Han(){
 void Han::Selected(Chess *pChess[MAX_COUNTRY_INDEX][DRAW_COUNTRY_CHESS_COUNT], std::vector<Chess> &canplays) const{
     const Chess cInfo[] = { Chess(GetRow() + 1, GetColumn()), Chess(GetRow() - 1, GetColumn()), Chess(GetRow(), GetColumn() + 1), Chess(GetRow(), GetColumn() - 1) };
     for(uint32_t i = 0; i < sizeof(cInfo) / sizeof(Chess); ++i){
-        if(!IsBoundary(cInfo[i].GetRow(), cInfo[i].GetColumn()) && IsInPalace(cInfo[i].GetRow(), cInfo[i].GetColumn())){//将不能出九宫格
+        if(!IsBoundary(cInfo[i].GetRow(), cInfo[i].GetColumn()) && MAX_COUNTRY_INDEX !=  IsInPalace(cInfo[i].GetRow(), cInfo[i].GetColumn())){//将不能出九宫格
             const Chess *pc = ::GetChess(cInfo[i].GetRow(), cInfo[i].GetColumn(), pChess);
             if(!pc || pc->GetCountry() != GetCountry())
                 canplays.push_back(Chess(cInfo[i].GetRow(), cInfo[i].GetColumn()));
