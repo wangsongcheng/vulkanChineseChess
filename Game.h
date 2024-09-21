@@ -1,6 +1,7 @@
 #ifndef GAME_INCLUDE
 #define GAME_INCLUDE
 #include "Chess.h"
+#include "VulkanChess.h"
 class Game{
     Chess *mChess[MAX_COUNTRY_INDEX][DRAW_COUNTRY_CHESS_COUNT];
     void GetCountryChess(uint32_t srcCountry, uint32_t dstCountry);

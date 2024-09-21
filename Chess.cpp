@@ -89,7 +89,7 @@ void SelectChessInPalace(uint32_t currentCountry, uint32_t row, uint32_t column,
             Chess(g_Center[country].GetRow() + 1, g_Center[country].GetColumn() + 1)
         };
         //除馬、相外, 其他棋子在中心点时，能走的肯定就是斜线边的点
-        for (size_t i = 0; i < sizeof(pos) / sizeof(glm::vec2); ++i){
+        for (size_t i = 0; i < sizeof(pos) / sizeof(Chess); ++i){
             pc = GetChess(pos[i].GetRow(), pos[i].GetColumn(), pChess);
             if(!pc || pc->GetCountry() != currentCountry){
                 canplays.push_back(pos[i]);

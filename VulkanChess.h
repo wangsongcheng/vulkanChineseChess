@@ -3,6 +3,8 @@
 #include "glm/glm.hpp"
 #include "vulkanFrame.h"
 #include "glm/gtc/matrix_transform.hpp"
+// #define HAN_CAN_PLAY
+
 #define CHESS_WIDTH 20
 #define CHESS_HEIGHT CHESS_WIDTH
 
@@ -48,8 +50,11 @@
 #define COUNTRY_CHESS_COUNT WEI_CHESS_COUNT
 
 #define CHESSBOARD_CHESS_TOTAL (DRAW_COUNTRY_CHESS_COUNT * 4)
-
+#ifdef HAN_CAN_PLAY
+#define DRAW_COUNTRY_CHESS_COUNT COUNTRY_CHESS_COUNT
+#else
 #define DRAW_COUNTRY_CHESS_COUNT (COUNTRY_CHESS_COUNT + HAN_CHESS_COUNT)
+#endif
 
 #ifndef ROW_COLUMN_INDEX
 #define ROW_COLUMN_INDEX(ROW_INDEX, COLUMN_INDEX, COLUMN)((ROW_INDEX) * (COLUMN) + (COLUMN_INDEX))

@@ -228,6 +228,5 @@ void Ai::GetPlayChess(uint32_t country, Chess **pSelect, Chess **pTarget, uint32
         } while (*pTarget && (*pTarget)->GetCountry() == country);
         *row = canplays[index].GetRow();
         *column = canplays[index].GetColumn();
-        // *mousePos = glm::vec2(COLUMN_TO_X(canplays[index].GetColumn()), ROW_TO_Y(canplays[index].GetRow()));
     }
 }

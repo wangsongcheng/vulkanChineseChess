@@ -6,7 +6,7 @@
 class Server{
     SOCKET mSocket;
     char mName[MAX_BYTE];
-    std::array<Client, 3>mClients;
+    std::array<Client, 4>mClients;
     void SendSelfInfoation(uint32_t clientIndex);
     void SendPlayerNameInfoation(uint32_t count, const std::array<Player, 3>&players);
 public:

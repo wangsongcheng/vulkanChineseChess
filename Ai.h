@@ -7,6 +7,7 @@
 #endif
 #include "Chess.h"
 #include "Game.h"
+#include "VulkanChess.h"
 class Ai{
 #ifdef WIN32
     HANDLE mHandle;
