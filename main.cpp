@@ -50,7 +50,7 @@ std::array<Player, g_DefaultCountryCount>g_Players;//用来保存其他玩家的
 char g_CountryItems[2][5][MAX_BYTE];
 glm::vec2 g_JiangPos[MAX_COUNTRY_INDEX];//目前只用于RotateChess
 uint32_t g_ClientIndex = INVALID_PLAYER_INDEX;
-uint32_t g_AIClientIndex = INVALID_PLAYER_INDEX;
+// uint32_t g_AIClientIndex = INVALID_PLAYER_INDEX;
 #endif
 struct GraphicsPipeline{
     VkPipeline pipeline;
@@ -387,11 +387,12 @@ void PlayChess(Chess *pChess, uint32_t dstRow, uint32_t dstColumn){
     const Chess *pTarget = g_Game.GetChess(dstRow, dstColumn);
     if(pTarget){
         MoveChess(pChess, pTarget);
+        uint32_t targetCountry = pTarget->GetCountry();
         g_Game.CaptureChess(pChess, pTarget);
-        const char county[][MAX_BYTE] = { "魏", "蜀", "吴", "汉" };
-        if(g_Game.IsDeath(pTarget->GetCountry())){
-            printf("%s国被%s国消灭\n", county[pTarget->GetCountry()], county[pChess->GetCountry()]);
-            g_Game.DestroyCountry(pTarget->GetCountry());
+        const char county[][MAX_BYTE] = { "蜀", "吴", "魏", "汉" };
+        if(g_Game.IsDeath(targetCountry)){
+            printf("%s国被%s国消灭\n", county[targetCountry], county[pChess->GetCountry()]);
+            g_Game.DestroyCountry(targetCountry);
         }
     }
     else{
@@ -419,7 +420,7 @@ void PlayChess(Chess *pChess, uint32_t dstRow, uint32_t dstColumn){
 #endif
 #endif
 }
-void CreateThread(void *(*__start_routine)(void *), void *__arg){
+auto CreateThread(void *(*__start_routine)(void *), void *__arg){
 #ifdef WIN32
     DWORD  threadId;
     HANDLE pthreadId;
@@ -429,6 +430,7 @@ void CreateThread(void *(*__start_routine)(void *), void *__arg){
     pthread_t pthreadId;
     pthread_create(&pthreadId, nullptr, __start_routine, __arg);
 #endif
+    return pthreadId;
 }
 #ifdef INTERNET_MODE
 void InitJiangPos(){
@@ -683,7 +685,6 @@ void *server_start(void *userData){
             // printf("in function %s:socket index %d\n", __FUNCTION__, i);
             if(message.event == AI_JOIN_GAME_GAME_EVENT){
                 g_Players[i].ai = true;
-                g_AIClientIndex = i;
                 strcpy(message.player.name, "ai");
                 g_Server.ShutdownClient(i);
                 // if(i == 1)DeleteCountryItem(g_Players[0].country, g_CountryItems[1]);
@@ -977,7 +978,7 @@ void catspace(char *dst, uint32_t count){
         strcat(dst, " ");
     }
 }
-void ShowPlayerCountryCombo(uint32_t comboIndex, const auto it){
+void ShowPlayerCountryCombo(uint32_t comboIndex, const Player *it){
     char comboName[MAX_BYTE] = " ";
     catspace(comboName, comboIndex);
     uint32_t aiIndex = GetAiPlayerIndex();
@@ -1160,11 +1161,11 @@ void aiPlay(){
     // SelectChess(g_VulkanDevice.device, pSelect);
 #ifdef INTERNET_MODE
     if(pTarget){
-        SendPlayChessMessage(g_Players[g_AIClientIndex], pSelect, pTarget);
+        SendPlayChessMessage(g_Players[g_CurrentCountry], pSelect, pTarget);
     }
     else{
         target.SetCountry(MAX_COUNTRY_INDEX);
-        SendPlayChessMessage(g_Players[g_AIClientIndex], pSelect, &target);
+        SendPlayChessMessage(g_Players[g_CurrentCountry], pSelect, &target);
     }
 #else
     PlayChess(pSelect, dstRow, dstColumn);
@@ -1174,7 +1175,15 @@ void aiPlay(){
 void *AiPlayChess(void *userData){
 #ifdef __linux__
 #ifdef INTERNET_MODE
-    sem_init(&g_AiSemaphore, 0, g_Players[g_AIClientIndex].index == g_CurrentCountry);
+    int32_t aiIndex, __value = 0;
+    for (size_t i = 0; i < 2; ++i){
+        aiIndex = GetAiPlayerIndex(aiIndex + 1);
+        if(aiIndex != INVALID_PLAYER_INDEX && g_Players[aiIndex].index == g_CurrentCountry){
+            __value = 1;
+            break;
+        }
+    }
+    sem_init(&g_AiSemaphore, 0, __value);
 #else
     sem_init(&g_AiSemaphore, 0, g_Player != g_CurrentCountry);
 #endif
