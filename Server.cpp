@@ -1,7 +1,7 @@
 #include "Server.h"
 void Server::SendSelfInfoation(uint32_t clientIndex){
     GameMessage message;
-    message.event = SELF_PLAYER_INFORMATION_GAME_EVENT;
+    message.event = SELF_CLIENT_INFORMATION_GAME_EVENT;
     message.clientIndex = clientIndex;
     SendToClient(clientIndex, &message, sizeof(message));
 }

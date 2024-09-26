@@ -208,6 +208,15 @@ Game::Game(/* args */){
 
 Game::~Game(){
 }
+bool Game::GameOver(){
+    uint32_t deathCount = 0;
+    for (size_t i = 0; i < MAX_COUNTRY_INDEX; ++i){
+        if(IsDeath(i)){
+            ++deathCount;
+        }
+    }
+    return deathCount > 1;
+}
 void Game::InitializeChess(uint32_t playerCountry){
     mChess[WU_COUNTRY_INDEX][JIANG_CHESS_INDEX] = new Wu;
     mChess[WEI_COUNTRY_INDEX][JIANG_CHESS_INDEX] = new Wei();

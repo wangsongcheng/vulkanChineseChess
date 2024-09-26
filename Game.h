@@ -2,6 +2,10 @@
 #define GAME_INCLUDE
 #include "Chess.h"
 #include "VulkanChess.h"
+#ifdef __linux
+#define MAX_BYTE 0xff
+#endif
+#define INTERNET_MODE
 class Game{
     Chess *mChess[MAX_COUNTRY_INDEX][DRAW_COUNTRY_CHESS_COUNT];
     void GetCountryChess(uint32_t srcCountry, uint32_t dstCountry);
@@ -15,6 +19,7 @@ class Game{
 public:
     Game(/* args */);
     ~Game();
+    bool GameOver();
     void InitializeChess(uint32_t playerCountry);
 
     Chess *GetChess(uint32_t row, uint32_t column)const;

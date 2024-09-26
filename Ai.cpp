@@ -1,5 +1,50 @@
 #include "Ai.h"
-extern uint32_t g_PlayerIndex;
+#ifdef HAN_CAN_PLAY
+extern const uint32_t g_DefaultCountryCount = MAX_COUNTRY_INDEX;
+#else
+extern const uint32_t g_DefaultCountryCount = MAX_COUNTRY_INDEX - 1;
+#endif
+extern uint32_t g_Player, g_CurrentCountry;
+void PlayChess(Chess *pChess, uint32_t dstRow, uint32_t dstColumn);
+#ifdef INTERNET_MODE
+#include "SocketFrame.h"
+extern std::array<Player, g_DefaultCountryCount>g_Players;
+void SendPlayChessMessage(const Player&game, const Chess *pSelect, const Chess *pTarget);
+#endif
+void aiPlay(const Ai *pAi){
+    uint32_t dstRow, dstColumn;
+    Chess *pSelect = nullptr, *pTarget = nullptr;
+    pAi->GetPlayChess(g_CurrentCountry, &pSelect, &pTarget, &dstRow, &dstColumn);
+    Chess target(dstRow, dstColumn);
+    // SelectChess(g_VulkanDevice.device, pSelect);
+#ifdef INTERNET_MODE
+    if(pTarget){
+        SendPlayChessMessage(g_Players[pSelect->GetCountry()], pSelect, pTarget);
+    }
+    else{
+        target.SetCountry(MAX_COUNTRY_INDEX);
+        SendPlayChessMessage(g_Players[pSelect->GetCountry()], pSelect, &target);
+    }
+#else
+    PlayChess(pSelect, dstRow, dstColumn);
+#endif
+    // UnSelectChess(g_VulkanDevice.device);
+}
+void *AiPlayChess(void *userData){
+    Ai *pAi = (Ai *)userData;
+#ifdef __linux
+    if(g_Player != g_CurrentCountry){
+        //因为创建的时候固定为0,所以如果此时应该ai出牌，那么应该先调用下面的函数一次
+        pAi->Enable();
+    }
+#endif
+    while(!pAi->GameOver()){
+        pAi->Wait();
+        aiPlay(pAi);
+    }
+    return nullptr;
+}
+
 // //返回第一个满足条件的敌人
 // const ChessInfo *GetRival(const std::vector<ChessInfo>&canplays, auto condition){
 //     const ChessInfo *pRival = nullptr;
@@ -156,10 +201,10 @@ extern uint32_t g_PlayerIndex;
 //     }   
 //     // g_Chessboard.ClearCanPlay(VK_NULL_HANDLE);
 // }
-int32_t Ai::CanPlay(uint32_t country, const std::vector<Chess>&canplays, const Game *pGame){
+int32_t Ai::CanPlay(uint32_t country, const std::vector<Chess>&canplays)const{
     int32_t index = -1;
     for (size_t i = 0; i < canplays.size(); ++i){
-        const Chess *pInfo = pGame->GetChess(canplays[i].GetRow(), canplays[i].GetColumn());
+        const Chess *pInfo = mGame->GetChess(canplays[i].GetRow(), canplays[i].GetColumn());
         if(!pInfo || pInfo->GetCountry() != country){
             index = i;
             break;
@@ -168,22 +213,51 @@ int32_t Ai::CanPlay(uint32_t country, const std::vector<Chess>&canplays, const G
     return index;
 }
 Ai::Ai(/* args */){
+#ifdef __linux__
+    sem_init(&mAiSemaphore, 0, 0);
+#endif
+#ifdef WIN32
+    mAiSemaphore = CreateEvent(NULL, FALSE, FALSE, "AiSemaphore");
+#endif
 }
 
 Ai::~Ai(){
-}
-int Ai::CreatePthread(void *(*__start_routine)(void *), void *__arg){
-    //注意windows和linux两部分都返回了
+#ifdef __linux__
+    sem_destroy(&mAiSemaphore);
+#endif
 #ifdef WIN32
-    DWORD  threadId;
-    mHandle = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)__start_routine, nullptr, 0, &threadId);
-    return threadId;
+    ResetEvent(mAiSemaphore);
+#endif
+}
+void Ai::Wait(){
+#ifdef __linux__
+    sem_wait(&mAiSemaphore);
+#endif
+#ifdef WIN32
+    WaitForSingleObject(mAiSemaphore, INFINITE);
+#endif // WIN32
+}
+void Ai::Enable(){
+#ifdef __linux__
+    sem_post(&mAiSemaphore);
+#endif
+#ifdef WIN32
+    SetEvent(mAiSemaphore);
+#endif // WIN32
+}
+void Ai::CreatePthread(Game *pGame){
+    if(mGame != nullptr)return;
+    mGame = pGame;
+#ifdef WIN32
+    DWORD  pthreadId;
+    CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)AiPlayChess, this, 0, &pthreadId);
 #endif
 #ifdef __linux
-    return pthread_create(&mPthread, nullptr, __start_routine, __arg);
+    pthread_t pthreadId;
+    pthread_create(&pthreadId, nullptr, AiPlayChess, this);
 #endif
 }
-void Ai::GetPlayChess(uint32_t country, Chess **pSelect, Chess **pTarget, uint32_t *row, uint32_t *column, Game *pGame){
+void Ai::GetPlayChess(uint32_t country, Chess **pSelect, Chess **pTarget, uint32_t *row, uint32_t *column)const{
     std::vector<Chess>canplays;
     // const ChessInfo *pSelect = nullptr, *pRival = nullptr;
     // const uint32_t nextCountry = GetNextCountry(g_CurrentCountry);
@@ -207,24 +281,24 @@ void Ai::GetPlayChess(uint32_t country, Chess **pSelect, Chess **pTarget, uint32
     //         }
     //     }
     // }
-    auto pChess = pGame->GetChess();
+    auto pChess = mGame->GetChess();
     if(!*pSelect){
         do{
             *pSelect = pChess[country][rand() % DRAW_COUNTRY_CHESS_COUNT];
             if(*pSelect){
                 canplays.clear();
-                pChess[country][(*pSelect)->GetChess()]->Selected(pGame->GetChess(), canplays);
+                pChess[country][(*pSelect)->GetChess()]->Selected(mGame->GetChess(), canplays);
             }
-        }while(!*pSelect || -1 == CanPlay(country, canplays, pGame));//不用担心判断*player后死循环,因为"将"肯定会存在,否则就输了
+        }while(!*pSelect || -1 == CanPlay(country, canplays));//不用担心判断*player后死循环,因为"将"肯定会存在,否则就输了
     }
     if(!*pTarget){
         //这个分支也有吃子的可能
         canplays.clear();
-        pChess[country][(*pSelect)->GetChess()]->Selected(pGame->GetChess(), canplays);
+        pChess[country][(*pSelect)->GetChess()]->Selected(mGame->GetChess(), canplays);
         uint32_t index = 0;
         do{
             index = rand() % canplays.size();
-            *pTarget = pGame->GetChess(canplays[index].GetRow(), canplays[index].GetColumn());
+            *pTarget = mGame->GetChess(canplays[index].GetRow(), canplays[index].GetColumn());
         } while (*pTarget && (*pTarget)->GetCountry() == country);
         *row = canplays[index].GetRow();
         *column = canplays[index].GetColumn();

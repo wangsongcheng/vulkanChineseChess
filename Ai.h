@@ -1,24 +1,36 @@
 #ifndef AI_INCLUDE_H
 #define AI_INCLUDE_H
+#include <array>
 #ifdef WIN32
 #include <Windows.h>
 #else
 #include <pthread.h>
+#include <semaphore.h>
 #endif
 #include "Chess.h"
 #include "Game.h"
 #include "VulkanChess.h"
 class Ai{
-#ifdef WIN32
-    HANDLE mHandle;
-#else
-    pthread_t mPthread;
+#ifdef __linux
+    sem_t mAiSemaphore;
+    // pthread_t mPthreadId = 0;
 #endif
-    int32_t CanPlay(uint32_t country, const std::vector<Chess>&canplays, const Game *pChessboard);
+#ifdef WIN32
+    // HANDLE mHandle;
+    HANDLE mAiSemaphore;
+#endif
+    Game *mGame;
+    int32_t CanPlay(uint32_t country, const std::vector<Chess>&canplays)const;
 public:
     Ai(/* args */);
     ~Ai();
-    int CreatePthread(void *(*__start_routine)(void *), void *__arg);
-    void GetPlayChess(uint32_t country, Chess **pSelect, Chess **target, uint32_t *row, uint32_t *column, Game *pChessboard);
+    void Wait();
+    void Enable();
+    void CreatePthread(Game *pGame);
+    void GetPlayChess(uint32_t country, Chess **pSelect, Chess **target, uint32_t *row, uint32_t *column)const;
+
+    inline bool GameOver(){
+        return mGame->GameOver();
+    }
 };
 #endif
