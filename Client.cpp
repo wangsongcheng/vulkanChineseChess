@@ -11,19 +11,19 @@ void Client::CreateClient(const char *serverIp){
     struct sockaddr_in addr;
 #ifdef WIN32
     if (1 != inet_pton(AF_INET, serverIp, &address)) {
-        perror("inet_aton");
+        perror("inet_aton error");
         return;
     }
 #else
     if(!inet_aton(serverIp, &address)){
-        perror("inet_aton");
+        perror("inet_aton error");
         return;
     }
 #endif
     addr.sin_addr = address;
     mSocket = socket(AF_INET, SOCK_STREAM, 0);
     if(mSocket == INVALID_SOCKET){
-        perror("create client:function:socket");
+        perror("create client socket error");
         return;
     }
     addr.sin_family = AF_INET;
@@ -34,7 +34,7 @@ void Client::CreateClient(const char *serverIp){
     bzero(&addr.sin_zero, sizeof(addr.sin_zero)); /* zero the rest of the struct */
 #endif // WIN32
     if(connect(mSocket,(struct sockaddr *)&addr,sizeof(struct sockaddr)) == INVALID_SOCKET){
-        perror("create client:function:connect");
+        perror("connect error");
         shutdown(mSocket, SHUT_RDWR);
         return;
     }

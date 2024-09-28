@@ -218,6 +218,9 @@ bool Game::GameOver(){
     return deathCount > 1;
 }
 void Game::InitializeChess(uint32_t playerCountry){
+    for (uint32_t uiCountry = 0; uiCountry < MAX_COUNTRY_INDEX; ++uiCountry){
+        DestroyCountry(uiCountry);
+    }
     mChess[WU_COUNTRY_INDEX][JIANG_CHESS_INDEX] = new Wu;
     mChess[WEI_COUNTRY_INDEX][JIANG_CHESS_INDEX] = new Wei();
     mChess[SHU_COUNTRY_INDEX][JIANG_CHESS_INDEX] = new Shu();

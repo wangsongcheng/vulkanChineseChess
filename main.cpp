@@ -599,8 +599,10 @@ void *process_server(void *userData){
     uint32_t socketindex = *(SOCKET *)userData;
     do{
         g_Server.RecvFromClient(socketindex, &message, sizeof(message));
+        printf("in function %s:recv event %d\n", __FUNCTION__, message.event);
         g_Server.SendToAllClient(&message, sizeof(message));
     } while (message.event != GAME_OVER_GAME_EVENT);
+    printf("function %s end\n", __FUNCTION__);
     return nullptr;
 }
 void *server_start(void *userData){
@@ -834,7 +836,7 @@ void *process_client(void *userData){
             PlayChess(pStart, dstRow, dstColumn);
         }
         else if(message.event == GAME_OVER_GAME_EVENT){
-            printf("int function %s:game over\n", __FUNCTION__);
+            printf("in function %s:game over\n", __FUNCTION__);
             break;
         }
         else{
@@ -1298,8 +1300,10 @@ void Cleanup(){
     GameMessage message;
     message.event = GAME_OVER_GAME_EVENT;
     g_Server.SendToAllClient(&message, sizeof(message));
+    g_Client.SendTo(&message, sizeof(message));
     g_Server.ShutdownClient();
     g_Server.ShutdownServer();
+    g_Client.Shutdown();
 #ifdef WIN32
     WSACleanup();
 #endif

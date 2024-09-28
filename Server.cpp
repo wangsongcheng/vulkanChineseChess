@@ -22,8 +22,7 @@ Server::~Server(){
 void Server::CreateServer(int listenCount){
     mSocket = socket(AF_INET, SOCK_STREAM, 0);
     if(mSocket == -1){
-        perror("create server:function:socket");
-        // herror("create server:function:socket");
+        perror("create server socket error");
         return;
     }
     struct sockaddr_in my_addr;
@@ -36,13 +35,14 @@ void Server::CreateServer(int listenCount){
     bzero(&my_addr.sin_zero, sizeof(my_addr.sin_zero)); /* zero the rest of the struct */
 #endif
     if(bind(mSocket, (struct sockaddr *)&my_addr, sizeof(struct sockaddr)) == -1){
-        perror("create server:function:bind");
-        // herror("create server:function:bind");
+        perror("bind error");
+        ShutdownServer();
         return;
     }
     if (listen(mSocket, listenCount) == -1){
-        perror("create server:function:listen");
-        // herror("create server:function:listen");
+        perror("listen error");
+        ShutdownServer();
+        // herror("listen error");
         return;
     }
 }
@@ -59,7 +59,6 @@ SOCKET Server::AcceptClient(uint32_t client, void *__buf, size_t __n){
     mClients[client].SetScoket(s);
     mClients[client].RecvFrom(__buf, __n);
     GameMessage *pMessage = (GameMessage *)__buf;
-    // printf("in function %s:recv client %d, event %d\n", __FUNCTION__, client, pMessage->event);
     if(pMessage->event != AI_JOIN_GAME_GAME_EVENT)SendSelfInfoation(client);
     return s;
 }
