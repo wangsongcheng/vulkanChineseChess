@@ -2,7 +2,7 @@
 SRC=$(wildcard *.cpp)
 OBJ=$(SRC:%.cpp=%.o)
 BIN=demo
-LIB=-lvulkan -lglfw3 -lpthread -ldl
+LIB=-lvulkan -lglfw3 -lpthread -ldl -llua
 INC_PATH=-I./include/
 LIB_PATH=-L./lib/
 

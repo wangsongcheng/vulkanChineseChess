@@ -1,4 +1,5 @@
 #include "Ai.h"
+#include "LuaFrame.h"
 #ifdef HAN_CAN_PLAY
 extern const uint32_t g_DefaultCountryCount = MAX_COUNTRY_INDEX;
 #else
@@ -11,10 +12,21 @@ void PlayChess(Chess *pChess, uint32_t dstRow, uint32_t dstColumn);
 extern std::array<Player, g_DefaultCountryCount>g_Players;
 void SendPlayChessMessage(const Player&game, const Chess *pSelect, const Chess *pTarget);
 #endif
-void aiPlay(const Ai *pAi){
+lua_State *InitLua(){
+    lua_State *luaState = luaL_newstate();
+    luaL_openlibs(luaState);
+    registration_function(luaState);
+    return luaState;
+}
+void aiPlay(const Ai *pAi, lua_State *pL){
     uint32_t dstRow, dstColumn;
     Chess *pSelect = nullptr, *pTarget = nullptr;
-    pAi->GetPlayChess(g_CurrentCountry, &pSelect, &pTarget, &dstRow, &dstColumn);
+    if(pL){
+        GetSelectAndTarget(pL, &pSelect, &pTarget, &dstRow, &dstColumn);
+    }
+    else{
+        pAi->GetPlayChess(g_CurrentCountry, &pSelect, &pTarget, &dstRow, &dstColumn);
+    }
     Chess target(dstRow, dstColumn);
     // SelectChess(g_VulkanDevice.device, pSelect);
 #ifdef INTERNET_MODE
@@ -32,6 +44,12 @@ void aiPlay(const Ai *pAi){
 }
 void *AiPlayChess(void *userData){
     Ai *pAi = (Ai *)userData;
+    lua_State *luaState = InitLua();
+    if(luaL_loadfile(luaState, "ai.lua") || lua_pcall(luaState, 0, 0, 0)){
+        luaError(luaState, "load luad file error:%s\n", lua_tostring(luaState, -1));
+        lua_close(luaState);
+        luaState = nullptr;
+    }
 #ifdef __linux
     if(g_Player != g_CurrentCountry){
         //因为创建的时候固定为0,所以如果此时应该ai出牌，那么应该先调用下面的函数一次
@@ -40,7 +58,10 @@ void *AiPlayChess(void *userData){
 #endif
     while(!pAi->GameOver()){
         pAi->Wait();
-        aiPlay(pAi);
+        aiPlay(pAi, luaState);
+    }
+    if(luaState){
+        lua_close(luaState);
     }
     return nullptr;
 }

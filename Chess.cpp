@@ -134,6 +134,7 @@ void Chess::SetPos(uint32_t row, uint32_t column){
 }
 
 void Chess::Selected(Chess *pChess[MAX_COUNTRY_INDEX][DRAW_COUNTRY_CHESS_COUNT], std::vector<Chess> &canplays) const{
+    printf("in function %s\n", __FUNCTION__);
 }
 
 Wei::Wei(uint32_t row, uint32_t column):Chess(row, column){
