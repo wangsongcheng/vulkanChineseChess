@@ -12,7 +12,7 @@ class Server{
 public:
     Server(/* args */);
     ~Server();
-    void CreateServer(int listenCount);
+    bool CreateServer(int listenCount);
     void SendToAllClient(const void *__buf, size_t __n);
     SOCKET AcceptClient(uint32_t client, void *__buf, size_t __n);
     void RecvFromClient(uint32_t client, void *__buf, size_t __n);

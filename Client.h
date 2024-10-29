@@ -7,7 +7,7 @@ class Client{
 public:
     Client(/* args */);
     ~Client();
-    void CreateClient(const char *serverIp);
+    bool CreateClient(const char *serverIp);
     
     void RecvFrom(void *__buf, size_t __n);
     void SendTo(const void *__buf, size_t __n);

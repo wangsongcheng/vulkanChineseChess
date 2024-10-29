@@ -19,11 +19,11 @@ Server::Server(/* args */){
 
 Server::~Server(){
 }
-void Server::CreateServer(int listenCount){
+bool Server::CreateServer(int listenCount){
     mSocket = socket(AF_INET, SOCK_STREAM, 0);
     if(mSocket == -1){
         perror("create server socket error");
-        return;
+        return false;
     }
     int32_t opt = 1;
     //SO_REUSEADDR被设置后, 重开程序后bing不会出现Address already in use错误
@@ -40,14 +40,15 @@ void Server::CreateServer(int listenCount){
     if(bind(mSocket, (struct sockaddr *)&my_addr, sizeof(struct sockaddr)) == -1){
         perror("bind error");
         ShutdownServer();
-        return;
+        return false;
     }
     if (listen(mSocket, listenCount) == -1){
         perror("listen error");
         ShutdownServer();
         // herror("listen error");
-        return;
+        return false;
     }
+    return true;
 }
 
 void Server::SendToAllClient(const void *__buf, size_t __n){

@@ -847,27 +847,28 @@ void *process_client(void *userData){
 }
 void CreateServer(const char *name){
     g_ServerAppaction = true;
-    g_Server.CreateServer(g_DefaultCountryCount);
-    //必须用静态变量, 局部变量在函数结束后就销毁, 会导致传餐错误
+    if(g_Server.CreateServer(g_DefaultCountryCount)){
+        //必须用静态变量, 局部变量在函数结束后就销毁, 会导致传餐错误
 #ifdef PROCESS_SERVER_RELAY
-    CreateThread(server_start, nullptr);
+        CreateThread(server_start, nullptr);
 #else
-    static uint32_t socketIndex[] = { 0, 1, 2 };
-    for (size_t i = 0; i < g_DefaultCountryCount; ++i){
-        CreateThread(process_server, &socketIndex[i]);
-    }
+        static uint32_t socketIndex[] = { 0, 1, 2 };
+        for (size_t i = 0; i < g_DefaultCountryCount; ++i){
+            CreateThread(process_server, &socketIndex[i]);
+        }
 #endif
-    g_Client.CreateClient(g_ServerIp);
-    //该程序也需要客户端方面的线程
-    CreateThread(process_client, nullptr);
-    JoinsGame();
-    // JoinsGame(g_Client.GetName());
+        g_Client.CreateClient(g_ServerIp);
+        //该程序也需要客户端方面的线程
+        CreateThread(process_client, nullptr);
+        JoinsGame();
+        // JoinsGame(g_Client.GetName());
+    }
 }
 void CreateClient(const char *serverIp){
-    g_Client.CreateClient(serverIp);
-    CreateThread(process_client, nullptr);
-    JoinsGame();
-    // JoinsGame(g_Client.GetName());
+    if(g_Client.CreateClient(serverIp)){
+        CreateThread(process_client, nullptr);
+        JoinsGame();
+    }
 }
 void AddAi(const char *serverIp){
     Client client;

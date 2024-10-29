@@ -6,25 +6,25 @@ Client::Client(/* args */){
 Client::~Client(){
 }
 
-void Client::CreateClient(const char *serverIp){
+bool Client::CreateClient(const char *serverIp){
     struct in_addr address;
     struct sockaddr_in addr;
 #ifdef WIN32
     if (1 != inet_pton(AF_INET, serverIp, &address)) {
         perror("inet_aton error");
-        return;
+        return false;
     }
 #else
     if(!inet_aton(serverIp, &address)){
         perror("inet_aton error");
-        return;
+        return false;
     }
 #endif
     addr.sin_addr = address;
     mSocket = socket(AF_INET, SOCK_STREAM, 0);
     if(mSocket == INVALID_SOCKET){
         perror("create client socket error");
-        return;
+        return false;
     }
     addr.sin_family = AF_INET;
     addr.sin_port = htons(INTERNET_PORT);
@@ -36,8 +36,9 @@ void Client::CreateClient(const char *serverIp){
     if(connect(mSocket,(struct sockaddr *)&addr,sizeof(struct sockaddr)) == INVALID_SOCKET){
         perror("connect error");
         shutdown(mSocket, SHUT_RDWR);
-        return;
+        return false;
     }
+    return true;
 }
 void Client::RecvFrom(void *__buf, size_t __n){
     if(mSocket != INVALID_SOCKET)
