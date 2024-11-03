@@ -25,9 +25,11 @@ bool Server::CreateServer(int listenCount){
         perror("create server socket error");
         return false;
     }
+#ifdef __linux
     int32_t opt = 1;
     //SO_REUSEADDR被设置后, 重开程序后bing不会出现Address already in use错误
     setsockopt(mSocket, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
+#endif
     struct sockaddr_in my_addr;
     my_addr.sin_family = AF_INET; /* host byte order */
     my_addr.sin_addr.s_addr = INADDR_ANY; /* auto-fill with my IP */
