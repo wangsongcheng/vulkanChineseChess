@@ -57,12 +57,14 @@ function GetTargetChess(currentCountry, chess)
     end
     return row, column
 end
+--若chess有可下的位置, 则返回true
 function CanPlay(currentCountry, chess)
     local bCanplay = false;
     local canplayCount = GetCanPlayCount(currentCountry, chess)
-    for i = 0, canplayCount do
+    for i = 0, canplayCount - 1 do
         local canplayRow, canplayColumn = GetCanPlayRowColumn(currentCountry, chess, i)
         if IsChess(currentCountry, chess) == false or currentCountry ~= GetCountry(canplayRow, canplayColumn) then
+            io.write("this chess(", chess, ") can play, can play row = ", canplayRow, ", column = ", canplayColumn, "\n")
             bCanplay = true
             break
         end
@@ -77,7 +79,7 @@ function GetSelectAndTarget(currentCountry, chessCount)
     local targetRow = -1
     local selectColumn = -1;
     local targetColumn = -1;
-    io.write("------------currentCountry = ", currentCountry, ", chessCount = ", chessCount, "-------------\n")
+    io.write("------------in lua source file, function GetSelectAndTarget:currentCountry = ", currentCountry, ", chessCount = ", chessCount, "-------------\n")
     while  true do
         chess = math.random(0, chessCount)
         if CanPlay(currentCountry, chess) then

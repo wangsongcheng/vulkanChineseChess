@@ -48,7 +48,7 @@ void registration_function(lua_State *L){
 void GetSelectAndTarget(lua_State *L, Chess **pSelect, Chess **pTarget, uint32_t *row, uint32_t *column){
     lua_getglobal(L,"GetSelectAndTarget");
     lua_pushnumber(L, g_CurrentCountry);
-    lua_pushnumber(L, DRAW_COUNTRY_CHESS_COUNT);
+    lua_pushnumber(L, g_Game.GetChessCount(g_CurrentCountry));
     /*开始调用函数，有2个参数，4个返回值*/
     if(lua_pcall(L, 2, 4, 0) != LUA_OK){
         luaError(L, "call lua function GetSelectAndTarget error\n");
@@ -171,7 +171,7 @@ int lua_GetCanPlayColumn(lua_State *L){
     int32_t index = lua_tonumber(L, 3);
     int32_t country = lua_tonumber(L, 1);
 
-    int32_t column = CHESSBOARD_ROW;
+    int32_t column = CHESSBOARD_COLUMN;
     auto pChess = g_Game.GetChess();
     if(pChess[country][chess]){
         std::vector<Chess>canplays;

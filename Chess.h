@@ -137,6 +137,12 @@ public:
     virtual void Selected(Chess *pChess[MAX_COUNTRY_INDEX][DRAW_COUNTRY_CHESS_COUNT], std::vector<Chess>&canplays)const;
 };
 class Che:public Chess{
+    // //测试性函数
+    // float determinant(float *m, float column);
+    // void floatToMatrix(const float *m, glm::mat4&r);
+    // //removeColumn不包含0
+    // void RemoveRowColumn(const float *m, uint32_t removeColumn, uint32_t column, float *r);
+    // void SetMatrix(Chess *pChess[MAX_COUNTRY_INDEX][DRAW_COUNTRY_CHESS_COUNT], float m[CHESSBOARD_ROW * CHESSBOARD_COLUMN]);
 public:
     Che();
     Che(uint32_t row, uint32_t column);

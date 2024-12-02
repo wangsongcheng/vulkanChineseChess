@@ -1,4 +1,5 @@
 #include "Chess.h"
+#include <string.h>
 const Chess g_Center[] = { Chess(CHESSBOARD_ROW - 1, 8), Chess(8, CHESSBOARD_COLUMN - 1), Chess(1, 8), Chess(8, 1) };
 uint32_t GetTerritoryIndex(uint32_t row, uint32_t column){
     if(row < 13 && row > 3){
@@ -344,6 +345,57 @@ void Pao::Selected(Chess *pChess[MAX_COUNTRY_INDEX][DRAW_COUNTRY_CHESS_COUNT], s
     }
     SelectChessInPalace(GetCountry(), GetRow(), GetColumn(), pChess, canplays);
 }
+
+// float Che::determinant(float *m, float column){
+//     if(column > 4){
+//         const uint32_t rColumn = column - 1;
+//         float *r = new float[rColumn * rColumn];
+//         float result = 0, rd = -1;
+//         for (size_t i = 0; i < column; i++){
+//             RemoveRowColumn(m, i + 1, column, r);
+//             result +=  m[i] * determinant(m, rColumn) * rd;
+//             rd *= -1;
+//         }
+// 		return result;
+//     }
+//     else{
+//         glm::mat4 r;
+//         floatToMatrix(m, r);
+//         return glm::determinant(r);
+//     }
+// }
+// void Che::floatToMatrix(const float *m, glm::mat4 &r){
+//     for (uint32_t uiRow = 0; uiRow < 4; ++uiRow){
+//         for (uint32_t uiColumn = 0; uiColumn < 4; ++uiColumn){
+//             r[uiRow][uiColumn] = m[uiRow * 4 + uiColumn];
+//         }
+//     }
+// }
+
+// void Che::RemoveRowColumn(const float *m, uint32_t removeColumn, uint32_t column, float *r){
+// 	const uint32_t rColumn = column - 1;
+//     if(removeColumn == 1){
+//         for (uint32_t uiRow = 0; uiRow < rColumn; ++uiRow){
+//             memcpy(r + uiRow * rColumn, m + ((uiRow + 1) * column + removeColumn), sizeof(float) * (rColumn));
+//         } 
+//     }
+//     else if (removeColumn == column){
+//         for (uint32_t uiRow = 0; uiRow < rColumn; ++uiRow){
+//             memcpy(r + uiRow * rColumn, m + (uiRow + 1) * column, sizeof(float) * (rColumn));
+//         } 
+//     }
+//     else{
+//         for (uint32_t uiRow = 0; uiRow < rColumn; ++uiRow){
+//             memcpy(r + uiRow * rColumn, m + (uiRow + 1) * column, sizeof(float) * (removeColumn - 1));
+//             memcpy(r + (uiRow * rColumn + removeColumn), m + ((uiRow + 1) * column + removeColumn + 1), sizeof(float) * (column - removeColumn));
+//         }
+//     }
+// }
+
+// void Che::SetMatrix(Chess *pChess[MAX_COUNTRY_INDEX][DRAW_COUNTRY_CHESS_COUNT], float m[CHESSBOARD_ROW * CHESSBOARD_COLUMN]){
+//     //先设置为单位矩阵，再根据棋盘赋值
+//     // auto r = glm::determinant(m[0][0]);
+// }
 
 Che::Che(){
 }

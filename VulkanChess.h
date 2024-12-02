@@ -116,7 +116,7 @@ public:
     void Setup(VkPhysicalDevice physicalDevice, VkDevice device, VkDescriptorSetLayout setLayout, VkQueue graphics, VulkanPool pool);
 
     void UpdateUniform(VkDevice device, uint32_t fontIndex, const glm::vec3&pos, uint32_t dynamicOffsets);
-
+    //应该拆成独立函数，供外部调用
     void DrawFont(VkCommandBuffer command, VkPipelineLayout layout);
     void DrawChess(VkCommandBuffer command, VkPipelineLayout layout, uint32_t currentCountry);
 };

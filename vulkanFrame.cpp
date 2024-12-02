@@ -906,11 +906,11 @@ void vkf::tool::EndSingleTimeCommands(VkDevice device, VkCommandPool commandPool
 
 	vkFreeCommandBuffers(device, commandPool, 1, &command);
 }
-void vkf::tool::BeginRenderPassGeneral(VkCommandBuffer command, VkFramebuffer frame, VkRenderPass renderpass, uint32_t windowWidth, uint32_t windowHeight, bool enableDepth){
+void vkf::tool::BeginRenderPassGeneral(VkCommandBuffer command, VkFramebuffer frame, VkRenderPass renderpass, uint32_t windowWidth, uint32_t windowHeight){
     std::vector<VkClearValue> clearValues(2);
     clearValues[0].color = { 0.1f , 0.1f , 0.1f , 1.0f };
-    if(enableDepth)clearValues[1].depthStencil = { 1.0f , 0 };
-    BeginRenderPass(command, frame, renderpass, windowWidth, windowHeight, enableDepth?2:clearValues.size(), clearValues.data());
+    clearValues[1].depthStencil = { 1.0f , 0 };
+    BeginRenderPass(command, frame, renderpass, windowWidth, windowHeight, clearValues.size(), clearValues.data());
 }
 void vkf::tool::BeginRenderPass(VkCommandBuffer command, VkFramebuffer frame, VkRenderPass renderpass, uint32_t windowWidth, uint32_t windowHeight, uint32_t clearValueCount, VkClearValue *pClearValues, int32_t renderAreaWidthOffset, int32_t renderAreaHeightOffset){
     VkRenderPassBeginInfo info = {};

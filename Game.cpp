@@ -217,6 +217,13 @@ bool Game::GameOver(){
     }
     return deathCount > 1;
 }
+uint32_t Game::GetChessCount(uint32_t country){
+    uint32_t count = 0;
+    for (size_t i = 0; i < DRAW_COUNTRY_CHESS_COUNT; i++){
+        if(mChess[country][i])++count;
+    }
+    return count;
+}
 void Game::InitializeChess(uint32_t playerCountry){
     for (uint32_t uiCountry = 0; uiCountry < MAX_COUNTRY_INDEX; ++uiCountry){
         DestroyCountry(uiCountry);
