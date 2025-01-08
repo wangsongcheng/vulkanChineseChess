@@ -11,6 +11,7 @@
 #include "Game.h"
 #include "Pipeline.hpp"
 #include "VulkanChess.h"
+#include "VulkanWindow.h"
 #include "VulkanChessboard.h"
 #define JOIN_AI
 
@@ -46,7 +47,7 @@ struct GraphicsPipeline{
 VulkanPool g_VulkanPool;
 VulkanQueue g_VulkanQueue;
 VulkanDevice g_VulkanDevice;
-VulkanWindows g_VulkanWindows;
+VulkanWindow g_VulkanWindow;
 VulkanSynchronize g_VulkanSynchronize;
 VkDebugUtilsMessengerEXT g_VulkanMessenger;
 
@@ -86,29 +87,36 @@ VkBool32 VKAPI_PTR debugUtilsMessenger(VkDebugUtilsMessageSeverityFlagBitsEXT me
     printf("[VULKAN VALIDATION LAYER]\nSEVERITY:%s\nMESSAGE:%s\n", strMessageSeverity, pCallbackData->pMessage);
     return VK_FALSE;
 }
+bool GetPhysicalDevices(VkPhysicalDevice physicalDevice){
+    VkPhysicalDeviceProperties physicalDeviceProperties;
+    vkGetPhysicalDeviceProperties(physicalDevice, &physicalDeviceProperties);
+    return physicalDeviceProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU;
+}
 void SetupVulkan(GLFWwindow *window){
     uint32_t count;
     const char** instanceExtension = glfwGetRequiredInstanceExtensions(&count);
     std::vector<const char*> extensions(instanceExtension, instanceExtension + count);
-    VK_CHECK(vkf::CreateInstance(extensions, g_VulkanDevice.instance));
-    g_VulkanDevice.physicalDevice = vkf::GetPhysicalDevices(g_VulkanDevice.instance);
-    vkf::CreateDebugUtilsMessenger(g_VulkanDevice.instance, g_VulkanMessenger, debugUtilsMessenger);
-    glfwCreateWindowSurface(g_VulkanDevice.instance, window, nullptr, &g_VulkanWindows.surface);
-    vkf::CreateDevice(g_VulkanDevice.physicalDevice, {}, g_VulkanWindows.surface, g_VulkanDevice.device);
+    VK_CHECK(g_VulkanDevice.CreateInstance(extensions));
+    g_VulkanDevice.GetPhysicalDevices(GetPhysicalDevices);
+    VK_CHECK(g_VulkanDevice.CreateDebugUtilsMessenger(debugUtilsMessenger));
+    glfwCreateWindowSurface(g_VulkanDevice.instance, window, nullptr, &g_VulkanWindow.surface);
+    VK_CHECK(g_VulkanDevice.CreateDevice(g_VulkanWindow.surface));
     uint32_t queueFamilies[2];
-    vkf::tool::GetGraphicAndPresentQueueFamiliesIndex(g_VulkanDevice.physicalDevice, g_VulkanWindows.surface, queueFamilies);
-    vkGetDeviceQueue(g_VulkanDevice.device, queueFamilies[0], 0, &g_VulkanQueue.graphics);
+    g_VulkanDevice.GetGraphicAndPresentQueueFamiliesIndex(g_VulkanWindow.surface, queueFamilies);
     vkGetDeviceQueue(g_VulkanDevice.device, queueFamilies[1], 0, &g_VulkanQueue.present);
-    vkf::CreateSwapchain(g_VulkanDevice.physicalDevice, g_VulkanDevice.device, g_VulkanWindows);
-    vkf::CreateRenderPassForSwapchain(g_VulkanDevice.device, g_VulkanWindows.swapchainInfo.format, g_VulkanWindows.renderpass, true);
-    vkf::CreateCommandPool(g_VulkanDevice.physicalDevice, g_VulkanDevice.device, g_VulkanPool.command);
-    vkf::CreateFrameBufferForSwapchain(g_VulkanDevice.device, g_VulkanWindows, true);
-    vkf::CreateSemaphoreAndFenceForSwapchain(g_VulkanDevice.device, g_VulkanWindows.swapchainImages.size(), g_VulkanSynchronize);
-    vkf::CreateDescriptorPool(g_VulkanDevice.device, 8, g_VulkanPool.descriptor);
+    vkGetDeviceQueue(g_VulkanDevice.device, queueFamilies[0], 0, &g_VulkanQueue.graphics);
+    g_VulkanWindow.swapchain.CreateSwapchain(g_VulkanDevice, g_VulkanWindow.surface);
+
+    g_VulkanWindow.CreateRenderPass(g_VulkanDevice.device);
+    g_VulkanWindow.CreateFrameBuffer(g_VulkanDevice, true);
+
+    g_VulkanPool.CreatePool(g_VulkanDevice, 8);
+
+    g_VulkanSynchronize.CreateSemaphore(g_VulkanDevice.device, g_VulkanWindow.swapchain.images.size());
     //显示设备信息
     const char *deviceType;
     VkPhysicalDeviceProperties physicalDeviceProperties;
-    vkGetPhysicalDeviceProperties(g_VulkanDevice.physicalDevice, &physicalDeviceProperties);
+    g_VulkanDevice.GetPhysicalDeviceProperties(physicalDeviceProperties);
     switch (physicalDeviceProperties.deviceType){
     case VK_PHYSICAL_DEVICE_TYPE_CPU:
         deviceType = "CPU";
@@ -128,35 +136,14 @@ void SetupVulkan(GLFWwindow *window){
     }
 	printf("gpu name:%s, gpu type:%s\n", physicalDeviceProperties.deviceName, deviceType);
 }
-void CleanupSwapchain(VkDevice device, VulkanWindows&vulkanWindow){
-    for (size_t i = 0; i < vulkanWindow.framebuffers.size(); ++i){
-        vulkanWindow.swapchainImages[i].image = VK_NULL_HANDLE;
-        vulkanWindow.swapchainImages[i].Destroy(device);
-        vkDestroyFramebuffer(device, vulkanWindow.framebuffers[i], nullptr);
-    }
-    vulkanWindow.depthImage.Destroy(device);
-
-    vkDestroyRenderPass(device, vulkanWindow.renderpass, nullptr);
-    vkDestroySwapchainKHR(device, vulkanWindow.swapchain, nullptr);
-}
 void CleanupVulkan(){
-    for (size_t i = 0; i < g_VulkanSynchronize.fences.size(); ++i){
-        vkDestroyFence(g_VulkanDevice.device, g_VulkanSynchronize.fences[i], nullptr);
-        vkDestroySemaphore(g_VulkanDevice.device, g_VulkanSynchronize.imageAcquired[i], nullptr);
-        vkDestroySemaphore(g_VulkanDevice.device, g_VulkanSynchronize.renderComplete[i], nullptr);
-    }
+    g_VulkanSynchronize.Cleanup(g_VulkanDevice.device);
 
-    CleanupSwapchain(g_VulkanDevice.device, g_VulkanWindows);
+    g_VulkanPool.Cleanup(g_VulkanDevice.device);
 
-    vkDestroyCommandPool(g_VulkanDevice.device, g_VulkanPool.command, nullptr);
-    vkDestroyDescriptorPool(g_VulkanDevice.device, g_VulkanPool.descriptor, nullptr);
+    g_VulkanWindow.Cleanup(g_VulkanDevice);
 
-    vkDestroySurfaceKHR(g_VulkanDevice.instance, g_VulkanWindows.surface, nullptr);
-
-    vkf::DestoryDebugUtilsMessenger(g_VulkanDevice.instance, g_VulkanMessenger);
-
-    vkDestroyDevice(g_VulkanDevice.device, nullptr);
-    vkDestroyInstance(g_VulkanDevice.instance, nullptr);
+    g_VulkanDevice.Cleanup();
 }
 VkVertexInputBindingDescription inputBindingDescription(uint32_t binding) {
     return VkVertexInputBindingDescription({ binding, sizeof(glm::vec3) * 2, VK_VERTEX_INPUT_RATE_VERTEX });
@@ -209,7 +196,7 @@ void CreateGraphicsPipeline(VkDevice device, VkPipelineLayout layout){
     std::array<VkVertexInputAttributeDescription, 2> attributeDescriptions = inputAttributeDescriptions(0);
 
     VkPipelineViewportStateCreateInfo viewportState = Pipeline::initializers::pipelineViewportStateCreateInfo(1, 1, 0);
-    VkGraphicsPipelineCreateInfo pipelineCreateInfo = Pipeline::initializers::pipelineCreateInfo(layout, g_VulkanWindows.renderpass, 0);
+    VkGraphicsPipelineCreateInfo pipelineCreateInfo = Pipeline::initializers::pipelineCreateInfo(layout, g_VulkanWindow.renderPass, 0);
 
     VkPipelineColorBlendAttachmentState blendAttachmentState = Pipeline::initializers::pipelineColorBlendAttachmentState(0xf, VK_FALSE);
     VkPipelineColorBlendStateCreateInfo colorBlendState = Pipeline::initializers::pipelineColorBlendStateCreateInfo(1, &blendAttachmentState);
@@ -219,8 +206,8 @@ void CreateGraphicsPipeline(VkDevice device, VkPipelineLayout layout){
     VkPipelineRasterizationStateCreateInfo rasterizationState = Pipeline::initializers::pipelineRasterizationStateCreateInfo(VK_POLYGON_MODE_FILL, VK_CULL_MODE_NONE, VK_FRONT_FACE_CLOCKWISE, 0);
     // std::array<VkDynamicState> dynamicStateEnables = { VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR };
     // VkPipelineDynamicStateCreateInfo dynamicState = Pipeline::initializers::pipelineDynamicStateCreateInfo(dynamicStateEnables.data(), static_cast<uint32_t>(dynamicStateEnables.size()), 0);
-    VkRect2D scissors = Pipeline::rect2D(g_WindowWidth, g_WindowHeight);
-    VkViewport viewport = Pipeline::viewport(g_WindowWidth, g_WindowHeight);
+    VkRect2D scissors = Pipeline::Rect2D(g_WindowWidth, g_WindowHeight);
+    VkViewport viewport = Pipeline::Viewport(g_WindowWidth, g_WindowHeight);
     viewportState.pScissors = &scissors;
     viewportState.pViewports = &viewport;
 
@@ -230,10 +217,8 @@ void CreateGraphicsPipeline(VkDevice device, VkPipelineLayout layout){
     inputState.pVertexAttributeDescriptions = attributeDescriptions.data();
     inputState.vertexAttributeDescriptionCount = attributeDescriptions.size();
 
-    shaderStages[0] = Pipeline::LoadShader(VK_SHADER_STAGE_VERTEX_BIT);
-    shaderStages[1] = Pipeline::LoadShader(VK_SHADER_STAGE_FRAGMENT_BIT);
-    Pipeline::CreateShaderModule(device, "shaders/baseVert.spv", shaderStages[0].module);
-    Pipeline::CreateShaderModule(device, "shaders/baseFrag.spv", shaderStages[1].module);
+    shaderStages[0] = Pipeline::LoadShader(device, "shaders/baseVert.spv", VK_SHADER_STAGE_VERTEX_BIT);
+    shaderStages[1] = Pipeline::LoadShader(device, "shaders/baseFrag.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
 
     // pipelineCreateInfo.pTessellationState = ;
     pipelineCreateInfo.layout = layout;
@@ -254,8 +239,8 @@ void CreateGraphicsPipeline(VkDevice device, VkPipelineLayout layout){
     vkDestroyShaderModule(device, shaderStages[0].module, VK_NULL_HANDLE);
     vkDestroyShaderModule(device, shaderStages[1].module, VK_NULL_HANDLE);
     rasterizationState = Pipeline::initializers::pipelineRasterizationStateCreateInfo(VK_POLYGON_MODE_FILL, VK_CULL_MODE_NONE, VK_FRONT_FACE_CLOCKWISE, 0);
-    Pipeline::CreateShaderModule(device, "shaders/baseFontVert.spv", shaderStages[0].module);
-    Pipeline::CreateShaderModule(device, "shaders/baseFontFrag.spv", shaderStages[1].module);
+    shaderStages[0] = Pipeline::LoadShader(device, "shaders/baseFontVert.spv", VK_SHADER_STAGE_VERTEX_BIT);
+    shaderStages[1] = Pipeline::LoadShader(device, "shaders/baseFontFrag.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
     VK_CHECK(vkCreateGraphicsPipelines(device, g_Font.cache, 1, &pipelineCreateInfo, nullptr, &g_Font.pipeline));
     vkDestroyShaderModule(device, shaderStages[0].module, VK_NULL_HANDLE);
     vkDestroyShaderModule(device, shaderStages[1].module, VK_NULL_HANDLE);
@@ -270,7 +255,7 @@ void SetupDescriptorSetLayout(VkDevice device){
     setlayoutBindings[1].descriptorCount = 1;
     setlayoutBindings[1].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
     setlayoutBindings[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    vkf::CreateDescriptorSetLayout(device, 2, setlayoutBindings, &g_DescriptorSetLayout);
+    vulkanFrame::CreateDescriptorSetLayout(device, setlayoutBindings, 2, &g_DescriptorSetLayout);
 }
 void UpdateChessUniform(VkDevice device, Chess *pChess[MAX_COUNTRY_INDEX][DRAW_COUNTRY_CHESS_COUNT]){
     for (uint32_t uiCoutry = 0; uiCoutry < MAX_COUNTRY_INDEX; ++uiCoutry){
@@ -1059,8 +1044,8 @@ void UpdateImguiWidget(){
 }
 #endif
 void RecordCommand(VkCommandBuffer command, VkFramebuffer frame){
-    vkf::tool::BeginCommands(command, VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT);
-    vkf::tool::BeginRenderPassGeneral(command, frame, g_VulkanWindows.renderpass, g_WindowWidth, g_WindowHeight);
+    vulkanFrame::BeginCommands(command, VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT);
+    vulkanFrame::BeginRenderPassGeneral(command, frame, g_VulkanWindow.renderPass, g_WindowWidth, g_WindowHeight);
 
     const glm::mat4 projection = glm::ortho(0.0f, (float)g_WindowWidth, 0.0f, (float)g_WindowHeight, -1.0f, 1.0f);
     vkCmdBindPipeline(command, VK_PIPELINE_BIND_POINT_GRAPHICS, g_Fill.pipeline);
@@ -1227,12 +1212,12 @@ void Setup(GLFWwindow *window){
     
     CreateGraphicsPipeline(g_VulkanDevice.device, g_PipelineLayout);
 
-    g_Chess.Setup(g_VulkanDevice.physicalDevice, g_VulkanDevice.device, g_DescriptorSetLayout, g_VulkanQueue.graphics, g_VulkanPool);
-    g_VulkanChessboard.Setup(g_VulkanDevice.physicalDevice, g_VulkanDevice.device, g_DescriptorSetLayout, g_WindowWidth, g_VulkanQueue.graphics, g_VulkanPool);
+    g_Chess.Setup(g_VulkanDevice, g_DescriptorSetLayout, g_VulkanQueue.graphics, g_VulkanPool);
+    g_VulkanChessboard.Setup(g_VulkanDevice, g_DescriptorSetLayout, g_VulkanQueue.graphics, g_VulkanPool);
 
     g_VulkanChessboard.UpdateUniform(g_VulkanDevice.device, g_WindowWidth);
 #ifdef INTERNET_MODE
-    vkf::tool::AllocateCommandBuffers(g_VulkanDevice.device, g_VulkanPool.command, 1, &g_CommandBuffers);
+    g_VulkanPool.AllocateCommandBuffers(g_VulkanDevice.device, 1, &g_CommandBuffers);
     //imgui
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
@@ -1242,7 +1227,7 @@ void Setup(GLFWwindow *window){
 
     ImGui_ImplGlfw_InitForVulkan(window, true);
     uint32_t queueFamily;
-    vkf::tool::GetGraphicAndPresentQueueFamiliesIndex(g_VulkanDevice.physicalDevice, VK_NULL_HANDLE, &queueFamily);
+    g_VulkanDevice.GetGraphicAndPresentQueueFamiliesIndex(VK_NULL_HANDLE, &queueFamily);
     ImGui_ImplVulkan_InitInfo initInfo = {};
     initInfo.Instance = g_VulkanDevice.instance;
     initInfo.PhysicalDevice = g_VulkanDevice.physicalDevice;
@@ -1252,15 +1237,15 @@ void Setup(GLFWwindow *window){
     initInfo.PipelineCache = VK_NULL_HANDLE;//g_GraphicsPipline.getCache();
     initInfo.DescriptorPool = g_VulkanPool.descriptor;
     initInfo.MinImageCount = 2;
-    initInfo.ImageCount = g_VulkanWindows.framebuffers.size();
+    initInfo.ImageCount = g_VulkanWindow.framebuffers.size();
     initInfo.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
     initInfo.Allocator = nullptr;
     initInfo.CheckVkResultFn = nullptr;
-    ImGui_ImplVulkan_Init(&initInfo, g_VulkanWindows.renderpass);
+    ImGui_ImplVulkan_Init(&initInfo, g_VulkanWindow.renderPass);
 
     io.Fonts->AddFontFromFileTTF("fonts/SourceHanSerifCN-Bold.otf", 20, NULL, io.Fonts->GetGlyphRangesChineseFull());
 
-    ImGui_ImplVulkan_CreateFontsTexture(g_VulkanPool.command, g_VulkanQueue.graphics);
+    ImGui_ImplVulkan_CreateFontsTexture(g_VulkanDevice, g_VulkanPool, g_VulkanQueue.graphics);
 #ifdef WIN32
     WSADATA wsaData;
     int wsaResult = WSAStartup(MAKEWORD(2, 2), &wsaData);
@@ -1282,7 +1267,7 @@ void Setup(GLFWwindow *window){
     }
     GetLocalIp(g_ServerIp);
 #endif
-    vkf::tool::AllocateCommandBuffers(g_VulkanDevice.device, g_VulkanPool.command, 1, &g_CommandBuffers);
+    g_VulkanPool.AllocateCommandBuffers(g_VulkanDevice.device, 1, &g_CommandBuffers);
 
     g_CurrentCountry = rand()%g_DefaultCountryCount;    
 #ifndef INTERNET_MODE
@@ -1322,36 +1307,38 @@ void Cleanup(){
     g_Chess.Cleanup(g_VulkanDevice.device);
 }
 void RecreateSwapchain(void *userData){
+    vkDeviceWaitIdle(g_VulkanDevice.device);
     GLFWwindow* window = (GLFWwindow*)userData;
     int32_t width, height;
     glfwGetWindowSize(window, &width, &height);
     //windows下最小化后无法复原//调试显示, 在等待currentFrame为2的栏杆对象后得不到回复
     if (width < 1 || height < 1)return;
     //想不调用vkDeviceWaitIdle重建交换链也行, 在重新创建交换链时, VkSwapchainCreateInfoKHR的结构体中oldSwapChain设置为原来的交换链
-    CleanupSwapchain(g_VulkanDevice.device, g_VulkanWindows);
-   const VkExtent2D swapchainExtent = g_VulkanWindows.swapchainInfo.extent;
-   vkf::CreateSwapchain(g_VulkanDevice.physicalDevice, g_VulkanDevice.device, g_VulkanWindows);
-    g_WindowWidth = g_VulkanWindows.swapchainInfo.extent.width;
-    g_WindowHeight = g_VulkanWindows.swapchainInfo.extent.height;
-    vkf::CreateRenderPassForSwapchain(g_VulkanDevice.device, g_VulkanWindows.swapchainInfo.format, g_VulkanWindows.renderpass);
-    vkf::CreateFrameBufferForSwapchain(g_VulkanDevice.device, g_VulkanWindows);
+    g_VulkanWindow.CleanupSwapchain(g_VulkanDevice.device);
+   const VkExtent2D swapchainExtent = g_VulkanWindow.swapchain.extent;
+   g_VulkanWindow.swapchain.CreateSwapchain(g_VulkanDevice, g_VulkanWindow.surface);
+    g_WindowWidth = g_VulkanWindow.swapchain.extent.width;
+    g_WindowHeight = g_VulkanWindow.swapchain.extent.height;
+    g_VulkanWindow.CreateRenderPass(g_VulkanDevice.device, g_VulkanWindow.swapchain.format);
+    g_VulkanWindow.CreateFrameBuffer(g_VulkanDevice, true);
     
     if(swapchainExtent.width != g_WindowWidth || swapchainExtent.height != g_WindowHeight){
         DestroyGraphicsPipeline(g_VulkanDevice.device);
+        CreatePipelineLayout(g_VulkanDevice.device, g_DescriptorSetLayout);
         CreateGraphicsPipeline(g_VulkanDevice.device, g_PipelineLayout);
     }
 }
 void display(GLFWwindow* window){
     static size_t currentFrame;
     vkDeviceWaitIdle(g_VulkanDevice.device);
-    RecordCommand(g_CommandBuffers, g_VulkanWindows.framebuffers[currentFrame]);
-    if(VK_ERROR_OUT_OF_DATE_KHR == vkf::DrawFrame(g_VulkanDevice.device, currentFrame, g_CommandBuffers, g_VulkanWindows.swapchain, g_VulkanQueue, g_VulkanSynchronize, RecreateSwapchain, window)){
+    RecordCommand(g_CommandBuffers, g_VulkanWindow.framebuffers[currentFrame]);
+    if(VK_ERROR_OUT_OF_DATE_KHR == vulkanFrame::DrawFrame(g_VulkanDevice.device, currentFrame, g_CommandBuffers, g_VulkanWindow.swapchain.swapchain, g_VulkanQueue, g_VulkanSynchronize, RecreateSwapchain, window)){
         //重建交换链后, 即使currentFrame不为0, 获取的交换链图片索引不一定和currentFrame相同
         currentFrame = 0;
         //那重建交换链后, 那重建后有没有可能得到的索引不是0?
     }
     else{
-        currentFrame = (currentFrame + 1) % g_VulkanWindows.framebuffers.size();
+        currentFrame = (currentFrame + 1) % g_VulkanWindow.framebuffers.size();
     }
 }
 int main(){

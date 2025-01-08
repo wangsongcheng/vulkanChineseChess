@@ -103,17 +103,15 @@ class VulkanChess{
         VulkanImage image;//魏, 蜀, 吴, 漢, 兵, 炮, 車, 馬, 相, 士
     }fonts;
     BaseGraphic mChess, mFont;
-    uint32_t mMinUniformBufferOffset;
-    uint32_t mFontMinUniformBufferOffset;
     void GetCircularVertex(const glm::vec3&color, std::vector<Vertex>&vertices);
-    void CreateFontResource(VkDevice device, VkCommandPool pool, VkQueue graphics);
-    void CreateChessResource(VkDevice device, VkCommandPool pool, VkQueue graphics);
-    void SetupDescriptorSet(VkDevice device, VkDescriptorSetLayout layout, VkDescriptorPool pool);
+    void CreateFontResource(VulkanDevice device, VulkanPool pool, VkQueue graphics);
+    void CreateChessResource(VulkanDevice device, VulkanPool pool, VkQueue graphics);
+    void SetupDescriptorSet(VkDevice device, VkDescriptorSetLayout layout, VulkanPool pool);
 public:
     VulkanChess(/* args */);
     ~VulkanChess();
     void Cleanup(VkDevice device);
-    void Setup(VkPhysicalDevice physicalDevice, VkDevice device, VkDescriptorSetLayout setLayout, VkQueue graphics, VulkanPool pool);
+    void Setup(VulkanDevice device, VkDescriptorSetLayout setLayout, VkQueue graphics, VulkanPool pool);
 
     void UpdateUniform(VkDevice device, uint32_t fontIndex, const glm::vec3&pos, uint32_t dynamicOffsets);
     //应该拆成独立函数，供外部调用

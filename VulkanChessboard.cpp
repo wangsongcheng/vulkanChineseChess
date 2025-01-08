@@ -73,7 +73,7 @@ void VulkanChessboard::UpdateBackgroundUniform(VkDevice device, uint32_t windowW
     };
     uniforms.background.UpdateData(device, sizeof(model), model);
 }
-void VulkanChessboard::CreateRectResource(VkDevice device, VkCommandPool pool, VkQueue graphics){
+void VulkanChessboard::CreateRectResource(VulkanDevice device, VulkanPool pool, VkQueue graphics){
     float vertices[2 * 4 * 6];
     const uint16_t indices[] = {
         0, 1, 2, 0, 3, 1,//.../
@@ -86,26 +86,26 @@ void VulkanChessboard::CreateRectResource(VkDevice device, VkCommandPool pool, V
     mRect.index.CreateBuffer(device, sizeof(indices), VK_BUFFER_USAGE_INDEX_BUFFER_BIT|VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
     //8是4种颜色+亮度较低的颜色(表示不是该玩家下子)
     mRect.vertex.CreateBuffer(device, sizeof(vertices), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT|VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-    vkf::tool::CopyBuffer(device, sizeof(indices), indices, graphics, pool, mRect.index);
-    vkf::tool::CopyBuffer(device, sizeof(vertices), vertices, graphics, pool, mRect.vertex);
+    mRect.index.UpdateData(device, indices, graphics, pool);
+    mRect.vertex.UpdateData(device, vertices, graphics, pool);
 }
-void VulkanChessboard::SetupDescriptorSet(VkDevice device, VkDescriptorSetLayout setLayout, VkDescriptorPool pool){
-    vkf::tool::AllocateDescriptorSets(device, pool, &setLayout, 1, &descriptorSet.grid);
-    vkf::tool::AllocateDescriptorSets(device, pool, &setLayout, 1, &descriptorSet.bigGrid);
-    vkf::tool::AllocateDescriptorSets(device, pool, &setLayout, 1, &descriptorSet.background);
-    vkf::tool::AllocateDescriptorSets(device, pool, &setLayout, 1, &descriptorSet.wireframe.jiugongge);
-    vkf::tool::AllocateDescriptorSets(device, pool, &setLayout, 1, &descriptorSet.wireframe.selectChess);
+void VulkanChessboard::SetupDescriptorSet(VkDevice device, VkDescriptorSetLayout setLayout, VulkanPool pool){
+    pool.AllocateDescriptorSets(device, &setLayout, 1, &descriptorSet.grid);
+    pool.AllocateDescriptorSets(device, &setLayout, 1, &descriptorSet.bigGrid);
+    pool.AllocateDescriptorSets(device, &setLayout, 1, &descriptorSet.background);
+    pool.AllocateDescriptorSets(device, &setLayout, 1, &descriptorSet.wireframe.jiugongge);
+    pool.AllocateDescriptorSets(device, &setLayout, 1, &descriptorSet.wireframe.selectChess);
     
     VkDescriptorSetLayoutBinding descriptorSetLayoutBindings[1] = {};
     // descriptorSetLayoutBindings[0].binding = 0;
     descriptorSetLayoutBindings[0].descriptorCount = 1;
     descriptorSetLayoutBindings[0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
     descriptorSetLayoutBindings[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
-    vkf::tool::UpdateDescriptorSets(device, 1, descriptorSetLayoutBindings, {uniforms.grid},{}, descriptorSet.grid);
-    vkf::tool::UpdateDescriptorSets(device, 1, descriptorSetLayoutBindings, {uniforms.bigGrid},{}, descriptorSet.bigGrid);
-    vkf::tool::UpdateDescriptorSets(device, 1, descriptorSetLayoutBindings, {uniforms.background},{}, descriptorSet.background);
-    vkf::tool::UpdateDescriptorSets(device, 1, descriptorSetLayoutBindings, {uniforms.wireframe.jiugongge},{}, descriptorSet.wireframe.jiugongge);
-    vkf::tool::UpdateDescriptorSets(device, 1, descriptorSetLayoutBindings, {uniforms.wireframe.selectChess},{}, descriptorSet.wireframe.selectChess);
+    vulkanFrame::UpdateDescriptorSets(device, descriptorSetLayoutBindings, 1, {uniforms.grid},{}, descriptorSet.grid);
+    vulkanFrame::UpdateDescriptorSets(device, descriptorSetLayoutBindings, 1, {uniforms.bigGrid},{}, descriptorSet.bigGrid);
+    vulkanFrame::UpdateDescriptorSets(device, descriptorSetLayoutBindings, 1, {uniforms.background},{}, descriptorSet.background);
+    vulkanFrame::UpdateDescriptorSets(device, descriptorSetLayoutBindings, 1, {uniforms.wireframe.jiugongge},{}, descriptorSet.wireframe.jiugongge);
+    vulkanFrame::UpdateDescriptorSets(device, descriptorSetLayoutBindings, 1, {uniforms.wireframe.selectChess},{}, descriptorSet.wireframe.selectChess);
 }
 VulkanChessboard::VulkanChessboard(/* args */){
 }
@@ -121,30 +121,30 @@ void VulkanChessboard::Cleanup(VkDevice device){
     uniforms.wireframe.selectChess.Destroy(device);
 }
 
-void VulkanChessboard::Setup(VkPhysicalDevice physicalDevice, VkDevice device, VkDescriptorSetLayout setLayout, uint32_t windowWidth, VkQueue graphics, VulkanPool pool){
+void VulkanChessboard::Setup(VulkanDevice device, VkDescriptorSetLayout setLayout, VkQueue graphics, VulkanPool pool){
     VkPhysicalDeviceProperties physicalDeviceProperties;
-    vkGetPhysicalDeviceProperties(physicalDevice, &physicalDeviceProperties);
-    mMinUniformBufferOffset = ALIGN(sizeof(glm::mat4), physicalDeviceProperties.limits.minUniformBufferOffsetAlignment);
+    device.GetPhysicalDeviceProperties(physicalDeviceProperties);
+    uint32_t minUniformBufferOffset = ALIGN(sizeof(glm::mat4), physicalDeviceProperties.limits.minUniformBufferOffsetAlignment);
 
-    CreateRectResource(device, pool.command, graphics);
+    CreateRectResource(device, pool, graphics);
 
     //绘制所有方格, 即使是被大方格覆盖
-    uniforms.grid.CreateBuffer(device, mMinUniformBufferOffset * CHESSBOARD_ROW * CHESSBOARD_COLUMN, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-    uniforms.grid.size = mMinUniformBufferOffset;
+    uniforms.grid.CreateBuffer(device, minUniformBufferOffset * CHESSBOARD_ROW * CHESSBOARD_COLUMN, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+    uniforms.grid.size = minUniformBufferOffset;
 
-    uniforms.bigGrid.CreateBuffer(device, mMinUniformBufferOffset * CHESSBOARD_BIG_GRID_COUNT, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-    uniforms.bigGrid.size = mMinUniformBufferOffset;
+    uniforms.bigGrid.CreateBuffer(device, minUniformBufferOffset * CHESSBOARD_BIG_GRID_COUNT, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+    uniforms.bigGrid.size = minUniformBufferOffset;
     
-    uniforms.wireframe.jiugongge.CreateBuffer(device, mMinUniformBufferOffset * CHESSBOARD_WIREFRAME_COUNT, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-    uniforms.wireframe.jiugongge.size = mMinUniformBufferOffset;
+    uniforms.wireframe.jiugongge.CreateBuffer(device, minUniformBufferOffset * CHESSBOARD_WIREFRAME_COUNT, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+    uniforms.wireframe.jiugongge.size = minUniformBufferOffset;
 
-    uniforms.wireframe.selectChess.CreateBuffer(device, mMinUniformBufferOffset * (CHESSBOARD_ROW + CHESSBOARD_COLUMN), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-    uniforms.wireframe.selectChess.size = mMinUniformBufferOffset;
+    uniforms.wireframe.selectChess.CreateBuffer(device, minUniformBufferOffset * (CHESSBOARD_ROW + CHESSBOARD_COLUMN), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+    uniforms.wireframe.selectChess.size = minUniformBufferOffset;
 
-    uniforms.background.CreateBuffer(device, mMinUniformBufferOffset * 2, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-    uniforms.background.size = mMinUniformBufferOffset;
+    uniforms.background.CreateBuffer(device, minUniformBufferOffset * 2, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+    uniforms.background.size = minUniformBufferOffset;
 
-    SetupDescriptorSet(device, setLayout, pool.descriptor);
+    SetupDescriptorSet(device.device, setLayout, pool);
 }
 void VulkanChessboard::UpdateUniform(VkDevice device, uint32_t windowWidth){
     //因为棋盘里面的坐标都是固定的, 所以可以直接在类里全画出来
@@ -158,23 +158,23 @@ void VulkanChessboard::UpdateUniform(VkDevice device, uint32_t windowWidth){
     UpdateBackgroundUniform(device, windowWidth);
 }
 void VulkanChessboard::UpdateSelectChessWireframeUniform(VkDevice device, const glm::mat4 *pModel, uint32_t count){
-    uniforms.wireframe.selectChess.UpdateData(device, count * mMinUniformBufferOffset, pModel);
+    uniforms.wireframe.selectChess.UpdateData(device, count * uniforms.grid.size, pModel);
 }
 void VulkanChessboard::Draw(VkCommandBuffer command, const VkPipelineLayout &layout){
     uint32_t dynamicOffsets;
     mRect.Bind(command);
     for (size_t i = 0; i < 2; i++){
-        dynamicOffsets = i * mMinUniformBufferOffset;
+        dynamicOffsets = i * uniforms.grid.size;
         vkCmdBindDescriptorSets(command, VK_PIPELINE_BIND_POINT_GRAPHICS, layout, 0, 1, &descriptorSet.background, 1, &dynamicOffsets);
         mRect.Draw(command, i * mRect.vertexCount);
     }
     for (size_t i = 0; i < CHESSBOARD_ROW * CHESSBOARD_COLUMN; ++i){
-        dynamicOffsets = i * mMinUniformBufferOffset;
+        dynamicOffsets = i * uniforms.grid.size;
         vkCmdBindDescriptorSets(command, VK_PIPELINE_BIND_POINT_GRAPHICS, layout, 0, 1, &descriptorSet.grid, 1, &dynamicOffsets);
         mRect.Draw(command);
     }
     for (size_t i = 0; i < CHESSBOARD_BIG_GRID_COUNT; ++i){
-        dynamicOffsets = i * mMinUniformBufferOffset;
+        dynamicOffsets = i * uniforms.grid.size;
         vkCmdBindDescriptorSets(command, VK_PIPELINE_BIND_POINT_GRAPHICS, layout, 0, 1, &descriptorSet.bigGrid, 1, &dynamicOffsets);
         mRect.Draw(command);
     }
@@ -184,7 +184,7 @@ void VulkanChessboard::DrawWireframe(VkCommandBuffer command, const VkPipelineLa
     uint32_t dynamicOffsets;
     mRect.Bind(command);
     for (size_t i = 0; i < CHESSBOARD_WIREFRAME_COUNT; ++i){
-        dynamicOffsets = i * mMinUniformBufferOffset;
+        dynamicOffsets = i * uniforms.grid.size;
         if(i < CHESSBOARD_WIREFRAME_COUNT * .5)
             indexOffset = 0;
         else
@@ -193,7 +193,7 @@ void VulkanChessboard::DrawWireframe(VkCommandBuffer command, const VkPipelineLa
         mRect.Draw(command, 4, indexOffset);
     }
     for (size_t i = 0; i < CHESSBOARD_ROW * 2; ++i){
-        dynamicOffsets = i * mMinUniformBufferOffset;
+        dynamicOffsets = i * uniforms.grid.size;
         vkCmdBindDescriptorSets(command, VK_PIPELINE_BIND_POINT_GRAPHICS, layout, 0, 1, &descriptorSet.wireframe.selectChess, 1, &dynamicOffsets);
         mRect.Draw(command, mRect.vertexCount);
     }

@@ -1,7 +1,17 @@
 #include <string.h>
+#include <iostream>
 #include "VulkanChess.h"
 #define STB_TRUETYPE_IMPLEMENTATION
 #include "stb_truetype.h"
+uint32_t GetFileSize(FILE *fp){
+    uint32_t size = 0;
+    if(fp){
+        fseek(fp, 0, SEEK_END);
+        size = ftell(fp);
+        fseek(fp, 0, SEEK_SET);
+    }
+    return size;
+}
 void GetFontImageData(const unsigned char *fontData, int bitmap_w, int bitmap_h, wchar_t word, unsigned char *out){
 	stbtt_fontinfo info;
     const float pixels = bitmap_w;
@@ -30,7 +40,7 @@ void VulkanChess::GetCircularVertex(const glm::vec3 &color, std::vector<Vertex> 
         vertices.push_back(v);
     }
 }
-void VulkanChess::CreateFontResource(VkDevice device, VkCommandPool pool, VkQueue graphics){
+void VulkanChess::CreateFontResource(VulkanDevice device, VulkanPool pool, VkQueue graphics){
     const uint16_t indices[] = { 0, 1, 2, 0, 3, 1 };
     const Vertex vertices[] = {
         Vertex(glm::vec3(.0f, 1.0f, .0f), glm::vec3(0.0f, 1.0f, 0)),//左下
@@ -41,17 +51,14 @@ void VulkanChess::CreateFontResource(VkDevice device, VkCommandPool pool, VkQueu
     mFont.indexCount = 6;
     mFont.index.CreateBuffer(device, sizeof(indices), VK_BUFFER_USAGE_INDEX_BUFFER_BIT|VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
     mFont.vertex.CreateBuffer(device, sizeof(vertices), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT|VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-    vkf::tool::CopyBuffer(device, sizeof(indices), indices, graphics, pool, mFont.index);
-    vkf::tool::CopyBuffer(device, sizeof(vertices), vertices, graphics, pool, mFont.vertex);
-
-    uniform.font.CreateBuffer(device, mFontMinUniformBufferOffset * CHESSBOARD_CHESS_TOTAL, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-    uniform.font.size = mFontMinUniformBufferOffset;
+    mFont.index.UpdateData(device, indices, graphics, pool);
+    mFont.vertex.UpdateData(device, vertices, graphics, pool);
 
 	long int size = 0;
 	unsigned char *fontBuffer = NULL;
 	FILE *fontFile = fopen("fonts/SourceHanSerifCN-Bold.otf", "rb");
 	if(fontFile){
-		size = vkf::tool::GetFileSize(fontFile);
+		size = GetFileSize(fontFile);
 		fontBuffer = (unsigned char *)malloc(size);
 		fread(fontBuffer, size, 1, fontFile);
 	}
@@ -78,12 +85,12 @@ void VulkanChess::CreateFontResource(VkDevice device, VkCommandPool pool, VkQueu
     for (size_t i = 0; i < fontImageCount; ++i){
         GetFontImageData(fontBuffer, CHESS_WIDTH * 2, CHESS_HEIGHT * 2, word[i], datas + i * imageSize);
     }
-    vkf::CreateFontImageArray(device, datas, fontImageCount, CHESS_WIDTH * 2, CHESS_HEIGHT * 2, fonts.image, pool, graphics);
+    vulkanFrame::CreateFontImageArray(device, datas, fontImageCount, CHESS_WIDTH * 2, CHESS_HEIGHT * 2, fonts.image, pool, graphics);
     delete[]datas;
     fclose(fontFile);
     free(fontBuffer);
 }
-void VulkanChess::CreateChessResource(VkDevice device, VkCommandPool pool, VkQueue graphics){
+void VulkanChess::CreateChessResource(VulkanDevice device, VulkanPool pool, VkQueue graphics){
     //这里得准备4*2种颜色的棋子
     std::vector<Vertex> circularVertices;
     glm::vec3 countryColor[4];
@@ -115,13 +122,13 @@ void VulkanChess::CreateChessResource(VkDevice device, VkCommandPool pool, VkQue
     }
     mChess.index.CreateBuffer(device, sizeof(uint16_t) * circularIndices.size(), VK_BUFFER_USAGE_INDEX_BUFFER_BIT|VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
     //8是4种颜色+亮度较低的颜色(表示不是该玩家下子)
-    mChess.vertex.CreateBuffer(device, sizeof(Vertex) * circularVertices.size() * 5, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT|VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-    vkf::tool::CopyBuffer(device, sizeof(uint16_t) * circularIndices.size(), circularIndices.data(), graphics, pool, mChess.index);
-    vkf::tool::CopyBuffer(device, sizeof(Vertex) * circularVertices.size(), circularVertices.data(), graphics, pool, mChess.vertex);
+    mChess.vertex.CreateBuffer(device, sizeof(Vertex) * circularVertices.size(), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT|VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    mChess.index.UpdateData(device, circularIndices.data(), graphics, pool);
+    mChess.vertex.UpdateData(device, circularVertices.data(), graphics, pool);
 }
-void VulkanChess::SetupDescriptorSet(VkDevice device, VkDescriptorSetLayout layout, VkDescriptorPool pool){
-    vkf::tool::AllocateDescriptorSets(device, pool, &layout, 1, &descriptorSet.font);
-    vkf::tool::AllocateDescriptorSets(device, pool, &layout, 1, &descriptorSet.chess);
+void VulkanChess::SetupDescriptorSet(VkDevice device, VkDescriptorSetLayout layout, VulkanPool pool){
+    pool.AllocateDescriptorSets(device, &layout, 1, &descriptorSet.font);
+    pool.AllocateDescriptorSets(device, &layout, 1, &descriptorSet.chess);
     
     VkDescriptorSetLayoutBinding descriptorSetLayoutBindings[2] = {};
     // descriptorSetLayoutBindings[0].binding = 0;
@@ -132,8 +139,8 @@ void VulkanChess::SetupDescriptorSet(VkDevice device, VkDescriptorSetLayout layo
     descriptorSetLayoutBindings[1].descriptorCount = 1;
     descriptorSetLayoutBindings[1].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
     descriptorSetLayoutBindings[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    vkf::tool::UpdateDescriptorSets(device, 1, descriptorSetLayoutBindings, {uniform.chess},{}, descriptorSet.chess);
-    vkf::tool::UpdateDescriptorSets(device, 2, descriptorSetLayoutBindings, {uniform.font},{fonts.image}, descriptorSet.font, fonts.sampler);
+    vulkanFrame::UpdateDescriptorSets(device, descriptorSetLayoutBindings, 1, {uniform.chess},{}, descriptorSet.chess);
+    vulkanFrame::UpdateDescriptorSets(device, descriptorSetLayoutBindings, 2, {uniform.font},{fonts.image}, descriptorSet.font, fonts.sampler);
 }
 VulkanChess::VulkanChess(/* args */){
 }
@@ -149,25 +156,28 @@ void VulkanChess::Cleanup(VkDevice device){
     vkDestroySampler(device, fonts.sampler, VK_NULL_HANDLE);
 }
 
-void VulkanChess::Setup(VkPhysicalDevice physicalDevice, VkDevice device, VkDescriptorSetLayout setLayout, VkQueue graphics, VulkanPool pool){
+void VulkanChess::Setup(VulkanDevice device, VkDescriptorSetLayout setLayout, VkQueue graphics, VulkanPool pool){
     VkPhysicalDeviceProperties physicalDeviceProperties;
-    vkGetPhysicalDeviceProperties(physicalDevice, &physicalDeviceProperties);
-    mMinUniformBufferOffset = ALIGN(sizeof(glm::mat4), physicalDeviceProperties.limits.minUniformBufferOffsetAlignment);
-    mFontMinUniformBufferOffset = ALIGN(sizeof(FontUniform), physicalDeviceProperties.limits.minUniformBufferOffsetAlignment);
+    device.GetPhysicalDeviceProperties(physicalDeviceProperties);
+    uint32_t minUniformBufferOffset = ALIGN(sizeof(glm::mat4), physicalDeviceProperties.limits.minUniformBufferOffsetAlignment);
+    uint32_t mFontMinUniformBufferOffset = ALIGN(sizeof(FontUniform), physicalDeviceProperties.limits.minUniformBufferOffsetAlignment);
 
-    vkf::CreateTextureSampler(device, fonts.sampler);
-    CreateFontResource(device, pool.command, graphics);
-    CreateChessResource(device, pool.command, graphics);
+    vulkanFrame::CreateTextureSampler(device.device, fonts.sampler);
+    CreateFontResource(device, pool, graphics);
+    CreateChessResource(device, pool, graphics);
+    
+    uniform.chess.CreateBuffer(device, minUniformBufferOffset * CHESSBOARD_CHESS_TOTAL, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+    uniform.chess.size = minUniformBufferOffset;
 
-    uniform.chess.CreateBuffer(device, mMinUniformBufferOffset * CHESSBOARD_CHESS_TOTAL, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-    uniform.chess.size = mMinUniformBufferOffset;
+    uniform.font.CreateBuffer(device, mFontMinUniformBufferOffset * CHESSBOARD_CHESS_TOTAL, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+    uniform.font.size = mFontMinUniformBufferOffset;
 
-    SetupDescriptorSet(device, setLayout, pool.descriptor);
+    SetupDescriptorSet(device.device, setLayout, pool);
 }
 
 void VulkanChess::UpdateUniform(VkDevice device, uint32_t fontIndex, const glm::vec3&pos, uint32_t dynamicOffsets){
     const glm::mat4 model = glm::scale(glm::translate(glm::mat4(1), pos), glm::vec3(CHESS_WIDTH, CHESS_HEIGHT, 1));
-    uniform.chess.UpdateData(device, &model, dynamicOffsets * mMinUniformBufferOffset);
+    uniform.chess.UpdateData(device, &model, dynamicOffsets * uniform.chess.size);
 
     FontUniform fontUbo;
     fontUbo.imageIndex = fontIndex;
@@ -175,14 +185,14 @@ void VulkanChess::UpdateUniform(VkDevice device, uint32_t fontIndex, const glm::
     fontPos.x -=  CHESS_WIDTH * .8;
     fontPos.y -= CHESS_HEIGHT * 1;
     fontUbo.model = glm::scale(glm::translate(glm::mat4(1), fontPos), glm::vec3(CHESS_WIDTH * 2, CHESS_HEIGHT * 2, 1));
-    uniform.font.UpdateData(device, &fontUbo, dynamicOffsets * mFontMinUniformBufferOffset);
+    uniform.font.UpdateData(device, &fontUbo, dynamicOffsets * uniform.font.size);
 }
 
 void VulkanChess::DrawFont(VkCommandBuffer command, VkPipelineLayout layout){
     uint32_t dynamicOffsets;
     mFont.Bind(command);
     for (size_t i = 0; i < CHESSBOARD_CHESS_TOTAL; ++i){
-        dynamicOffsets = i * mFontMinUniformBufferOffset;
+        dynamicOffsets = i * uniform.font.size;
         vkCmdBindDescriptorSets(command, VK_PIPELINE_BIND_POINT_GRAPHICS, layout, 0, 1, &descriptorSet.font, 1, &dynamicOffsets);
         mFont.Draw(command);
     }
@@ -193,7 +203,7 @@ void VulkanChess::DrawChess(VkCommandBuffer command, VkPipelineLayout layout, ui
     uint32_t dynamicOffsets = 0;
     for (size_t uiCountry = 0; uiCountry < MAX_COUNTRY_INDEX; ++uiCountry){
         for (size_t uiChess = 0; uiChess < DRAW_COUNTRY_CHESS_COUNT; ++uiChess){
-            dynamicOffsets = ROW_COLUMN_INDEX(uiCountry, uiChess, DRAW_COUNTRY_CHESS_COUNT) * mMinUniformBufferOffset;
+            dynamicOffsets = ROW_COLUMN_INDEX(uiCountry, uiChess, DRAW_COUNTRY_CHESS_COUNT) * uniform.chess.size;
             vkCmdBindDescriptorSets(command, VK_PIPELINE_BIND_POINT_GRAPHICS, layout, 0, 1, &descriptorSet.chess, 1, &dynamicOffsets);
             mChess.Draw(command, uiCountry == currentCountry?uiCountry * mChess.vertexCount:(4 + uiCountry) * mChess.vertexCount);
         }

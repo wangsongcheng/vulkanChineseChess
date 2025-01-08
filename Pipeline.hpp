@@ -270,7 +270,7 @@ namespace Pipeline{
 		fclose(fp);
 		return true; 
 	}
-	inline VkViewport viewport(float width, float height, float minDepth = 0, float maxDepth = 1){
+	inline VkViewport Viewport(float width, float height, float minDepth = 0, float maxDepth = 1){
 		VkViewport viewport {};
 		viewport.width = width;
 		viewport.height = height;
@@ -278,7 +278,7 @@ namespace Pipeline{
 		viewport.maxDepth = maxDepth;
 		return viewport;
 	}
-	inline VkRect2D rect2D(int32_t width, int32_t height, int32_t offsetX = 0, int32_t offsetY = 0){
+	inline VkRect2D Rect2D(int32_t width, int32_t height, int32_t offsetX = 0, int32_t offsetY = 0){
 		VkRect2D rect2D {};
 		rect2D.extent.width = width;
 		rect2D.extent.height = height;
@@ -286,18 +286,16 @@ namespace Pipeline{
 		rect2D.offset.y = offsetY;
 		return rect2D;
 	}
-	inline VkResult CreateShaderModule(VkDevice device, const char *filename, VkShaderModule&module){
+	inline VkPipelineShaderStageCreateInfo LoadShader(VkDevice device, const char *filename, VkShaderStageFlagBits stage, const char *name = "main"){
 		std::vector<uint32_t>code;
 		GetFileContent(filename, code);
-		VkShaderModuleCreateInfo info = initializers::shaderModuleCreateInfo(code.size() * sizeof(uint32_t));
-		info.pCode = code.data();
-		return vkCreateShaderModule(device, &info, nullptr, &module);
-	}
-	inline VkPipelineShaderStageCreateInfo LoadShader(VkShaderStageFlagBits stage, const char *name = "main"){
+		VkShaderModuleCreateInfo shaderModuleCreateInfo = initializers::shaderModuleCreateInfo(code.size() * sizeof(uint32_t));
+		shaderModuleCreateInfo.pCode = code.data();
 		VkPipelineShaderStageCreateInfo info {};
 		info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
 		info.pName = name;
 		info.stage = stage;
+		vkCreateShaderModule(device, &shaderModuleCreateInfo, nullptr, &info.module);
 		return info;
 	}
     //文件名设置为""则不把管线缓存写到文件

@@ -1,5 +1,6 @@
 #include "Chess.h"
 #include <string.h>
+#include <iostream>
 const Chess g_Center[] = { Chess(CHESSBOARD_ROW - 1, 8), Chess(8, CHESSBOARD_COLUMN - 1), Chess(1, 8), Chess(8, 1) };
 uint32_t GetTerritoryIndex(uint32_t row, uint32_t column){
     if(row < 13 && row > 3){

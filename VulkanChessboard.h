@@ -46,18 +46,17 @@ class VulkanChessboard{
         }wireframe;
     }uniforms;
     BaseGraphic mRect;
-    uint32_t mMinUniformBufferOffset;
     void UpdateGridUniform(VkDevice device);
     void UpdateBigGridUniform(VkDevice device);
     void UpdateJiuGongGeWireframeUniform(VkDevice device);
     void UpdateBackgroundUniform(VkDevice device, uint32_t windowWidth);
-    void CreateRectResource(VkDevice device, VkCommandPool pool, VkQueue graphics);
-    void SetupDescriptorSet(VkDevice device, VkDescriptorSetLayout setLayout, VkDescriptorPool pool);
+    void CreateRectResource(VulkanDevice device, VulkanPool pool, VkQueue graphics);
+    void SetupDescriptorSet(VkDevice device, VkDescriptorSetLayout setLayout, VulkanPool pool);
 public:
     VulkanChessboard(/* args */);
     ~VulkanChessboard();
     void Cleanup(VkDevice device);
-    void Setup(VkPhysicalDevice physicalDevice, VkDevice device, VkDescriptorSetLayout setLayout, uint32_t windowWidth, VkQueue graphics, VulkanPool pool);
+    void Setup(VulkanDevice device, VkDescriptorSetLayout setLayout, VkQueue graphics, VulkanPool pool);
 
     void UpdateUniform(VkDevice device, uint32_t windowWidth);
     void UpdateSelectChessWireframeUniform(VkDevice device, const glm::mat4 *pModel, uint32_t count = CHESSBOARD_ROW + CHESSBOARD_COLUMN);

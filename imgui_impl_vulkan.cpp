@@ -576,7 +576,7 @@ void ImGui_ImplVulkan_RenderDrawData(ImDrawData* draw_data, VkCommandBuffer comm
     vkCmdSetScissor(command_buffer, 0, 1, &scissor);
 }
 
-bool ImGui_ImplVulkan_CreateFontsTexture(VkCommandPool pool, VkQueue graphics)
+bool ImGui_ImplVulkan_CreateFontsTexture(VulkanDevice device, VulkanPool pool, VkQueue graphics)
 {
     ImGuiIO& io = ImGui::GetIO();
     ImGui_ImplVulkan_Data* bd = ImGui_ImplVulkan_GetBackendData();
@@ -587,7 +587,7 @@ bool ImGui_ImplVulkan_CreateFontsTexture(VkCommandPool pool, VkQueue graphics)
     io.Fonts->GetTexDataAsRGBA32(&pixels, &width, &height);
     // size_t upload_size = width * height * 4 * sizeof(char);
 
-    vkf::CreateFontImage(v->Device, pixels, width, height, bd->Font, pool, graphics);
+    vulkanFrame::CreateFontImage(device, pixels, width, height, bd->Font, pool, graphics);
 
     bd->FontDescriptorSet = (VkDescriptorSet)ImGui_ImplVulkan_AddTexture(bd->FontSampler, bd->Font.view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
