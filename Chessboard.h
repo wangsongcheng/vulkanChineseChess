@@ -4,6 +4,7 @@
 #include "VulkanChess.h"
 // #define HAN_CAN_PLAY
 class Chessboard{
+    bool mHanCanPlay = false;
     Chess *mChess[MAX_COUNTRY_INDEX][DRAW_COUNTRY_CHESS_COUNT];
     void InitHanChessinfo(Chess *pChess[DRAW_COUNTRY_CHESS_COUNT]);
     void InitWuChessRowAndColumn(Chess *pChess[DRAW_COUNTRY_CHESS_COUNT]);
@@ -28,6 +29,15 @@ public:
 
     inline Chess **GetChess()const{
         return (Chess **)mChess;
+    }
+    inline bool HanCanPslay(){
+        return mHanCanPlay;
+    }
+    inline void EnableHan(){
+        mHanCanPlay = true;
+    }
+    inline void DiscardHan(){
+        mHanCanPlay = false;
     }
     inline bool IsDeath(uint32_t country)const{
         return !mChess[country][JIANG_CHESS_INDEX];

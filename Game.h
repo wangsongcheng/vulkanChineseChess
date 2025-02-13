@@ -50,7 +50,12 @@ public:
 
     // void UpdateChessUniform(VkDevice device);
     // void UpdateSelectChessUniform(VkDevice device, std::vector<Chess>&canplays);
-
+    inline void EnableHan(){
+        mChessboard.EnableHan();
+    }
+    inline void DiscardHan(){
+        mChessboard.DiscardHan();
+    }
     inline uint32_t GetCurrentCountry(){
         return mCurrentCountry;
     }

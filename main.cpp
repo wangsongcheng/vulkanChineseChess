@@ -949,7 +949,7 @@ void NewGame(int32_t player = -1){
     g_Game.InitinalizeGame(player);
     g_Game.InitializeChess();
     UpdateChessUniform(g_VulkanDevice.device);
-    g_Ai.Enable();
+    g_Ai.Start();
     g_PlayChessMutex.unlock();
     // g_Ai.CreatePthread(&g_Game);
 }
@@ -993,6 +993,16 @@ void UpdateImgui(VkCommandBuffer command){
         const uint32_t currentCountry = g_Game.GetCurrentCountry(), player = g_Game.GetPlayer();
         if(currentCountry != -1 && player){
             ImGui::Text("你是%s, 该%s下棋\n", countryName[player], player == currentCountry?"你":countryName[currentCountry]);
+        }
+        static bool enableHan;
+        if(ImGui::Checkbox("启用汉势力", &enableHan)){
+            if(enableHan){
+                g_Game.EnableHan();
+            }
+            else{
+                g_Game.DiscardHan();
+            }
+            NewGame();
         }
         if(ImGui::BeginTable("按钮表格", 2)){
             ImGui::TableNextColumn();
