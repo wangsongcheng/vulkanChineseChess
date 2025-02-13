@@ -1,6 +1,6 @@
 #ifndef SOCKSET_FRAME_INCLUDE_H
 #define SOCKSET_FRAME_INCLUDE_H
-#include <string.h>
+#include <string>
 #include <iostream>
 #ifdef WIN32
 #define WIN32_LEAN_AND_MEAN

@@ -3,6 +3,7 @@
 #ifdef __linux
 #include <pthread.h>
 #endif
+#include <mutex>
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 
@@ -24,7 +25,6 @@ bool g_ServerAppaction, g_GameStart;
 std::array<Player, g_DefaultCountryCount>g_Players;//用来保存其他玩家的信息//尽管也包含自身信息
 glm::vec2 g_JiangPos[MAX_COUNTRY_INDEX];//目前只用于RotateChess
 uint32_t g_ClientIndex = INVALID_PLAYER_INDEX;
-std::vector<std::string>g_CountryItems[MAX_COUNTRY_INDEX];
 int32_t g_AIClientIndex[2] = { INVALID_PLAYER_INDEX, INVALID_PLAYER_INDEX};
 #endif
 VulkanPool g_VulkanPool;
@@ -52,9 +52,11 @@ VulkanChess g_Chess;
 VulkanWireframe g_SelectChess;
 VulkanChessboard g_VulkanChessboard;
 
-bool g_PlayChessEnd;
-
 std::vector<glm::vec4>g_Record;
+
+std::vector<std::string>g_CountryItems[MAX_COUNTRY_INDEX];
+
+std::mutex g_PlayChessMutex;
 // void createSurface(VkInstance instance, VkSurfaceKHR&surface, void* userData){
 //     glfwCreateWindowSurface(instance, (GLFWwindow *)userData, nullptr, &surface);
 // }
@@ -263,6 +265,17 @@ auto CreateThread(void *(*__start_routine)(void *), void *__arg){
 #endif
     return pthreadId;
 }
+void ResetCountryItem(std::vector<std::string>&countryItems){
+    const std::string newCountry[] = { "?", "魏", "蜀", "吴", "汉" };
+#ifdef HAN_CAN_PALY
+    uint32_t count = IM_ARRAYSIZE(newCountry);
+#else
+    uint32_t count = IM_ARRAYSIZE(newCountry) - 1;
+#endif
+    for (size_t i = 0; i < count; ++i){
+        countryItems[i] = newCountry[i];
+    }
+}
 #ifdef INTERNET_MODE
 void InitJiangPos(){
     const Chess *pChess = g_Game.GetChess()[WEI_COUNTRY_INDEX][JIANG_CHESS_INDEX];
@@ -440,17 +453,6 @@ void SendPlayChessMessage(const Player&game, const Chess *pSelect, const Chess *
         memcpy(&message.target, pTarget, sizeof(Chess));
     }
     g_Client.SendTo(&message, sizeof(message));
-}
-void ResetCountryItem(std::vector<std::string>&countryItems){
-    const std::string newCountry[] = { "?", "魏", "蜀", "吴", "汉" };
-#ifdef HAN_CAN_PALY
-    uint32_t count = IM_ARRAYSIZE(newCountry);
-#else
-    uint32_t count = IM_ARRAYSIZE(newCountry) - 1;
-#endif
-    for (size_t i = 0; i < count; ++i){
-        countryItems[i] = newCountry[i];
-    }
 }
 void DeleteCountryItem(const char *country, std::vector<std::string>&countryItems){
     const std::string newCountry[] = { "?", "魏", "蜀", "吴", "汉" };
@@ -761,18 +763,14 @@ void ShowPlayerCountryCombo(uint32_t comboIndex, const Player *it){
     char comboName[MAX_BYTE] = " ";
     catspace(comboName, comboIndex);
     if(!g_GameStart && (comboIndex == g_ClientIndex || (g_ServerAppaction && (comboIndex == g_AIClientIndex[0] || comboIndex == g_AIClientIndex[1])))){
-#ifdef HAN_CAN_PALY
-        static std::string currentCountryItem[MAX_COUNTRY_INDEX] = { g_CountryItems[0][0], g_CountryItems[1][0], g_CountryItems[2][0], g_CountryItems[3][0] };
-#else
-        static std::string currentCountryItem[MAX_COUNTRY_INDEX] = { g_CountryItems[0][0], g_CountryItems[1][0], g_CountryItems[2][0] };
-#endif
-        if(ImGui::BeginCombo(comboName, currentCountryItem[comboIndex].c_str())){
+        static std::string currentCountryItem = g_CountryItems[comboIndex][0];
+        if(ImGui::BeginCombo(comboName, currentCountryItem.c_str())){
             for (auto countryIt = g_CountryItems[comboIndex].begin(); countryIt != g_CountryItems[comboIndex].end(); ++countryIt){
-                bool is_selected = currentCountryItem[comboIndex] == *countryIt;
+                bool is_selected = currentCountryItem == *countryIt;
                 if (ImGui::Selectable(countryIt->c_str(), is_selected)){
-                    currentCountryItem[comboIndex] = *countryIt;
-                    printf("玩家更改势力, 新势力为%s\n", currentCountryItem[comboIndex].c_str());
-                    SendChangeCountryInfomation(comboIndex, currentCountryItem[comboIndex].c_str());
+                    currentCountryItem = *countryIt;
+                    printf("玩家更改势力, 新势力为%s\n", currentCountryItem.c_str());
+                    SendChangeCountryInfomation(comboIndex, currentCountryItem.c_str());
                     break;
                 }
             }
@@ -928,18 +926,70 @@ void UpdateImgui(VkCommandBuffer command){
     if(!isMinimized)g_VulkanImgui.RenderDrawData(command, draw_data);
 }
 #else
+void UpdateChessUniform(VkDevice device){
+    auto pChess = g_Game.GetChess();
+    for (uint32_t uiCoutry = 0; uiCoutry < MAX_COUNTRY_INDEX; ++uiCoutry){
+        for(uint32_t uiChess = 0; uiChess < DRAW_COUNTRY_CHESS_COUNT; ++uiChess){
+            const Chess *pc = pChess[ROW_COLUMN_CHESS_TO_INDEX(uiCoutry, uiChess)];
+            const uint32_t dynamicOffsets = uiCoutry * DRAW_COUNTRY_CHESS_COUNT + uiChess;
+            if(pc){
+                g_Chess.UpdateUniform(device, pc->GetFontIndex(), glm::vec3(pc->GetPos(), 0), dynamicOffsets);
+            }
+            else{
+                const glm::vec3 pos = glm::vec3(COLUMN_TO_X(CHESSBOARD_ROW + 10), ROW_TO_Y(CHESSBOARD_COLUMN + 10), 0);
+                g_Chess.UpdateUniform(device, FONT_INDEX_HAN, pos, dynamicOffsets);
+            }
+        }
+    }
+}
+void NewGame(int32_t player = -1){
+    g_Ai.Pause();
+    g_PlayChessMutex.lock();
+    //效果看起来诡异了一些, 但结果正常
+    g_Game.InitinalizeGame(player);
+    g_Game.InitializeChess();
+    UpdateChessUniform(g_VulkanDevice.device);
+    g_Ai.Enable();
+    g_PlayChessMutex.unlock();
+    // g_Ai.CreatePthread(&g_Game);
+}
+void ShowPlayerCountryCombo(){
+    static std::string currentCountryItem = g_CountryItems[0][0];
+    if(ImGui::BeginCombo("自选势力", currentCountryItem.c_str())){
+        for (auto countryIt = g_CountryItems[0].begin(); countryIt != g_CountryItems[0].end(); ++countryIt){
+            bool is_selected = currentCountryItem == *countryIt;
+            if (ImGui::Selectable(countryIt->c_str(), is_selected)){
+                currentCountryItem = *countryIt;
+                if(currentCountryItem == "?"){
+                    NewGame();
+                }
+                else if(currentCountryItem == "魏"){
+                    NewGame(WEI_COUNTRY_INDEX);
+                }
+                else if(currentCountryItem == "蜀"){
+                    NewGame(SHU_COUNTRY_INDEX);
+                }
+                else if(currentCountryItem == "吴"){
+                    NewGame(WU_COUNTRY_INDEX);
+                }
+                else if(currentCountryItem == "汉"){
+                    NewGame(HAN_COUNTRY_INDEX);
+                }
+                break;
+            }
+        }
+        ImGui::EndCombo();
+    }
+}
 void UpdateImgui(VkCommandBuffer command){
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
-
     if(ImGui::Begin("三国象棋")){
         const char *countryName[4];
         countryName[WU_COUNTRY_INDEX] = "吴";
         countryName[WEI_COUNTRY_INDEX] = "魏";
         countryName[SHU_COUNTRY_INDEX] = "蜀";
-#ifdef HAN_CAN_PLAY
         countryName[HAN_COUNTRY_INDEX] = "汉";
-#endif
         const uint32_t currentCountry = g_Game.GetCurrentCountry(), player = g_Game.GetPlayer();
         if(currentCountry != -1 && player){
             ImGui::Text("你是%s, 该%s下棋\n", countryName[player], player == currentCountry?"你":countryName[currentCountry]);
@@ -947,15 +997,7 @@ void UpdateImgui(VkCommandBuffer command){
         if(ImGui::BeginTable("按钮表格", 2)){
             ImGui::TableNextColumn();
             if(ImGui::Button("新游戏")){
-                g_Ai.Pause();
-                printf("set ai player pause\n");
-                while(!g_PlayChessEnd);
-                printf("play chess end\n");
-                g_Ai.End();
-                //效果看起来诡异了一些, 但结果正常
-                g_Game.InitinalizeGame();
-                g_Game.InitializeChess();
-                g_Ai.CreatePthread(&g_Game);
+                NewGame();
             }
             ImGui::TableNextColumn();
             if(ImGui::Button(g_Ai.IsPause()?"开始":"暂停")){
@@ -968,6 +1010,7 @@ void UpdateImgui(VkCommandBuffer command){
             }
             ImGui::EndTable();
         }
+        ShowPlayerCountryCombo();
     }
     ImGui::End();
 
@@ -1046,23 +1089,9 @@ void UnSelectChess(){
     ClearSelectWireframeUnfirom(model);
     g_SelectChess.UpdateUniform(g_VulkanDevice.device, model);
 }
-void UpdateChessUniform(VkDevice device, Chess **pChess){
-    for (uint32_t uiCoutry = 0; uiCoutry < MAX_COUNTRY_INDEX; ++uiCoutry){
-        for(uint32_t uiChess = 0; uiChess < DRAW_COUNTRY_CHESS_COUNT; ++uiChess){
-            const Chess *pc = pChess[ROW_COLUMN_CHESS_TO_INDEX(uiCoutry, uiChess)];
-            const uint32_t dynamicOffsets = uiCoutry * DRAW_COUNTRY_CHESS_COUNT + uiChess;
-            if(pc){
-                g_Chess.UpdateUniform(device, pc->GetFontIndex(), glm::vec3(pc->GetPos(), 0), dynamicOffsets);
-            }
-            else{
-                const glm::vec3 pos = glm::vec3(COLUMN_TO_X(CHESSBOARD_ROW + 10), ROW_TO_Y(CHESSBOARD_COLUMN + 10), 0);
-                g_Chess.UpdateUniform(device, FONT_INDEX_HAN, pos, dynamicOffsets);
-            }
-        }
-    }
-}
+
 void PlayChess(Chess *pChess, uint32_t dstRow, uint32_t dstColumn){
-    g_PlayChessEnd = false;
+    g_PlayChessMutex.lock();
     UnSelectChess();
     //想写撤回功能的话, 还需要记录是不是吃子。另外，棋子被吃后也别直接销毁棋子，而是加一个标记然后不显示
     g_Record.push_back(glm::vec4(pChess->GetRow(), pChess->GetColumn(), dstRow, dstColumn));
@@ -1083,8 +1112,8 @@ void PlayChess(Chess *pChess, uint32_t dstRow, uint32_t dstColumn){
         MoveChess(start, end, pChess->GetFontIndex(), dynamicOffsets);
     }
     pChess->SetPos(dstRow, dstColumn);
-    UpdateChessUniform(g_VulkanDevice.device, g_Game.GetChess());
-    g_PlayChessEnd = true;
+    UpdateChessUniform(g_VulkanDevice.device);
+    g_PlayChessMutex.unlock();
 }
 #ifndef INTERNET_MODE
 struct PPC{
@@ -1142,10 +1171,9 @@ Chess *GetChess(const glm::vec2&mousePos){
 }
 
 const Chess *SelectChess(uint32_t country, const glm::vec2&mousePos){
-    const Chess *pSelected = nullptr;
-    pSelected = GetChess(mousePos);
+    // const Chess *pSelected = GetChess(mousePos);
     //想让玩家不能操作其他势力棋子, 则用下面的函数
-    // pSelected = g_Game.GetChess(country, mousePos);
+    const Chess *pSelected = g_Game.GetChess(country, mousePos);
     if(pSelected){
         SelectChess(g_VulkanDevice.device, pSelected);
     }
@@ -1235,7 +1263,7 @@ void Setup(GLFWwindow *window){
 
     g_Game.InitinalizeGame();
     g_Game.InitializeChess();
-    UpdateChessUniform(g_VulkanDevice.device, g_Game.GetChess());
+    UpdateChessUniform(g_VulkanDevice.device);
 
     g_VulkanPool.AllocateCommandBuffers(g_VulkanDevice.device, 1, &g_CommandBuffers);
 
@@ -1272,6 +1300,8 @@ void Setup(GLFWwindow *window){
     GetLocalIp(g_ServerIp);
 #else
     g_Ai.CreatePthread(&g_Game);
+    g_CountryItems[0] = { "?", "魏", "蜀", "吴", "汉" };
+    ResetCountryItem(g_CountryItems[0]);
 #endif
 }
 
