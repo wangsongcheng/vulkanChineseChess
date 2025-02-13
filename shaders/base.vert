@@ -10,11 +10,11 @@ layout(push_constant) uniform uPushConstant {
 	mat4 projection;
 } pc;
 
-layout(binding = 0)uniform Position_UBO{
+layout(binding = 0)uniform UniformBlock {
 	mat4 model;
-}POS_UBO;
+}mubo;
 
 void main() {
 	outColor = inColor;
-	gl_Position = pc.projection * POS_UBO.model * vec4(inPos, 1.0);
+	gl_Position = pc.projection * mubo.model * vec4(inPos, 1.0);
 }

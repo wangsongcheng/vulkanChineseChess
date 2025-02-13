@@ -13,8 +13,8 @@
 #define CHESSBOARD_BIG_GRID_COUNT 4
 #define CHESSBOARD_BIG_RECT_SIZE (CHESSBOARD_RECT_SIZE * 4 + CHESSBOARD_LINE_WIDTH * 3)
 #define CHESSBOARD_BACKGROUND_SIZE(WINDOW_WIDTH)(WINDOW_WIDTH - 2 * CHESSBOARD_RECT_SIZE)
-#ifndef ROW_COLUMN_INDEX
-#define ROW_COLUMN_INDEX(ROW_INDEX, COLUMN_INDEX, COLUMN)((ROW_INDEX) * (COLUMN) + (COLUMN_INDEX))
+#ifndef ROW_COLUMN_TO_INDEX
+#define ROW_COLUMN_TO_INDEX(ROW_INDEX, COLUMN_INDEX, COLUMN)((ROW_INDEX) * (COLUMN) + (COLUMN_INDEX))
 #endif
 #ifndef ALIGN
 //如果val比alignment小，则返回alignment，否则如果val大于alignment但小于alignment*2则返回alignment*2以此类推
@@ -33,7 +33,7 @@ class VulkanChessboard{
         VkDescriptorSet background;
         struct{
             VkDescriptorSet jiugongge;
-            VkDescriptorSet selectChess;
+            // VkDescriptorSet selectChess;
         }wireframe;
     }descriptorSet;
     struct{
@@ -42,7 +42,8 @@ class VulkanChessboard{
         VulkanBuffer background;
         struct{
             VulkanBuffer jiugongge;
-            VulkanBuffer selectChess;
+            // VulkanWireframe jiugongge;
+            // VulkanBuffer selectChess;
         }wireframe;
     }uniforms;
     BaseGraphic mRect;
@@ -59,7 +60,7 @@ public:
     void Setup(VulkanDevice device, VkDescriptorSetLayout setLayout, VkQueue graphics, VulkanPool pool);
 
     void UpdateUniform(VkDevice device, uint32_t windowWidth);
-    void UpdateSelectChessWireframeUniform(VkDevice device, const glm::mat4 *pModel, uint32_t count = CHESSBOARD_ROW + CHESSBOARD_COLUMN);
+    // void UpdateSelectChessWireframeUniform(VkDevice device, const glm::mat4 *pModel, uint32_t count = CHESSBOARD_ROW + CHESSBOARD_COLUMN);
 
     void Draw(VkCommandBuffer command, const VkPipelineLayout&layout);
     void DrawWireframe(VkCommandBuffer command, const VkPipelineLayout&layout);

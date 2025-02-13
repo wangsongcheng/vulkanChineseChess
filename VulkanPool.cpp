@@ -27,8 +27,7 @@ void VulkanPool::CreatePool(VulkanDevice device, uint32_t descriptorCount, VkCom
 	descriptorPoolInfo.poolSizeCount = descriptorPoolSize.size();
 	descriptorPoolInfo.pPoolSizes = descriptorPoolSize.data();
 	vkCreateDescriptorPool(device.device, &descriptorPoolInfo, nullptr, &descriptor);
-    uint32_t graphicsFamily;
-    device.GetGraphicAndPresentQueueFamiliesIndex(VK_NULL_HANDLE, &graphicsFamily);
+    uint32_t graphicsFamily = device.GetQueueFamiliesIndex(VK_QUEUE_GRAPHICS_BIT);
 	VkCommandPoolCreateInfo commandPoolInfo = {};
 	commandPoolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
 	commandPoolInfo.flags = flags;

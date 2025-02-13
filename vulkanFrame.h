@@ -18,7 +18,7 @@ struct VulkanSynchronize{
     std::vector<VkSemaphore>imageAcquired;
     std::vector<VkSemaphore>renderComplete;
     void Cleanup(VkDevice device);
-    void CreateSemaphore(VkDevice device, uint32_t swapchainImageCount);
+    void CreateSynchronize(VkDevice device, uint32_t swapchainImageCount);
 };
 struct BaseGraphic{
     VulkanBuffer index;
@@ -81,10 +81,11 @@ namespace vulkanFrame{
     void CreateImageArray(VulkanDevice device, const void*const*datas, uint32_t imageCount, uint32_t width, uint32_t height, VulkanImage&image, VulkanPool pool, VkQueue graphics, VkImageViewType type = VK_IMAGE_VIEW_TYPE_2D_ARRAY);
     void CreateImageArray(VulkanDevice device, const VulkanBuffer&dataBuffer, uint32_t imageCount, uint32_t width, uint32_t height, VulkanImage&image, VulkanPool pool, VkQueue graphics, VkImageViewType type = VK_IMAGE_VIEW_TYPE_2D_ARRAY);
 
-    VkResult SubmitFrame(VkDevice device, const VkCommandBuffer&commandbuffers, VkQueue graphics, const VkSemaphore&imageAcquired, const VkSemaphore&renderComplete, const VkFence&fence = VK_NULL_HANDLE);
-    uint32_t PrepareFrame(VkDevice device, VkSwapchainKHR swapchain, const VkSemaphore&imageAcquired, void(*recreateSwapchain)(void* userData) = nullptr, void* userData = nullptr);
-    VkResult RenderFrame(VkDevice device, uint32_t imageIndex, VkSwapchainKHR swapchain, const VkQueue present, const VkSemaphore&renderComplete, void(*recreateSwapchain)(void* userData) = nullptr, void* userData = nullptr);
+    VkResult Submit(VkDevice device, const VkCommandBuffer&commandbuffers, VkQueue graphics, const VkSemaphore&imageAcquired, const VkSemaphore&renderComplete, const VkFence&fence = VK_NULL_HANDLE);
+    // VkResult Prepare(VkDevice device, uint32_t *imageIndex, VkSwapchainKHR swapchain, const VkSemaphore&imageAcquired);
+    uint32_t Prepare(VkDevice device, VkSwapchainKHR swapchain, const VkSemaphore&imageAcquired, void(*recreateSwapchain)(void* userData), void* userData);
+    VkResult Present(VkDevice device, uint32_t imageIndex, VkSwapchainKHR swapchain, const VkQueue present, const VkSemaphore&renderComplete, void(*recreateSwapchain)(void* userData) = nullptr, void* userData = nullptr);
     //返回vkQueuePresentKHR的执行结果
-    VkResult DrawFrame(VkDevice device, uint32_t currentFrame, const VkCommandBuffer& commandbuffers, VkSwapchainKHR swapchain, const VulkanQueue&vulkanQueue, const VulkanSynchronize&vulkanSynchronize, void(*recreateSwapchain)(void* userData) = nullptr, void* userData = nullptr);
+    VkResult Render(VkDevice device, uint32_t currentFrame, const VkCommandBuffer& commandbuffers, VkSwapchainKHR swapchain, const VulkanQueue&vulkanQueue, const VulkanSynchronize&vulkanSynchronize, void(*recreateSwapchain)(void* userData) = nullptr, void* userData = nullptr);
 };
 #endif

@@ -7,7 +7,7 @@ void VulkanSynchronize::Cleanup(VkDevice device){
         vkDestroySemaphore(device, renderComplete[i], nullptr);
     }
 }
-void VulkanSynchronize::CreateSemaphore(VkDevice device, uint32_t swapchainImageCount){
+void VulkanSynchronize::CreateSynchronize(VkDevice device, uint32_t swapchainImageCount){
     VkFenceCreateInfo fenceInfo;
 	fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
 	fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
@@ -66,7 +66,7 @@ const char *vulkanFrame::cvmx_chip_type_to_string(VkResult type){
 	return "VK_ERROR_UNKNOWN";
 }
 
-VkResult vulkanFrame::SubmitFrame(VkDevice device, const VkCommandBuffer&commandbuffers, VkQueue graphics, const VkSemaphore&imageAcquired, const VkSemaphore&renderComplete, const VkFence&fence){
+VkResult vulkanFrame::Submit(VkDevice device, const VkCommandBuffer&commandbuffers, VkQueue graphics, const VkSemaphore&imageAcquired, const VkSemaphore&renderComplete, const VkFence&fence){
 	// imagesInFlight[imageIndex] = inFlightFences[currentFrame];
 	VkSubmitInfo submitInfo = {};
 	VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
@@ -80,13 +80,16 @@ VkResult vulkanFrame::SubmitFrame(VkDevice device, const VkCommandBuffer&command
 	submitInfo.pWaitDstStageMask = waitStages;
 	return vkQueueSubmit(graphics, 1, &submitInfo, fence);
 }
+// VkResult vulkanFrame::Prepare(VkDevice device, uint32_t *imageIndex, VkSwapchainKHR swapchain, const VkSemaphore &imageAcquired){
+//     return vkAcquireNextImageKHR(device, swapchain, UINT64_MAX, imageAcquired, VK_NULL_HANDLE, imageIndex);
+// }
 
-uint32_t vulkanFrame::PrepareFrame(VkDevice device, VkSwapchainKHR swapchain, const VkSemaphore&imageAcquired, void(*recreateSwapchain)(void* userData), void* userData){
+uint32_t vulkanFrame::Prepare(VkDevice device, VkSwapchainKHR swapchain, const VkSemaphore&imageAcquired, void(*recreateSwapchain)(void* userData), void* userData){
     uint32_t imageIndex;
-    VkResult result = vkAcquireNextImageKHR(device, swapchain, UINT64_MAX, imageAcquired, VK_NULL_HANDLE, &imageIndex);
+    // VkResult result = Prepare(device, &imageIndex, swapchain, imageAcquired);
+	VkResult result = vkAcquireNextImageKHR(device, swapchain, UINT64_MAX, imageAcquired, VK_NULL_HANDLE, &imageIndex);
     if (result == VK_ERROR_OUT_OF_DATE_KHR) {
         if(recreateSwapchain)recreateSwapchain(userData);
-        return result;
     }
     else if(result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR){
         printf("failed to acquire swap chain image!\n");
@@ -95,7 +98,7 @@ uint32_t vulkanFrame::PrepareFrame(VkDevice device, VkSwapchainKHR swapchain, co
     return imageIndex;
 }
 
-VkResult vulkanFrame::RenderFrame(VkDevice device, uint32_t imageIndex, VkSwapchainKHR swapchain, const VkQueue present, const VkSemaphore&renderComplete, void(*recreateSwapchain)(void* userData), void* userData){
+VkResult vulkanFrame::Present(VkDevice device, uint32_t imageIndex, VkSwapchainKHR swapchain, const VkQueue present, const VkSemaphore&renderComplete, void(*recreateSwapchain)(void* userData), void* userData){
 	VkPresentInfoKHR presentInfo = {};
 	presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
 	presentInfo.pImageIndices = &imageIndex;
@@ -103,24 +106,23 @@ VkResult vulkanFrame::RenderFrame(VkDevice device, uint32_t imageIndex, VkSwapch
 	presentInfo.pSwapchains = &swapchain;
 	presentInfo.waitSemaphoreCount = 1;
 	presentInfo.pWaitSemaphores = &renderComplete;
-    return vkQueuePresentKHR(present, &presentInfo);
-}
-VkResult vulkanFrame::DrawFrame(VkDevice device, uint32_t currentFrame, const VkCommandBuffer& commandbuffers, VkSwapchainKHR swapchain, const VulkanQueue&vulkanQueue, const VulkanSynchronize&vulkanSynchronize, void(*recreateSwapchain)(void* userData), void* userData){
-    vkWaitForFences(device, 1, &vulkanSynchronize.fences[currentFrame], VK_TRUE, UINT64_MAX);
-    vkResetFences(device, 1, &vulkanSynchronize.fences[currentFrame]);
-    uint32_t imageIndex = PrepareFrame(device, swapchain, vulkanSynchronize.imageAcquired[currentFrame], recreateSwapchain, userData);
-    
-    VK_CHECK(SubmitFrame(device, commandbuffers, vulkanQueue.graphics, vulkanSynchronize.imageAcquired[currentFrame], vulkanSynchronize.renderComplete[currentFrame], vulkanSynchronize.fences[currentFrame]));
-    VkResult result = RenderFrame(device, imageIndex, swapchain, vulkanQueue.present, vulkanSynchronize.renderComplete[currentFrame], recreateSwapchain, userData);
+	VkResult result = vkQueuePresentKHR(present, &presentInfo);
 	if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR) {
-        //如果在结果等于VK_SUBOPTIMAL_KHR(一般发生在窗口最小化后)时重置栏杆, 会导致得不到回复栏杆对象的解锁;
-		if(result != VK_SUBOPTIMAL_KHR)vkResetFences(device, 1, &vulkanSynchronize.fences[currentFrame]);
         if(recreateSwapchain)recreateSwapchain(userData);
+		return VK_SUCCESS;
 	}
 	else if(VK_SUCCESS != result){
 		printf("failed to acquire swap chain image!\n");
 	}
     return result;
+}
+VkResult vulkanFrame::Render(VkDevice device, uint32_t currentFrame, const VkCommandBuffer& commandbuffers, VkSwapchainKHR swapchain, const VulkanQueue&vulkanQueue, const VulkanSynchronize&vulkanSynchronize, void(*recreateSwapchain)(void* userData), void* userData){
+    vkWaitForFences(device, 1, &vulkanSynchronize.fences[currentFrame], VK_TRUE, UINT64_MAX);
+    vkResetFences(device, 1, &vulkanSynchronize.fences[currentFrame]);
+    uint32_t imageIndex = Prepare(device, swapchain, vulkanSynchronize.imageAcquired[currentFrame], recreateSwapchain, userData);
+    
+    VK_CHECK(Submit(device, commandbuffers, vulkanQueue.graphics, vulkanSynchronize.imageAcquired[currentFrame], vulkanSynchronize.renderComplete[currentFrame], vulkanSynchronize.fences[currentFrame]));
+    return Present(device, imageIndex, swapchain, vulkanQueue.present, vulkanSynchronize.renderComplete[currentFrame], recreateSwapchain, userData);;
 }
 
 void vulkanFrame::CreateFontImage(VulkanDevice device, const void *datas, uint32_t width, uint32_t height, VulkanImage &image, VulkanPool pool, VkQueue graphics){

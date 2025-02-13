@@ -1,11 +1,5 @@
 #include "Ai.h"
 #include "LuaFrame.h"
-#ifdef HAN_CAN_PLAY
-extern const uint32_t g_DefaultCountryCount = MAX_COUNTRY_INDEX;
-#else
-extern const uint32_t g_DefaultCountryCount = MAX_COUNTRY_INDEX - 1;
-#endif
-extern uint32_t g_Player, g_CurrentCountry;
 void PlayChess(Chess *pChess, uint32_t dstRow, uint32_t dstColumn);
 #ifdef INTERNET_MODE
 #include "SocketFrame.h"
@@ -25,7 +19,7 @@ void aiPlay(const Ai *pAi, lua_State *pL){
         GetSelectAndTarget(pL, &pSelect, &pTarget, &dstRow, &dstColumn);
     }
     else{
-        pAi->GetPlayChess(g_CurrentCountry, &pSelect, &pTarget, &dstRow, &dstColumn);
+        pAi->GetPlayChess(pAi->GetCurrentCountry(), &pSelect, &pTarget, &dstRow, &dstColumn);
     }
     Chess target(dstRow, dstColumn);
     // SelectChess(g_VulkanDevice.device, pSelect);
@@ -51,21 +45,231 @@ void *AiPlayChess(void *userData){
         luaState = nullptr;
     }
 #ifdef __linux
-    if(g_Player != g_CurrentCountry){
+    if(pAi->GetPlayer() != pAi->GetCurrentCountry()){
         //因为创建的时候固定为0,所以如果此时应该ai出牌，那么应该先调用下面的函数一次
         pAi->Enable();
     }
 #endif
-    while(!pAi->GameOver()){
+    printf("function %s start\n", __FUNCTION__);
+    while(!pAi->GameOver() || pAi->IsEnd()){
         pAi->Wait();
+        if(pAi->IsPause()){
+            printf("function %s pause\n", __FUNCTION__);
+           pAi->Wait(); 
+        }
         aiPlay(pAi, luaState);
+#ifdef INTERNET_MODE
+        if(g_ServerAppaction){
+            for (auto it = g_Players.begin(); it != g_Players.end(); ++it){
+                if(it->ai && it->index == g_CurrentCountry){
+                    pAi->Enable();
+                    break;
+                }
+            }
+        }
+#else
+        pAi->NextCountry();
+        if(pAi->GetCurrentCountry() != pAi->GetPlayer()){
+            pAi->Enable();
+        }
+#endif
     }
+    printf("function %s end\n", __FUNCTION__);
     if(luaState){
         lua_close(luaState);
     }
     return nullptr;
 }
+/*
+编写象棋游戏的AI涉及多个关键步骤，包括棋盘表示、走法生成、评估函数和搜索算法。以下是一个分步指南和示例代码片段：
 
+1. 棋盘表示
+推荐使用二维数组或位棋盘表示棋盘状态：
+
+```cpp
+enum Piece {
+    EMPTY, 
+    RED_KING, RED_ROOK, RED_KNIGHT, // 红方棋子
+    BLACK_KING, BLACK_ROOK, // 黑方棋子
+    // 其他棋子...
+};
+
+struct ChessBoard {
+    Piece board[10][9]; // 10行9列象棋棋盘
+    bool isRedTurn;     // 当前执棋方
+    // 其他状态信息...
+};
+```
+
+2. 走法生成
+实现合法走法生成器：
+
+```cpp
+struct Move {
+    int fromX, fromY;
+    int toX, toY;
+};
+
+vector<Move> generateMoves(const ChessBoard& board) {
+    vector<Move> moves;
+    
+    for (int y = 0; y < 10; ++y) {
+        for (int x = 0; x < 9; ++x) {
+            Piece p = board.board[y][x];
+            if (p == EMPTY) continue;
+            if (board.isRedTurn != isRedPiece(p)) continue;
+
+            switch (getPieceType(p)) {
+                case KING:
+                    generateKingMoves(x, y, board, moves);
+                    break;
+                case ROOK:
+                    generateRookMoves(x, y, board, moves);
+                    break;
+                // 其他棋子类型...
+            }
+        }
+    }
+    return moves;
+}
+```
+
+3. 评估函数
+包含子力价值和位置价值评估：
+
+```cpp
+int evaluate(const ChessBoard& board) {
+    int score = 0;
+    
+    for (int y = 0; y < 10; ++y) {
+        for (int x = 0; x < 9; ++x) {
+            Piece p = board.board[y][x];
+            if (p == EMPTY) continue;
+            
+            int value = getPieceValue(p);
+            int positionBonus = getPositionScore(p, x, y);
+            
+            if (isRedPiece(p)) {
+                score += value + positionBonus;
+            } else {
+                score -= value + positionBonus;
+            }
+        }
+    }
+    return board.isRedTurn ? score : -score;
+}
+```
+
+4. 搜索算法（带Alpha-Beta剪枝）
+```cpp
+int alphaBeta(ChessBoard& board, int depth, int alpha, int beta) {
+    if (depth == 0 || isGameOver(board)) {
+        return evaluate(board);
+    }
+
+    vector<Move> moves = generateMoves(board);
+    sortMoves(moves); // 启发式排序提升剪枝效率
+
+    for (const Move& move : moves) {
+        makeMove(board, move);
+        int score = -alphaBeta(board, depth-1, -beta, -alpha);
+        unmakeMove(board, move);
+
+        if (score >= beta) return beta;
+        if (score > alpha) alpha = score;
+    }
+    return alpha;
+}
+
+Move findBestMove(ChessBoard& board, int depth) {
+    Move bestMove;
+    int maxScore = INT_MIN;
+    
+    vector<Move> moves = generateMoves(board);
+    for (const Move& move : moves) {
+        makeMove(board, move);
+        int score = -alphaBeta(board, depth-1, INT_MIN, INT_MAX);
+        unmakeMove(board, move);
+        
+        if (score > maxScore) {
+            maxScore = score;
+            bestMove = move;
+        }
+    }
+    return bestMove;
+}
+```
+
+5. 优化技巧
+
+- 迭代加深搜索：逐步增加搜索深度
+```cpp
+Move iterativeDeepening(ChessBoard& board, int maxDepth) {
+    Move bestMove;
+    for (int depth = 1; depth <= maxDepth; ++depth) {
+        bestMove = findBestMove(board, depth);
+        // 可添加时间控制逻辑
+    }
+    return bestMove;
+}
+```
+
+- 置换表缓存搜索结果
+- 历史启发式排序走法
+- 开局库和残局数据库
+
+6. 关键技术点
+
+- 合法性检查：避免自杀移动和无效走法
+- 将军检测：通过生成所有对方走法判断是否被将军
+- 重复局面检测：使用Zobrist哈希记录局面
+- 时间管理：控制搜索时间
+
+建议开发顺序：
+1. 实现棋盘表示和走法生成
+2. 开发简单的评估函数
+3. 实现Minimax算法
+4. 添加Alpha-Beta剪枝
+5. 逐步加入优化技术
+
+完整实现需要处理中国象棋的特殊规则：
+- 将帅不能照面
+- 象不能过河
+- 马蹩腿规则
+- 炮的吃子规则
+- 兵过河后的移动变化
+
+可通过UCI协议实现AI与图形界面的对接：
+```cpp
+void uciCommunication() {
+    string command;
+    while (getline(cin, command)) {
+        if (command == "uci") {
+            cout << "id name ChessAI\n";
+            cout << "uciok\n";
+        }
+        else if (command.starts_with("position")) {
+            // 处理局面设置
+        }
+        else if (command == "isready") {
+            cout << "readyok\n";
+        }
+        else if (command.starts_with("go")) {
+            Move best = findBestMove(currentBoard, 5);
+            cout << "bestmove " << moveToNotation(best) << endl;
+        }
+    }
+}
+```
+
+建议进一步研究：
+- 蒙特卡洛树搜索（MCTS）
+- 神经网络评估函数
+- 并行搜索算法
+- 棋谱学习系统
+
+开发象棋AI需要平衡搜索深度与评估准确性，建议从简单版本开始逐步优化。
+*/
 // //返回第一个满足条件的敌人
 // const ChessInfo *GetRival(const std::vector<ChessInfo>&canplays, auto condition){
 //     const ChessInfo *pRival = nullptr;
@@ -268,6 +472,8 @@ void Ai::Enable(){
 }
 void Ai::CreatePthread(Game *pGame){
     if(mGame != nullptr)return;
+    mEnd = false;
+    mPause = false;
     mGame = pGame;
 #ifdef WIN32
     DWORD  pthreadId;
@@ -305,17 +511,17 @@ void Ai::GetPlayChess(uint32_t country, Chess **pSelect, Chess **pTarget, uint32
     auto pChess = mGame->GetChess();
     if(!*pSelect){
         do{
-            *pSelect = pChess[country][rand() % DRAW_COUNTRY_CHESS_COUNT];
+            *pSelect = pChess[ROW_COLUMN_CHESS_TO_INDEX(country, rand() % DRAW_COUNTRY_CHESS_COUNT)];
             if(*pSelect){
                 canplays.clear();
-                pChess[country][(*pSelect)->GetChess()]->Selected(mGame->GetChess(), canplays);
+                pChess[ROW_COLUMN_CHESS_TO_INDEX(country, (*pSelect)->GetChess())]->Selected(mGame->GetChess(), canplays);
             }
         }while(!*pSelect || -1 == CanPlay(country, canplays));//不用担心判断*player后死循环,因为"将"肯定会存在,否则就输了
     }
     if(!*pTarget){
         //这个分支也有吃子的可能
         canplays.clear();
-        pChess[country][(*pSelect)->GetChess()]->Selected(mGame->GetChess(), canplays);
+        pChess[ROW_COLUMN_CHESS_TO_INDEX(country, (*pSelect)->GetChess())]->Selected(mGame->GetChess(), canplays);
         uint32_t index = 0;
         do{
             index = rand() % canplays.size();

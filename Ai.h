@@ -19,6 +19,8 @@ class Ai{
     // HANDLE mHandle;
     HANDLE mAiSemaphore;
 #endif
+    bool mEnd;
+    bool mPause;
     Game *mGame;
     int32_t CanPlay(uint32_t country, const std::vector<Chess>&canplays)const;
 public:
@@ -29,8 +31,34 @@ public:
     void CreatePthread(Game *pGame);
     void GetPlayChess(uint32_t country, Chess **pSelect, Chess **target, uint32_t *row, uint32_t *column)const;
 
-    inline bool GameOver(){
+    inline void End(){
+        mEnd = true;
+        mGame = nullptr;
+    }
+    inline bool IsEnd(){
+        return mEnd;
+    }
+    inline bool IsPause(){
+        return mPause;
+    }
+    inline void Pause(){
+        mPause = true;
+    }
+    inline void Start(){
+        mPause = false;
+        Enable();
+    }
+    inline bool GameOver()const{
         return mGame->GameOver();
+    }
+    inline uint32_t GetPlayer()const{
+        return mGame->GetPlayer();
+    }
+    inline void NextCountry()const{
+        return mGame->NextCountry();
+    }
+    inline uint32_t GetCurrentCountry()const{
+        return mGame->GetCurrentCountry();        
     }
 };
 #endif

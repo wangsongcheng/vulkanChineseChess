@@ -4,7 +4,6 @@
 
 //因为lua需要
 extern Game g_Game;
-extern uint32_t g_Player, g_CurrentCountry;
 
 // int SetLowAndHight(short hight, short low){
 //     int32_t result;
@@ -47,8 +46,8 @@ void registration_function(lua_State *L){
 
 void GetSelectAndTarget(lua_State *L, Chess **pSelect, Chess **pTarget, uint32_t *row, uint32_t *column){
     lua_getglobal(L,"GetSelectAndTarget");
-    lua_pushnumber(L, g_CurrentCountry);
-    lua_pushnumber(L, g_Game.GetChessCount(g_CurrentCountry));
+    lua_pushnumber(L, g_Game.GetCurrentCountry());
+    lua_pushnumber(L, g_Game.GetChessCount(g_Game.GetCurrentCountry()));
     /*开始调用函数，有2个参数，4个返回值*/
     if(lua_pcall(L, 2, 4, 0) != LUA_OK){
         luaError(L, "call lua function GetSelectAndTarget error\n");
@@ -84,7 +83,7 @@ int lua_IsChess(lua_State *L){
     if(chess == INVALID_CHESS_INDEX)
         lua_pushboolean(L, false);
     else
-        lua_pushboolean(L, pChess[country][chess] != nullptr);
+        lua_pushboolean(L, pChess[ROW_COLUMN_CHESS_TO_INDEX(country, chess)] != nullptr);
     // printf("function %s:row %d, column %d, chess %d\n", __FUNCTION__, row, column, chess);
     return 1;
 }
@@ -104,7 +103,7 @@ int lua_GetChess(lua_State *L){
 
 int lua_GetCurrentCountry(lua_State *L){
     // printf("function %s start\n", __FUNCTION__);
-    lua_pushnumber(L, g_CurrentCountry);
+    lua_pushnumber(L, g_Game.GetCurrentCountry());
     return 1;
 }
 
@@ -113,9 +112,9 @@ int lua_GetCanPlayCount(lua_State *L){
     int32_t chess = lua_tonumber(L, 2);
     int32_t country = lua_tonumber(L, 1);
     auto pChess = g_Game.GetChess();
-    if(pChess[country][chess]){
+    if(pChess[ROW_COLUMN_CHESS_TO_INDEX(country, chess)]){
         std::vector<Chess>canplays;
-        pChess[country][chess]->Selected(g_Game.GetChess(), canplays);
+        pChess[ROW_COLUMN_CHESS_TO_INDEX(country, chess)]->Selected(g_Game.GetChess(), canplays);
         count = canplays.size();
     }
     lua_pushnumber(L, count);
@@ -128,8 +127,8 @@ int lua_GetRow(lua_State *L){
     int32_t chess = lua_tonumber(L, 2);
     int32_t country = lua_tonumber(L, 1);
     auto pChess = g_Game.GetChess();
-    if(pChess[country][chess]){
-        row = pChess[country][chess]->GetRow();
+    if(pChess[ROW_COLUMN_CHESS_TO_INDEX(country, chess)]){
+        row = pChess[ROW_COLUMN_CHESS_TO_INDEX(country, chess)]->GetRow();
     }
     lua_pushnumber(L, row);
     // printf("function %s:country %d, chess %d, row %d\n", __FUNCTION__, country, chess, row);
@@ -141,8 +140,8 @@ int lua_GetColumn(lua_State *L){
     int32_t country = lua_tonumber(L, 1);
     int32_t column = CHESSBOARD_COLUMN;
     auto pChess = g_Game.GetChess();
-    if(pChess[country][chess]){
-        column = pChess[country][chess]->GetColumn();
+    if(pChess[ROW_COLUMN_CHESS_TO_INDEX(country, chess)]){
+        column = pChess[ROW_COLUMN_CHESS_TO_INDEX(country, chess)]->GetColumn();
     }
     lua_pushnumber(L, column);
     // printf("function %s:country %d, chess %d, column %d\n", __FUNCTION__, country, chess, column);
@@ -156,9 +155,9 @@ int lua_GetCanPlayRow(lua_State *L){
 
     int32_t row = CHESSBOARD_ROW;
     auto pChess = g_Game.GetChess();
-    if(pChess[country][chess]){
+    if(pChess[ROW_COLUMN_CHESS_TO_INDEX(country, chess)]){
         std::vector<Chess>canplays;
-        pChess[country][chess]->Selected(g_Game.GetChess(), canplays);
+        pChess[ROW_COLUMN_CHESS_TO_INDEX(country, chess)]->Selected(g_Game.GetChess(), canplays);
         row = canplays[index].GetRow();
     }
     lua_pushnumber(L, row);
@@ -173,9 +172,9 @@ int lua_GetCanPlayColumn(lua_State *L){
 
     int32_t column = CHESSBOARD_COLUMN;
     auto pChess = g_Game.GetChess();
-    if(pChess[country][chess]){
+    if(pChess[ROW_COLUMN_CHESS_TO_INDEX(country, chess)]){
         std::vector<Chess>canplays;
-        pChess[country][chess]->Selected(g_Game.GetChess(), canplays);
+        pChess[ROW_COLUMN_CHESS_TO_INDEX(country, chess)]->Selected(g_Game.GetChess(), canplays);
         column = canplays[index].GetColumn();
     }
     lua_pushnumber(L, column);

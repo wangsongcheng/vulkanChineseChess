@@ -55,12 +55,22 @@ VkSurfaceFormatKHR chooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>
 // }
 
 VkPresentModeKHR chooseSwapPresentMode(const std::vector<VkPresentModeKHR>& availablePresentModes) {
+    VkPresentModeKHR presentMode = VK_PRESENT_MODE_FIFO_KHR;
     for (const auto& availablePresentMode : availablePresentModes) {
         if (availablePresentMode == VK_PRESENT_MODE_MAILBOX_KHR) {
-            return availablePresentMode;
+            presentMode = availablePresentMode;
+            break;
         }
     }
-    return VK_PRESENT_MODE_FIFO_KHR;
+    if(presentMode  == VK_PRESENT_MODE_FIFO_KHR){
+        for (const auto& availablePresentMode : availablePresentModes) {
+            if(availablePresentMode == VK_PRESENT_MODE_IMMEDIATE_KHR){
+                presentMode = availablePresentMode;
+                break;
+            }
+        }
+    }
+    return presentMode;
 }
 
 VkResult VulkanSwapchain::CreateSwapchain(VulkanDevice device, VkSurfaceKHR surface){
@@ -71,6 +81,7 @@ VkResult VulkanSwapchain::CreateSwapchain(VulkanDevice device, VkSurfaceKHR surf
     // VkExtent2D extent = chooseSwapExtent(swapChainSupport.capabilities);
 
     uint32_t imageCount = swapChainSupport.capabilities.minImageCount + 1;
+    //maxImageCount为0表示没有图片限制
     if (swapChainSupport.capabilities.maxImageCount > 0 && imageCount > swapChainSupport.capabilities.maxImageCount) {
         imageCount = swapChainSupport.capabilities.maxImageCount;
     }
@@ -89,8 +100,10 @@ VkResult VulkanSwapchain::CreateSwapchain(VulkanDevice device, VkSurfaceKHR surf
     createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 
     uint32_t queueFamilyIndices[2];
-    device.GetGraphicAndPresentQueueFamiliesIndex(surface, queueFamilyIndices);
-
+    queueFamilyIndices[GRAPHICS_QUEUE_INDEX] = device.GetQueueFamiliesIndex(VK_QUEUE_GRAPHICS_BIT, surface);
+    if(queueFamilyIndices[GRAPHICS_QUEUE_INDEX] != -1){
+        queueFamilyIndices[PRESENT_QUEUE_INDEX] = queueFamilyIndices[GRAPHICS_QUEUE_INDEX];
+    }
     if (queueFamilyIndices[0] != queueFamilyIndices[1]) {
         createInfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
         createInfo.queueFamilyIndexCount = 2;
@@ -102,7 +115,7 @@ VkResult VulkanSwapchain::CreateSwapchain(VulkanDevice device, VkSurfaceKHR surf
     createInfo.preTransform = swapChainSupport.capabilities.currentTransform;
     createInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
     createInfo.presentMode = presentMode;
-    createInfo.clipped = VK_TRUE;
+    createInfo.clipped = VK_TRUE;//设置为VK_TRUE表示我们不关心被窗口系统中的其它窗口遮挡的像素的颜色,这允许vulkan采取一定的优化措施,但如果我们回读窗口的像素值就可能出现问题。
 
     createInfo.oldSwapchain = VK_NULL_HANDLE;
 
@@ -168,12 +181,15 @@ VkResult VulkanWindow::CreateRenderPass(VkDevice device, bool useDepthImage){
 
 	VkAttachmentReference colorAttachmentRef;
     VkAttachmentReference depthAttachmentRef;
-    colorAttachmentRef.attachment = 0;
+    colorAttachmentRef.attachment = 0;//指定要引用的附着在附着描述结构体数组中的索引, 头一个,所以是0
     colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 	VkSubpassDescription subPass = {};
     subPass.colorAttachmentCount = 1;
     subPass.pColorAttachments = &colorAttachmentRef;
-    subPass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+    subPass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;//未来可能会支持计算子流程, 所以需要指定这是一个图形子流程
+    // subPass.pInputAttachments = VK_NULL_HANDLE;//被着色器读取的附着
+    // subPass.pResolveAttachments =  VK_NULL_HANDLE;//用于多重采样的颜色附着
+    // subPass.pPreserveAttachments = VK_NULL_HANDLE;//保留的附着, 用于在子流程之间传递数据
     std::vector<VkAttachmentDescription>attachmentDescription(1);
     attachmentDescription[0].format = swapchain.format;
     attachmentDescription[0].samples = VK_SAMPLE_COUNT_1_BIT;
@@ -184,7 +200,7 @@ VkResult VulkanWindow::CreateRenderPass(VkDevice device, bool useDepthImage){
     attachmentDescription[0].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
     attachmentDescription[0].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
     if(useDepthImage){
-        depthAttachmentRef.attachment = 1;
+        depthAttachmentRef.attachment = 1;//指定要引用的附着在附着描述结构体数组中的索引, 下一个, 所以是1
         depthAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
         subPass.pDepthStencilAttachment = &depthAttachmentRef;
 
@@ -210,7 +226,8 @@ VkResult VulkanWindow::CreateRenderPass(VkDevice device, bool useDepthImage){
     return vkCreateRenderPass(device, &info, nullptr, &renderPass);
 }
 void VulkanWindow::CreateDepthImage(VulkanDevice device, const VkExtent2D &swapchainExtent, VulkanImage &image){
-    image.CreateImage(device.device, swapchainExtent, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_FORMAT_D32_SFLOAT_S8_UINT);
+    const VkExtent3D extent = {swapchainExtent.width, swapchainExtent.height, 1};
+    image.CreateImage(device.device, extent, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_FORMAT_D32_SFLOAT_S8_UINT);
     image.AllocateAndBindMemory(device, VK_MEMORY_HEAP_DEVICE_LOCAL_BIT);
     image.CreateImageView(device.device, VK_FORMAT_D32_SFLOAT_S8_UINT, VK_IMAGE_ASPECT_DEPTH_BIT|VK_IMAGE_ASPECT_STENCIL_BIT);
 }

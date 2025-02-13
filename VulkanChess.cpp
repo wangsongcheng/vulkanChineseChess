@@ -203,7 +203,7 @@ void VulkanChess::DrawChess(VkCommandBuffer command, VkPipelineLayout layout, ui
     uint32_t dynamicOffsets = 0;
     for (size_t uiCountry = 0; uiCountry < MAX_COUNTRY_INDEX; ++uiCountry){
         for (size_t uiChess = 0; uiChess < DRAW_COUNTRY_CHESS_COUNT; ++uiChess){
-            dynamicOffsets = ROW_COLUMN_INDEX(uiCountry, uiChess, DRAW_COUNTRY_CHESS_COUNT) * uniform.chess.size;
+            dynamicOffsets = ROW_COLUMN_TO_INDEX(uiCountry, uiChess, DRAW_COUNTRY_CHESS_COUNT) * uniform.chess.size;
             vkCmdBindDescriptorSets(command, VK_PIPELINE_BIND_POINT_GRAPHICS, layout, 0, 1, &descriptorSet.chess, 1, &dynamicOffsets);
             mChess.Draw(command, uiCountry == currentCountry?uiCountry * mChess.vertexCount:(4 + uiCountry) * mChess.vertexCount);
         }

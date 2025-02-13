@@ -44,36 +44,10 @@ void VulkanDevice::Cleanup(){
     vkDestroyDevice(device, nullptr);
     vkDestroyInstance(instance, nullptr);
 }
-void VulkanDevice::GetGraphicAndPresentQueueFamiliesIndex(VkSurfaceKHR surface, uint32_t queueFamilies[2]){
-    uint32_t queueFamilyCount = 0;
-	vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueFamilyCount, nullptr);
-
-	VkQueueFamilyProperties *queueFamiliesProperties = new VkQueueFamilyProperties[queueFamilyCount];
-	vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueFamilyCount, queueFamiliesProperties);
-	for (int i = 0; i < queueFamilyCount; ++i) {
-		if (queueFamiliesProperties[i].queueFlags & VK_QUEUE_GRAPHICS_BIT) {
-			queueFamilies[0] = i;
-		}
-		if (surface != VK_NULL_HANDLE) {
-			VkBool32 presentSupport = false;
-			vkGetPhysicalDeviceSurfaceSupportKHR(physicalDevice, i, surface, &presentSupport);
-			if (presentSupport) {
-				queueFamilies[1] = i;
-			}
-            if(queueFamilies[0] != -1 && queueFamilies[1] != -1)break;
-		}
-        else{
-            if(queueFamilies[0] != -1)break;
-        }
-	}  
-    delete[]queueFamiliesProperties;
-}
 VkResult VulkanDevice::CreateDevice(VkSurfaceKHR surface, const std::vector<const char *> &deviceExtensions){
-    uint32_t queueFamily[2];
     uint32_t queueFamilyCount;
 	const float queuePriorities = 1.0f;
-    queueFamily[0] = -1;
-    queueFamily[1] = -1;
+    uint32_t queueFamily[2] = { (uint32_t)-1, (uint32_t)-1 };
     GetGraphicAndPresentQueueFamiliesIndex(surface, queueFamily);
     if(queueFamily[0] == queueFamily[1]){
         queueFamilyCount = 1;
@@ -104,6 +78,31 @@ VkResult VulkanDevice::CreateDevice(VkSurfaceKHR surface, const std::vector<cons
     deviceCreateInfo.queueCreateInfoCount = queueCreateInfos.size();
     return vkCreateDevice(physicalDevice, &deviceCreateInfo, nullptr, &device);
 }
+uint32_t VulkanDevice::GetQueueFamiliesIndex(VkQueueFlagBits queue, VkSurfaceKHR surface){
+    int32_t queueFamilyIndex = -1;
+    uint32_t queueFamilyCount = 0;
+	vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueFamilyCount, nullptr);
+
+	std::vector<VkQueueFamilyProperties>queueFamiliesProperties(queueFamilyCount);
+	vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueFamilyCount, queueFamiliesProperties.data());
+	for (int i = 0; i < queueFamilyCount; ++i) {
+		if (queueFamiliesProperties[i].queueFlags & queue) {
+            if(surface == VK_NULL_HANDLE){
+			    queueFamilyIndex = i;
+                break;
+            }
+            else{
+                VkBool32 presentSupport = false;
+                vkGetPhysicalDeviceSurfaceSupportKHR(physicalDevice, i, surface, &presentSupport);
+                if (presentSupport) {
+                    queueFamilyIndex = i;
+                    break;
+                }
+            }
+		}
+    }
+    return queueFamilyIndex;
+}
 VkResult VulkanDevice::CreateDebugUtilsMessenger(PFN_vkDebugUtilsMessengerCallbackEXT debugUtilsMessenger){
     PFN_vkCreateDebugUtilsMessengerEXT vkCreateDebugUtilsMessenger = (PFN_vkCreateDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT");
     VkDebugUtilsMessengerCreateInfoEXT debugInfo = {};
@@ -111,7 +110,7 @@ VkResult VulkanDevice::CreateDebugUtilsMessenger(PFN_vkDebugUtilsMessengerCallba
     debugInfo.pfnUserCallback = debugUtilsMessenger;
     debugInfo.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
     debugInfo.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
-    return vkCreateDebugUtilsMessenger(instance, &debugInfo, nullptr, &messenger);   
+    return vkCreateDebugUtilsMessenger(instance, &debugInfo, nullptr, &messenger);
 }
 VkResult VulkanDevice::AllocateMemory(VkDeviceSize size, uint32_t typeFilter, VkMemoryPropertyFlags properties, VkDeviceMemory &memory){
     VkMemoryAllocateInfo allocateInfo;
@@ -131,4 +130,10 @@ uint32_t VulkanDevice::findMemoryTypeIndex(uint32_t typeFilter, VkMemoryProperty
 		}
 	}
 	return -1;
+}
+void VulkanDevice::GetGraphicAndPresentQueueFamiliesIndex(VkSurfaceKHR surface, uint32_t queueFamilies[2]){
+    queueFamilies[GRAPHICS_QUEUE_INDEX] = GetQueueFamiliesIndex(VK_QUEUE_GRAPHICS_BIT, surface);
+    if(queueFamilies[GRAPHICS_QUEUE_INDEX] != -1){
+        queueFamilies[PRESENT_QUEUE_INDEX] = queueFamilies[GRAPHICS_QUEUE_INDEX];
+    }
 }

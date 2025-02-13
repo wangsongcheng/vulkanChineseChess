@@ -1,7 +1,6 @@
+#include "Ai.h"
 #include <array>
-#include <stdio.h>
 #ifdef __linux
-#include <unistd.h>
 #include <pthread.h>
 #endif
 #define GLFW_INCLUDE_VULKAN
@@ -10,26 +9,14 @@
 #include "Chess.h"
 #include "Game.h"
 #include "Pipeline.hpp"
-#include "VulkanChess.h"
 #include "VulkanWindow.h"
-#include "VulkanChessboard.h"
-#define JOIN_AI
 
-#ifdef JOIN_AI
-#include "Ai.h"
-Ai g_Ai;
-#endif
-#ifdef HAN_CAN_PLAY
-const uint32_t g_DefaultCountryCount = MAX_COUNTRY_INDEX;
-#else
-const uint32_t g_DefaultCountryCount = MAX_COUNTRY_INDEX - 1;
-#endif
+#include "VulkanImgui.h"
+#include "imgui_impl_glfw.h"
 #ifdef INTERNET_MODE
 #include <array>
 
 #include "Server.h"
-#include "imgui_impl_glfw.h"
-#include "imgui_impl_vulkan.h"
 Client g_Client;
 Server g_Server;
 char g_ServerIp[MAX_BYTE];
@@ -40,10 +27,6 @@ uint32_t g_ClientIndex = INVALID_PLAYER_INDEX;
 std::vector<std::string>g_CountryItems[MAX_COUNTRY_INDEX];
 int32_t g_AIClientIndex[2] = { INVALID_PLAYER_INDEX, INVALID_PLAYER_INDEX};
 #endif
-struct GraphicsPipeline{
-    VkPipeline pipeline;
-    VkPipelineCache cache;
-};
 VulkanPool g_VulkanPool;
 VulkanQueue g_VulkanQueue;
 VulkanDevice g_VulkanDevice;
@@ -55,15 +38,23 @@ uint32_t g_WindowWidth = CHESSBOARD_BIG_RECT_SIZE * 2 + 10 * CHESSBOARD_RECT_SIZ
 
 VkCommandBuffer g_CommandBuffers;
 
+VkPipelineCache g_pipelineCache;
+VkPipelineLayout g_PipelineLayout;
+VkDescriptorSetLayout g_SetLayout;
+VkPipeline g_Fill, g_Wireframe, g_Font;
+
+Ai g_Ai;
+Game g_Game;
+
+VulkanImgui g_VulkanImgui;
+
 VulkanChess g_Chess;
+VulkanWireframe g_SelectChess;
 VulkanChessboard g_VulkanChessboard;
 
-VkPipelineLayout g_PipelineLayout;
-GraphicsPipeline g_Fill, g_Wireframe, g_Font;
-VkDescriptorSetLayout g_DescriptorSetLayout;
+bool g_PlayChessEnd;
 
-Game g_Game;
-uint32_t g_Player, g_CurrentCountry;
+std::vector<glm::vec4>g_Record;
 // void createSurface(VkInstance instance, VkSurfaceKHR&surface, void* userData){
 //     glfwCreateWindowSurface(instance, (GLFWwindow *)userData, nullptr, &surface);
 // }
@@ -102,9 +93,12 @@ void SetupVulkan(GLFWwindow *window){
     glfwCreateWindowSurface(g_VulkanDevice.instance, window, nullptr, &g_VulkanWindow.surface);
     VK_CHECK(g_VulkanDevice.CreateDevice(g_VulkanWindow.surface));
     uint32_t queueFamilies[2];
-    g_VulkanDevice.GetGraphicAndPresentQueueFamiliesIndex(g_VulkanWindow.surface, queueFamilies);
-    vkGetDeviceQueue(g_VulkanDevice.device, queueFamilies[1], 0, &g_VulkanQueue.present);
-    vkGetDeviceQueue(g_VulkanDevice.device, queueFamilies[0], 0, &g_VulkanQueue.graphics);
+    queueFamilies[GRAPHICS_QUEUE_INDEX] = g_VulkanDevice.GetQueueFamiliesIndex(VK_QUEUE_GRAPHICS_BIT, g_VulkanWindow.surface);
+    if(queueFamilies[GRAPHICS_QUEUE_INDEX] != -1){
+        queueFamilies[PRESENT_QUEUE_INDEX] = queueFamilies[GRAPHICS_QUEUE_INDEX];
+        vkGetDeviceQueue(g_VulkanDevice.device, queueFamilies[PRESENT_QUEUE_INDEX], queueFamilies[GRAPHICS_QUEUE_INDEX], &g_VulkanQueue.present);
+        vkGetDeviceQueue(g_VulkanDevice.device, queueFamilies[GRAPHICS_QUEUE_INDEX], queueFamilies[GRAPHICS_QUEUE_INDEX], &g_VulkanQueue.graphics);
+    }
     g_VulkanWindow.swapchain.CreateSwapchain(g_VulkanDevice, g_VulkanWindow.surface);
 
     g_VulkanWindow.CreateRenderPass(g_VulkanDevice.device);
@@ -112,7 +106,7 @@ void SetupVulkan(GLFWwindow *window){
 
     g_VulkanPool.CreatePool(g_VulkanDevice, 8);
 
-    g_VulkanSynchronize.CreateSemaphore(g_VulkanDevice.device, g_VulkanWindow.swapchain.images.size());
+    g_VulkanSynchronize.CreateSynchronize(g_VulkanDevice.device, g_VulkanWindow.swapchain.images.size());
     //显示设备信息
     const char *deviceType;
     VkPhysicalDeviceProperties physicalDeviceProperties;
@@ -167,9 +161,9 @@ void CreatePipelineLayout(VkDevice device, VkDescriptorSetLayout layout){
     VK_CHECK(vkCreatePipelineLayout(device, &pipelineLayoutInfo, nullptr, &g_PipelineLayout));
 }
 void DestroyGraphicsPipeline(VkDevice device){
-    vkDestroyPipeline(g_VulkanDevice.device, g_Fill.pipeline, VK_NULL_HANDLE);
-    vkDestroyPipeline(g_VulkanDevice.device, g_Font.pipeline, VK_NULL_HANDLE);
-    vkDestroyPipeline(g_VulkanDevice.device, g_Wireframe.pipeline, VK_NULL_HANDLE);
+    vkDestroyPipeline(g_VulkanDevice.device, g_Fill, VK_NULL_HANDLE);
+    vkDestroyPipeline(g_VulkanDevice.device, g_Font, VK_NULL_HANDLE);
+    vkDestroyPipeline(g_VulkanDevice.device, g_Wireframe, VK_NULL_HANDLE);
 }
 void CreateGraphicsPipeline(VkDevice device, VkPipelineLayout layout){
     // state.mColorBlend.blendEnable = VK_TRUE;
@@ -233,15 +227,15 @@ void CreateGraphicsPipeline(VkDevice device, VkPipelineLayout layout){
     pipelineCreateInfo.pDepthStencilState = &depthStencilState;
     pipelineCreateInfo.pInputAssemblyState = &inputAssemblyState;
     pipelineCreateInfo.pRasterizationState = &rasterizationState;
-    VK_CHECK(vkCreateGraphicsPipelines(device, g_Fill.cache, 1, &pipelineCreateInfo, nullptr, &g_Fill.pipeline));
+    VK_CHECK(vkCreateGraphicsPipelines(device, g_pipelineCache, 1, &pipelineCreateInfo, nullptr, &g_Fill));
     rasterizationState = Pipeline::initializers::pipelineRasterizationStateCreateInfo(VK_POLYGON_MODE_LINE, VK_CULL_MODE_NONE, VK_FRONT_FACE_CLOCKWISE, 0);
-    VK_CHECK(vkCreateGraphicsPipelines(device, g_Wireframe.cache, 1, &pipelineCreateInfo, nullptr, &g_Wireframe.pipeline));
+    VK_CHECK(vkCreateGraphicsPipelines(device, g_pipelineCache, 1, &pipelineCreateInfo, nullptr, &g_Wireframe));
     vkDestroyShaderModule(device, shaderStages[0].module, VK_NULL_HANDLE);
     vkDestroyShaderModule(device, shaderStages[1].module, VK_NULL_HANDLE);
     rasterizationState = Pipeline::initializers::pipelineRasterizationStateCreateInfo(VK_POLYGON_MODE_FILL, VK_CULL_MODE_NONE, VK_FRONT_FACE_CLOCKWISE, 0);
     shaderStages[0] = Pipeline::LoadShader(device, "shaders/baseFontVert.spv", VK_SHADER_STAGE_VERTEX_BIT);
     shaderStages[1] = Pipeline::LoadShader(device, "shaders/baseFontFrag.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
-    VK_CHECK(vkCreateGraphicsPipelines(device, g_Font.cache, 1, &pipelineCreateInfo, nullptr, &g_Font.pipeline));
+    VK_CHECK(vkCreateGraphicsPipelines(device, g_pipelineCache, 1, &pipelineCreateInfo, nullptr, &g_Font));
     vkDestroyShaderModule(device, shaderStages[0].module, VK_NULL_HANDLE);
     vkDestroyShaderModule(device, shaderStages[1].module, VK_NULL_HANDLE);
 }
@@ -255,112 +249,7 @@ void SetupDescriptorSetLayout(VkDevice device){
     setlayoutBindings[1].descriptorCount = 1;
     setlayoutBindings[1].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
     setlayoutBindings[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    vulkanFrame::CreateDescriptorSetLayout(device, setlayoutBindings, 2, &g_DescriptorSetLayout);
-}
-void UpdateChessUniform(VkDevice device, Chess *pChess[MAX_COUNTRY_INDEX][DRAW_COUNTRY_CHESS_COUNT]){
-    for (uint32_t uiCoutry = 0; uiCoutry < MAX_COUNTRY_INDEX; ++uiCoutry){
-        for(uint32_t uiChess = 0; uiChess < DRAW_COUNTRY_CHESS_COUNT; ++uiChess){
-            const Chess *pc = pChess[uiCoutry][uiChess];
-            const uint32_t dynamicOffsets = uiCoutry * DRAW_COUNTRY_CHESS_COUNT + uiChess;
-            if(pc){
-                g_Chess.UpdateUniform(device, pc->GetFontIndex(), glm::vec3(pc->GetPos(), 0), dynamicOffsets);
-            }
-            else{
-                const glm::vec3 pos = glm::vec3(COLUMN_TO_X(CHESSBOARD_ROW + 10), ROW_TO_Y(CHESSBOARD_COLUMN + 10), 0);
-                g_Chess.UpdateUniform(device, FONT_INDEX_HAN, pos, dynamicOffsets);
-            }
-        }
-    }
-}
-void ClearSelectWireframeUnfirom(glm::mat4 model[CHESSBOARD_ROW * 2]){
-    for (size_t i = 0; i < CHESSBOARD_ROW * 2; ++i){
-        model[i] = glm::translate(glm::mat4(1), glm::vec3(COLUMN_TO_X(100), ROW_TO_Y(100), 0));
-    }
-}
-void UpdateSelectChessUniform(VkDevice device, std::vector<Chess>&canplays){
-    //本来, 为了点击棋子之后有效果...是会改变棋子大小的..但如今发现..或许不需要了
-    glm::mat4 model[CHESSBOARD_ROW * 2];
-    const glm::mat4 scale = glm::scale(glm::mat4(1), glm::vec3(CHESSBOARD_RECT_SIZE, CHESSBOARD_RECT_SIZE, 1));
-    for (size_t i = 0; i < canplays.size(); ++i){
-        model[i] = glm::translate(glm::mat4(1), glm::vec3(COLUMN_TO_X(canplays[i].GetColumn()) - CHESSBOARD_RECT_SIZE * .5, ROW_TO_Y(canplays[i].GetRow()) - CHESSBOARD_RECT_SIZE * .5, 0)) * scale;
-    }
-    g_VulkanChessboard.UpdateSelectChessWireframeUniform(device, model, CHESSBOARD_ROW * 2);
-}
-//以下2个函数只处理显示的线框
-void UnSelectChess(VkDevice device){
-    glm::mat4 model[CHESSBOARD_ROW * 2];
-    ClearSelectWireframeUnfirom(model);
-    g_VulkanChessboard.UpdateSelectChessWireframeUniform(device, model, CHESSBOARD_ROW * 2);
-}
-void SelectChess(VkDevice device, const Chess *pChess){
-    std::vector<Chess>canplays;
-    pChess->Selected(g_Game.GetChess(), canplays);
-    UpdateSelectChessUniform(device, canplays);
-}
-glm::vec2 lerp(const glm::vec2&p0, const glm::vec2&p1, float t){
-    return (1 - t) * p0 + t * p1;
-}
-void MoveChess(const glm::vec2&start, const glm::vec2&end, uint32_t fontIndex, uint32_t dynamicOffsets){
-    for (float t = 0; t < 1; t += .01){
-        const glm::vec2 pos = lerp(start, end, t);
-        g_Chess.UpdateUniform(g_VulkanDevice.device, fontIndex, glm::vec3(pos, 0), dynamicOffsets);
-#ifdef WIN32
-        Sleep(1);
-#else
-        usleep(10000);
-#endif
-    }
-}
-void MoveChess(Chess *pStart, const Chess *pEnd){
-    const uint32_t dynamicOffsets = pStart->GetCountry() * DRAW_COUNTRY_CHESS_COUNT + pStart->GetChess();
-    const glm::vec2 start = glm::vec2(COLUMN_TO_X(pStart->GetColumn()), ROW_TO_Y(pStart->GetRow())), end = glm::vec2(COLUMN_TO_X(pEnd->GetColumn()), ROW_TO_Y(pEnd->GetRow()));
-    MoveChess(start, end, pStart->GetFontIndex(), dynamicOffsets);
-}
-uint32_t GetNextCountry(uint32_t currentCountry){
-    // currentCountry = g_ClientIndex;
-    do{
-        currentCountry = (currentCountry + 1) % g_DefaultCountryCount;
-    } while (g_Game.IsDeath(currentCountry));
-    //"将"警告
-    return currentCountry;
-}
-void PlayChess(Chess *pChess, uint32_t dstRow, uint32_t dstColumn){
-    UnSelectChess(g_VulkanDevice.device);
-    const Chess *pTarget = g_Game.GetChess(dstRow, dstColumn);
-    if(pTarget){
-        MoveChess(pChess, pTarget);
-        uint32_t targetCountry = pTarget->GetCountry();
-        g_Game.CaptureChess(pChess, pTarget);
-        const char county[][MAX_BYTE] = { "蜀", "吴", "魏", "汉" };
-        if(g_Game.IsDeath(targetCountry)){
-            printf("%s国被%s国消灭\n", county[targetCountry], county[pChess->GetCountry()]);
-            g_Game.DestroyCountry(targetCountry);
-        }
-    }
-    else{
-        const uint32_t dynamicOffsets = pChess->GetCountry() * DRAW_COUNTRY_CHESS_COUNT + pChess->GetChess();
-        const glm::vec2 start = glm::vec2(COLUMN_TO_X(pChess->GetColumn()), ROW_TO_Y(pChess->GetRow())), end = glm::vec2(COLUMN_TO_X(dstColumn), ROW_TO_Y(dstRow));
-        MoveChess(start, end, pChess->GetFontIndex(), dynamicOffsets);
-    }
-    pChess->SetPos(dstRow, dstColumn);
-    UpdateChessUniform(g_VulkanDevice.device, g_Game.GetChess());
-    g_CurrentCountry = GetNextCountry(g_CurrentCountry);
-#ifdef JOIN_AI
-#ifdef INTERNET_MODE
-    if(g_ServerAppaction){
-        for (auto it = g_Players.begin(); it != g_Players.end(); ++it){
-            if(it->ai && it->index == g_CurrentCountry){
-                g_Ai.Enable();
-                break;
-            }
-        }
-    }
-#else
-    if(g_CurrentCountry != g_Player){
-        g_Ai.Enable();
-    }
-#endif
-#endif
+    vulkanFrame::CreateDescriptorSetLayout(device, setlayoutBindings, 2, &g_SetLayout);
 }
 auto CreateThread(void *(*__start_routine)(void *), void *__arg){
 #ifdef WIN32
@@ -623,14 +512,12 @@ void *server_start(void *userData){
     //游戏开始, 发消息告诉所有客户端游戏开始
     message.event = GAME_START_GAME_EVENT;
     g_Server.SendToAllClient(&message, sizeof(message));
-#ifdef JOIN_AI
     for (auto it = g_Players.begin(); it != g_Players.end(); ++it){
         if(it->ai){
             g_Ai.CreatePthread(&g_Game);
             break;
         }
     }
-#endif
     return nullptr;
 }
 #else
@@ -664,7 +551,6 @@ void *process_server(void *userData){
         //游戏开始, 发消息告诉所有客户端游戏开始
         message.event = GAME_START_GAME_EVENT;
         g_Server.SendToAllClient(&message, sizeof(message));
-#ifdef JOIN_AI
         //因为最多只有1个ai, 所以可以直接循环里面判断和创建线程
         for (auto it = g_Players.begin(); it != g_Players.end(); ++it){
             if(it->ai){
@@ -672,7 +558,6 @@ void *process_server(void *userData){
                 break;
             }
         }
-#endif  
     }
     if(message.event == AI_JOIN_GAME_GAME_EVENT){
         return nullptr;//ai和服务端用同一个客户端
@@ -773,7 +658,7 @@ void *process_client(void *userData){
             g_GameStart = true;
             printf("game start, you country index is %d\n", g_Players[g_ClientIndex].index);
             g_Player = g_Players[g_ClientIndex].index;
-            g_Game.InitializeChess(g_Player);
+            g_Game.Initialize(g_Player);
             UpdateChessUniform(g_VulkanDevice.device, g_Game.GetChess());
 
             InitJiangPos();
@@ -955,7 +840,7 @@ void ShowServerWidget(bool gameStart){
         }
     }
 }
-void UpdateImguiWidget(){
+void UpdateImgui(VkCommandBuffer command){
     // static bool checkbuttonstatu;//检查框的状态。这个值传给imgui会影响到检查框
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
@@ -1040,7 +925,57 @@ void UpdateImguiWidget(){
     ImDrawData *draw_data = ImGui::GetDrawData();
 
     const bool isMinimized = (draw_data->DisplaySize.x <=.0f || draw_data->DisplaySize.y <= .0f);
-    if(!isMinimized)ImGui_ImplVulkan_RenderDrawData(draw_data, g_CommandBuffers);
+    if(!isMinimized)g_VulkanImgui.RenderDrawData(command, draw_data);
+}
+#else
+void UpdateImgui(VkCommandBuffer command){
+    ImGui_ImplGlfw_NewFrame();
+    ImGui::NewFrame();
+
+    if(ImGui::Begin("三国象棋")){
+        const char *countryName[4];
+        countryName[WU_COUNTRY_INDEX] = "吴";
+        countryName[WEI_COUNTRY_INDEX] = "魏";
+        countryName[SHU_COUNTRY_INDEX] = "蜀";
+#ifdef HAN_CAN_PLAY
+        countryName[HAN_COUNTRY_INDEX] = "汉";
+#endif
+        const uint32_t currentCountry = g_Game.GetCurrentCountry(), player = g_Game.GetPlayer();
+        if(currentCountry != -1 && player){
+            ImGui::Text("你是%s, 该%s下棋\n", countryName[player], player == currentCountry?"你":countryName[currentCountry]);
+        }
+        if(ImGui::BeginTable("按钮表格", 2)){
+            ImGui::TableNextColumn();
+            if(ImGui::Button("新游戏")){
+                g_Ai.Pause();
+                printf("set ai player pause\n");
+                while(!g_PlayChessEnd);
+                printf("play chess end\n");
+                g_Ai.End();
+                //效果看起来诡异了一些, 但结果正常
+                g_Game.InitinalizeGame();
+                g_Game.InitializeChess();
+                g_Ai.CreatePthread(&g_Game);
+            }
+            ImGui::TableNextColumn();
+            if(ImGui::Button(g_Ai.IsPause()?"开始":"暂停")){
+                if(g_Ai.IsPause()){
+                    g_Ai.Start();
+                }
+                else{
+                    g_Ai.Pause();
+                }
+            }
+            ImGui::EndTable();
+        }
+    }
+    ImGui::End();
+
+    ImGui::Render();
+    ImDrawData *draw_data = ImGui::GetDrawData();
+
+    const bool isMinimized = (draw_data->DisplaySize.x <=.0f || draw_data->DisplaySize.y <= .0f);
+    if(!isMinimized)g_VulkanImgui.RenderDrawData(command, draw_data);
 }
 #endif
 void RecordCommand(VkCommandBuffer command, VkFramebuffer frame){
@@ -1048,25 +983,108 @@ void RecordCommand(VkCommandBuffer command, VkFramebuffer frame){
     vulkanFrame::BeginRenderPassGeneral(command, frame, g_VulkanWindow.renderPass, g_WindowWidth, g_WindowHeight);
 
     const glm::mat4 projection = glm::ortho(0.0f, (float)g_WindowWidth, 0.0f, (float)g_WindowHeight, -1.0f, 1.0f);
-    vkCmdBindPipeline(command, VK_PIPELINE_BIND_POINT_GRAPHICS, g_Fill.pipeline);
+    vkCmdBindPipeline(command, VK_PIPELINE_BIND_POINT_GRAPHICS, g_Fill);
     vkCmdPushConstants(command, g_PipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &projection);
 
     g_VulkanChessboard.Draw(command,g_PipelineLayout);
 
-    vkCmdBindPipeline(command, VK_PIPELINE_BIND_POINT_GRAPHICS, g_Wireframe.pipeline);
+    vkCmdBindPipeline(command, VK_PIPELINE_BIND_POINT_GRAPHICS, g_Wireframe);
     g_VulkanChessboard.DrawWireframe(command, g_PipelineLayout);
+    g_SelectChess.Draw(command, g_PipelineLayout);
 
-    vkCmdBindPipeline(command, VK_PIPELINE_BIND_POINT_GRAPHICS, g_Fill.pipeline);
-    g_Chess.DrawChess(command, g_PipelineLayout, g_CurrentCountry);
-    vkCmdBindPipeline(command, VK_PIPELINE_BIND_POINT_GRAPHICS, g_Font.pipeline);
+    vkCmdBindPipeline(command, VK_PIPELINE_BIND_POINT_GRAPHICS, g_Fill);
+    g_Chess.DrawChess(command, g_PipelineLayout, g_Game.GetCurrentCountry());
+    vkCmdBindPipeline(command, VK_PIPELINE_BIND_POINT_GRAPHICS, g_Font);
     g_Chess.DrawFont(command, g_PipelineLayout);
 
-#ifdef INTERNET_MODE
-    UpdateImguiWidget();
-#endif
+    UpdateImgui(command);
 
     vkCmdEndRenderPass(command);
     vkEndCommandBuffer(command);
+}
+void ClearSelectWireframeUnfirom(std::vector<glm::mat4>&model){
+    for (size_t i = 0; i < CHESSBOARD_ROW * 2; ++i){
+        model[i] = glm::translate(glm::mat4(1), glm::vec3(COLUMN_TO_X(100), ROW_TO_Y(100), 0));
+    }
+}
+void UpdateSelectChessUniform(VkDevice device, std::vector<Chess>&canplays){
+    //本来, 为了点击棋子之后有效果...是会改变棋子大小的..但如今发现..或许不需要了
+    std::vector<glm::mat4>model(CHESSBOARD_ROW * 2);
+    const glm::mat4 scale = glm::scale(glm::mat4(1), glm::vec3(CHESSBOARD_RECT_SIZE, CHESSBOARD_RECT_SIZE, 1));
+    for (size_t i = 0; i < canplays.size(); ++i){
+        model[i] = glm::translate(glm::mat4(1), glm::vec3(COLUMN_TO_X(canplays[i].GetColumn()) - CHESSBOARD_RECT_SIZE * .5, ROW_TO_Y(canplays[i].GetRow()) - CHESSBOARD_RECT_SIZE * .5, 0)) * scale;
+    }
+    g_SelectChess.UpdateUniform(device, model);
+}
+//以下2个函数只处理显示的线框
+void SelectChess(VkDevice device, const Chess *pChess){
+    std::vector<Chess>canplays;
+    pChess->Selected(g_Game.GetChess(), canplays);
+    UpdateSelectChessUniform(device, canplays);
+}
+glm::vec2 lerp(const glm::vec2&p0, const glm::vec2&p1, float t){
+    return (1 - t) * p0 + t * p1;
+}
+void MoveChess(const glm::vec2&start, const glm::vec2&end, uint32_t fontIndex, uint32_t dynamicOffsets){
+    for (float t = 0; t < 1; t += .01){
+        const glm::vec2 pos = lerp(start, end, t);
+        g_Chess.UpdateUniform(g_VulkanDevice.device, fontIndex, glm::vec3(pos, 0), dynamicOffsets);
+#ifdef WIN32
+        Sleep(1);
+#else
+        usleep(10000);
+#endif
+    }
+}
+void MoveChess(Chess *pStart, const Chess *pEnd){
+    const uint32_t dynamicOffsets = pStart->GetCountry() * DRAW_COUNTRY_CHESS_COUNT + pStart->GetChess();
+    const glm::vec2 start = glm::vec2(COLUMN_TO_X(pStart->GetColumn()), ROW_TO_Y(pStart->GetRow())), end = glm::vec2(COLUMN_TO_X(pEnd->GetColumn()), ROW_TO_Y(pEnd->GetRow()));
+    MoveChess(start, end, pStart->GetFontIndex(), dynamicOffsets);
+}
+void UnSelectChess(){
+    std::vector<glm::mat4>model(CHESSBOARD_ROW * 2);
+    ClearSelectWireframeUnfirom(model);
+    g_SelectChess.UpdateUniform(g_VulkanDevice.device, model);
+}
+void UpdateChessUniform(VkDevice device, Chess **pChess){
+    for (uint32_t uiCoutry = 0; uiCoutry < MAX_COUNTRY_INDEX; ++uiCoutry){
+        for(uint32_t uiChess = 0; uiChess < DRAW_COUNTRY_CHESS_COUNT; ++uiChess){
+            const Chess *pc = pChess[ROW_COLUMN_CHESS_TO_INDEX(uiCoutry, uiChess)];
+            const uint32_t dynamicOffsets = uiCoutry * DRAW_COUNTRY_CHESS_COUNT + uiChess;
+            if(pc){
+                g_Chess.UpdateUniform(device, pc->GetFontIndex(), glm::vec3(pc->GetPos(), 0), dynamicOffsets);
+            }
+            else{
+                const glm::vec3 pos = glm::vec3(COLUMN_TO_X(CHESSBOARD_ROW + 10), ROW_TO_Y(CHESSBOARD_COLUMN + 10), 0);
+                g_Chess.UpdateUniform(device, FONT_INDEX_HAN, pos, dynamicOffsets);
+            }
+        }
+    }
+}
+void PlayChess(Chess *pChess, uint32_t dstRow, uint32_t dstColumn){
+    g_PlayChessEnd = false;
+    UnSelectChess();
+    //想写撤回功能的话, 还需要记录是不是吃子。另外，棋子被吃后也别直接销毁棋子，而是加一个标记然后不显示
+    g_Record.push_back(glm::vec4(pChess->GetRow(), pChess->GetColumn(), dstRow, dstColumn));
+    const Chess *pTarget = g_Game.GetChess(dstRow, dstColumn);
+    if(pTarget){
+        MoveChess(pChess, pTarget);
+        uint32_t targetCountry = pTarget->GetCountry();
+        g_Game.CaptureChess(pChess, pTarget);
+        const char county[][MAX_BYTE] = { "蜀", "吴", "魏", "汉" };
+        if(g_Game.IsDeath(targetCountry)){
+            printf("%s国被%s国消灭\n", county[targetCountry], county[pChess->GetCountry()]);
+            g_Game.DestroyCountry(targetCountry);
+        }
+    }
+    else{
+        const uint32_t dynamicOffsets = pChess->GetCountry() * DRAW_COUNTRY_CHESS_COUNT + pChess->GetChess();
+        const glm::vec2 start = glm::vec2(COLUMN_TO_X(pChess->GetColumn()), ROW_TO_Y(pChess->GetRow())), end = glm::vec2(COLUMN_TO_X(dstColumn), ROW_TO_Y(dstRow));
+        MoveChess(start, end, pChess->GetFontIndex(), dynamicOffsets);
+    }
+    pChess->SetPos(dstRow, dstColumn);
+    UpdateChessUniform(g_VulkanDevice.device, g_Game.GetChess());
+    g_PlayChessEnd = true;
 }
 #ifndef INTERNET_MODE
 struct PPC{
@@ -1081,6 +1099,22 @@ void *PlayChessFun(void *userData){
     PPC ppc = *(PPC *)userData;
     Chess *pStart = g_Game.GetChess(ppc.srcCountry, ppc.srcRow, ppc.srcColumn);
     PlayChess(pStart, ppc.dstRow, ppc.dstColumn);
+    g_Game.NextCountry();
+    //下完棋要调用下面的函数
+#ifdef INTERNET_MODE
+    if(g_ServerAppaction){
+        for (auto it = g_Players.begin(); it != g_Players.end(); ++it){
+            if(it->ai && it->index == g_CurrentCountry){
+                g_Ai.Enable();
+                break;
+            }
+        }
+    }
+#else
+    if(g_Game.GetCurrentCountry() != g_Game.GetPlayer()){
+        g_Ai.Enable();
+    }
+#endif
     return nullptr;
 }
 #endif
@@ -1106,14 +1140,16 @@ Chess *GetChess(const glm::vec2&mousePos){
     }
     return pChess;
 }
+
 const Chess *SelectChess(uint32_t country, const glm::vec2&mousePos){
     const Chess *pSelected = nullptr;
-    pSelected = g_Game.GetChess(country, mousePos);
-    if(pSelected && pSelected->GetCountry() == g_CurrentCountry){
+    pSelected = GetChess(mousePos);
+    //想让玩家不能操作其他势力棋子, 则用下面的函数
+    // pSelected = g_Game.GetChess(country, mousePos);
+    if(pSelected){
         SelectChess(g_VulkanDevice.device, pSelected);
-        return pSelected;
     }
-    return nullptr;
+    return pSelected;
 }
 void PreparePlayChess(const Chess *pSelect, const glm::vec2&mousePos){
 #ifndef INTERNET_MODE
@@ -1123,7 +1159,7 @@ void PreparePlayChess(const Chess *pSelect, const glm::vec2&mousePos){
     pSelect->Selected(g_Game.GetChess(), canplays);
     int32_t index = GetCanPlay(mousePos, canplays);
 
-    UnSelectChess(g_VulkanDevice.device);
+    UnSelectChess();
     Chess *pTarget = GetChess(mousePos);
     if(pTarget){
         //选到的是棋子，不论是否自己的
@@ -1134,10 +1170,10 @@ void PreparePlayChess(const Chess *pSelect, const glm::vec2&mousePos){
 #else
                 ppc.dstRow = pTarget->GetRow();
                 ppc.srcRow = pSelect->GetRow();
-                ppc.srcCountry = g_CurrentCountry;
                 ppc.dstColumn = pTarget->GetColumn();
                 ppc.dstCountry = pTarget->GetCountry();
                 ppc.srcColumn = pSelect->GetColumn();
+                ppc.srcCountry = pSelect->GetCountry();
                 CreateThread(PlayChessFun, &ppc);
 #endif
         }
@@ -1152,10 +1188,10 @@ void PreparePlayChess(const Chess *pSelect, const glm::vec2&mousePos){
                 SendPlayChessMessage(g_Players[g_ClientIndex], pSelect, &target);
 #else
                 ppc.srcRow = pSelect->GetRow();
-                ppc.srcCountry = g_CurrentCountry;
                 ppc.srcColumn = pSelect->GetColumn();
                 ppc.dstRow = canplays[index].GetRow();
                 ppc.dstColumn = canplays[index].GetColumn();
+                ppc.srcCountry = pSelect->GetCountry();
                 CreateThread(PlayChessFun, &ppc);
 #endif
         }
@@ -1172,31 +1208,14 @@ void mousebutton(GLFWwindow *window,int button,int action,int mods){
             g_Selected = nullptr;
         }
         else{
-            g_Selected = SelectChess(g_Player, mousePos);
+            g_Selected = SelectChess(g_Game.GetCurrentCountry(), mousePos);
         }
     }
 }
-#ifdef JOIN_AI
-uint32_t g_BackupPlayer;
-#endif
+// #ifdef JOIN_AI
+// uint32_t g_BackupPlayer;
+// #endif
 void keybutton(GLFWwindow *window,int key, int scancode, int action, int mods){
-    if(action == GLFW_RELEASE){
-#ifndef INTERNET_MODE
-#ifdef JOIN_AI
-        if(key == GLFW_KEY_SPACE){
-            if(g_Player != INVALID_COUNTRY_INDEX)g_BackupPlayer = g_Player;
-            g_Ai.CreatePthread(&g_Game);
-            printf("启用ai并且玩家可以参与\n");
-        }
-        else if(key == GLFW_KEY_ENTER){
-            if(g_Player == INVALID_COUNTRY_INDEX)g_Player = g_BackupPlayer;
-            g_Player = INVALID_COUNTRY_INDEX;
-            g_Ai.CreatePthread(&g_Game);
-            printf("启用ai并且玩家无法参与\n");
-        }
-#endif
-#endif
-    }
 }
 void Setup(GLFWwindow *window){
     glfwSetKeyCallback(window, keybutton);
@@ -1204,20 +1223,22 @@ void Setup(GLFWwindow *window){
 
     SetupDescriptorSetLayout(g_VulkanDevice.device);
     
-    Pipeline::CreatePipelineCache(g_VulkanDevice.device, "FillPipelineCache", g_Fill.cache);
-    Pipeline::CreatePipelineCache(g_VulkanDevice.device, "FontPipelineCache", g_Font.cache);
-    Pipeline::CreatePipelineCache(g_VulkanDevice.device, "WireframePipelineCache", g_Wireframe.cache);
+    Pipeline::CreatePipelineCache(g_VulkanDevice.device, "GraphicsPipelineCache", g_pipelineCache);
 
-    CreatePipelineLayout(g_VulkanDevice.device, g_DescriptorSetLayout);
-    
+    CreatePipelineLayout(g_VulkanDevice.device, g_SetLayout);
     CreateGraphicsPipeline(g_VulkanDevice.device, g_PipelineLayout);
 
-    g_Chess.Setup(g_VulkanDevice, g_DescriptorSetLayout, g_VulkanQueue.graphics, g_VulkanPool);
-    g_VulkanChessboard.Setup(g_VulkanDevice, g_DescriptorSetLayout, g_VulkanQueue.graphics, g_VulkanPool);
-
+    g_Chess.Setup(g_VulkanDevice, g_SetLayout, g_VulkanQueue.graphics, g_VulkanPool);
+    g_VulkanChessboard.Setup(g_VulkanDevice, g_SetLayout, g_VulkanQueue.graphics, g_VulkanPool);
     g_VulkanChessboard.UpdateUniform(g_VulkanDevice.device, g_WindowWidth);
-#ifdef INTERNET_MODE
+    g_SelectChess.Setup(g_VulkanDevice, CHESSBOARD_ROW + CHESSBOARD_COLUMN, g_SetLayout, g_VulkanQueue.graphics, g_VulkanPool);
+
+    g_Game.InitinalizeGame();
+    g_Game.InitializeChess();
+    UpdateChessUniform(g_VulkanDevice.device, g_Game.GetChess());
+
     g_VulkanPool.AllocateCommandBuffers(g_VulkanDevice.device, 1, &g_CommandBuffers);
+
     //imgui
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
@@ -1226,26 +1247,9 @@ void Setup(GLFWwindow *window){
     ImGui::StyleColorsDark();
 
     ImGui_ImplGlfw_InitForVulkan(window, true);
-    uint32_t queueFamily;
-    g_VulkanDevice.GetGraphicAndPresentQueueFamiliesIndex(VK_NULL_HANDLE, &queueFamily);
-    ImGui_ImplVulkan_InitInfo initInfo = {};
-    initInfo.Instance = g_VulkanDevice.instance;
-    initInfo.PhysicalDevice = g_VulkanDevice.physicalDevice;
-    initInfo.Device = g_VulkanDevice.device;
-    initInfo.QueueFamily = queueFamily;
-    initInfo.Queue = g_VulkanQueue.graphics;
-    initInfo.PipelineCache = VK_NULL_HANDLE;//g_GraphicsPipline.getCache();
-    initInfo.DescriptorPool = g_VulkanPool.descriptor;
-    initInfo.MinImageCount = 2;
-    initInfo.ImageCount = g_VulkanWindow.framebuffers.size();
-    initInfo.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
-    initInfo.Allocator = nullptr;
-    initInfo.CheckVkResultFn = nullptr;
-    ImGui_ImplVulkan_Init(&initInfo, g_VulkanWindow.renderPass);
-
-    io.Fonts->AddFontFromFileTTF("fonts/SourceHanSerifCN-Bold.otf", 20, NULL, io.Fonts->GetGlyphRangesChineseFull());
-
-    ImGui_ImplVulkan_CreateFontsTexture(g_VulkanDevice, g_VulkanPool, g_VulkanQueue.graphics);
+    g_VulkanImgui.Setup(g_VulkanDevice, g_VulkanQueue.graphics, g_VulkanPool);
+    g_VulkanImgui.CreatePipeline(g_VulkanDevice.device, g_VulkanWindow.renderPass, g_pipelineCache);
+#ifdef INTERNET_MODE
 #ifdef WIN32
     WSADATA wsaData;
     int wsaResult = WSAStartup(MAKEWORD(2, 2), &wsaData);
@@ -1266,23 +1270,16 @@ void Setup(GLFWwindow *window){
 #endif
     }
     GetLocalIp(g_ServerIp);
-#endif
-    g_VulkanPool.AllocateCommandBuffers(g_VulkanDevice.device, 1, &g_CommandBuffers);
-
-    g_CurrentCountry = rand()%g_DefaultCountryCount;    
-#ifndef INTERNET_MODE
-    g_Player = rand()%g_DefaultCountryCount;
-    g_Game.InitializeChess(g_Player);
-    UpdateChessUniform(g_VulkanDevice.device, g_Game.GetChess());
+#else
+    // g_Ai.CreatePthread(&g_Game);
 #endif
 }
 
 void Cleanup(){
     vkDeviceWaitIdle(g_VulkanDevice.device);
-#ifdef INTERNET_MODE
     ImGui_ImplGlfw_Shutdown();
-    ImGui_ImplVulkan_Shutdown();
-
+    g_VulkanImgui.Cleanup(g_VulkanDevice.device);
+#ifdef INTERNET_MODE
     GameMessage message;
     message.event = GAME_OVER_GAME_EVENT;
     g_Server.SendToAllClient(&message, sizeof(message));
@@ -1294,17 +1291,17 @@ void Cleanup(){
     WSACleanup();
 #endif
 #endif
-    Pipeline::DestroyPipelineCache(g_VulkanDevice.device, "FillPipelineCache", g_Fill.cache);
-    Pipeline::DestroyPipelineCache(g_VulkanDevice.device, "FontPipelineCache", g_Font.cache);
-    Pipeline::DestroyPipelineCache(g_VulkanDevice.device, "WireframePipelineCache", g_Wireframe.cache);
+    Pipeline::DestroyPipelineCache(g_VulkanDevice.device, "GraphicsPipelineCache", g_pipelineCache);
 
-    vkDestroyDescriptorSetLayout(g_VulkanDevice.device, g_DescriptorSetLayout, VK_NULL_HANDLE);
+    vkDestroyDescriptorSetLayout(g_VulkanDevice.device, g_SetLayout, VK_NULL_HANDLE);
     vkDestroyPipelineLayout(g_VulkanDevice.device, g_PipelineLayout, VK_NULL_HANDLE);
 
     DestroyGraphicsPipeline(g_VulkanDevice.device);
 
-    g_VulkanChessboard.Cleanup(g_VulkanDevice.device);
     g_Chess.Cleanup(g_VulkanDevice.device);
+    g_SelectChess.Cleanup(g_VulkanDevice.device);
+    g_VulkanChessboard.Cleanup(g_VulkanDevice.device);
+
 }
 void RecreateSwapchain(void *userData){
     vkDeviceWaitIdle(g_VulkanDevice.device);
@@ -1324,7 +1321,7 @@ void RecreateSwapchain(void *userData){
     
     if(swapchainExtent.width != g_WindowWidth || swapchainExtent.height != g_WindowHeight){
         DestroyGraphicsPipeline(g_VulkanDevice.device);
-        CreatePipelineLayout(g_VulkanDevice.device, g_DescriptorSetLayout);
+        CreatePipelineLayout(g_VulkanDevice.device, g_SetLayout);
         CreateGraphicsPipeline(g_VulkanDevice.device, g_PipelineLayout);
     }
 }
@@ -1332,7 +1329,7 @@ void display(GLFWwindow* window){
     static size_t currentFrame;
     vkDeviceWaitIdle(g_VulkanDevice.device);
     RecordCommand(g_CommandBuffers, g_VulkanWindow.framebuffers[currentFrame]);
-    if(VK_ERROR_OUT_OF_DATE_KHR == vulkanFrame::DrawFrame(g_VulkanDevice.device, currentFrame, g_CommandBuffers, g_VulkanWindow.swapchain.swapchain, g_VulkanQueue, g_VulkanSynchronize, RecreateSwapchain, window)){
+    if(VK_ERROR_OUT_OF_DATE_KHR == vulkanFrame::Render(g_VulkanDevice.device, currentFrame, g_CommandBuffers, g_VulkanWindow.swapchain.swapchain, g_VulkanQueue, g_VulkanSynchronize, RecreateSwapchain, window)){
         //重建交换链后, 即使currentFrame不为0, 获取的交换链图片索引不一定和currentFrame相同
         currentFrame = 0;
         //那重建交换链后, 那重建后有没有可能得到的索引不是0?

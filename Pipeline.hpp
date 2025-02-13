@@ -2,6 +2,8 @@
 #define PIPELINE_INCLUDE_H
 #include <string>
 #include <vector>
+#include <cstring>
+#include <iostream>
 #include <vulkan/vulkan.h>
 namespace Pipeline{
 	namespace initializers{
@@ -286,17 +288,20 @@ namespace Pipeline{
 		rect2D.offset.y = offsetY;
 		return rect2D;
 	}
-	inline VkPipelineShaderStageCreateInfo LoadShader(VkDevice device, const char *filename, VkShaderStageFlagBits stage, const char *name = "main"){
-		std::vector<uint32_t>code;
-		GetFileContent(filename, code);
-		VkShaderModuleCreateInfo shaderModuleCreateInfo = initializers::shaderModuleCreateInfo(code.size() * sizeof(uint32_t));
-		shaderModuleCreateInfo.pCode = code.data();
+	inline VkPipelineShaderStageCreateInfo LoadShader(VkDevice device, VkShaderStageFlagBits stage, const uint32_t *code, uint32_t size, const char *name = "main"){
+		VkShaderModuleCreateInfo shaderModuleCreateInfo = initializers::shaderModuleCreateInfo(size);
+		shaderModuleCreateInfo.pCode = code;
 		VkPipelineShaderStageCreateInfo info {};
 		info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
 		info.pName = name;
 		info.stage = stage;
 		vkCreateShaderModule(device, &shaderModuleCreateInfo, nullptr, &info.module);
 		return info;
+	}
+	inline VkPipelineShaderStageCreateInfo LoadShader(VkDevice device, const char *filename, VkShaderStageFlagBits stage, const char *name = "main"){
+		std::vector<uint32_t>code;
+		GetFileContent(filename, code);
+		return LoadShader(device, stage, code.data(), code.size() * sizeof(uint32_t), name);
 	}
     //文件名设置为""则不把管线缓存写到文件
 	inline VkResult CreatePipelineCache(VkDevice device, const std::string&cacheFile, VkPipelineCache&cache){
@@ -319,6 +324,66 @@ namespace Pipeline{
 			WriteFileContent(cacheFile, cacheData.data(), cacheData.size() * sizeof(uint32_t));
 		}
 		if(cache != VK_NULL_HANDLE)vkDestroyPipelineCache(device, cache, nullptr);
+	}
+	inline bool isValidPipelineCacheData(VkPhysicalDevice physicalDevice, const void *buffer, uint32_t size){
+		if(size > 32) {
+			uint32_t header = 0;
+			uint32_t version = 0;
+			uint32_t vendor = 0;
+			uint32_t deviceID = 0;
+			VkPhysicalDeviceProperties deviceProperties;
+			uint8_t pipelineCacheUUID[VK_UUID_SIZE] = {};
+			vkGetPhysicalDeviceProperties(physicalDevice, &deviceProperties);
+
+			memcpy(&header, (uint8_t *)buffer + 0, 4);
+			memcpy(&version, (uint8_t *)buffer + 4, 4);
+			memcpy(&vendor, (uint8_t *)buffer + 8, 4);
+			memcpy(&deviceID, (uint8_t *)buffer + 12, 4);
+			memcpy(pipelineCacheUUID, (uint8_t *)buffer + 16, VK_UUID_SIZE);
+
+			if (header <= 0) {
+				std::cerr << "bad pipeline cache data header length" << std::endl;
+				return false;
+			}
+
+			if (version != VK_PIPELINE_CACHE_HEADER_VERSION_ONE) {
+				std::cerr << "unsupported cache header version" << std::endl;
+				std::cerr << "cache contains: 0x" << std::hex << version << std::endl;
+			}
+
+			if (vendor != deviceProperties.vendorID) {
+				std::cerr << "vendor id mismatch" << std::endl;
+				std::cerr << "cache contains: 0x" << std::hex << vendor << std::endl;
+				std::cerr << "driver expects: 0x" << deviceProperties.vendorID << std::endl;
+				return false;
+			}
+
+			if (deviceID != deviceProperties.deviceID) {
+				std::cerr << "device id mismatchin" << std::endl;
+				std::cerr << "cache contains: 0x" << std::hex << deviceID << std::endl;
+				std::cerr << "driver expects: 0x" << deviceProperties.deviceID << std::endl;
+				return false;
+			}
+			if (memcmp(pipelineCacheUUID, deviceProperties.pipelineCacheUUID, sizeof(pipelineCacheUUID)) != 0) {
+				std::cerr << "uuid mismatch" << std::endl;
+				std::cerr << "cache contains: " << std::endl;
+
+				auto fn = [](uint8_t* uuid) {
+					for(int i = 0; i < 16; i++) {
+						std::cout << (int)uuid[i] << " ";
+						if(i % 4 == 3)
+							std::cerr << std::endl;
+					}
+					std::cerr << std::endl;
+				};
+				fn(pipelineCacheUUID);
+				std::cerr << "driver expects:" << std::endl;
+				fn(deviceProperties.pipelineCacheUUID);
+				return false;
+			}
+			return true;
+		}
+		return false;
 	}
 }
 #endif

@@ -74,8 +74,8 @@ public:
         return abs(pos.x - mPos.x) < CHESS_WIDTH && abs(pos.y - mPos.y) < CHESS_HEIGHT;
     }
 
-    virtual void Selected(Chess *pChess[MAX_COUNTRY_INDEX][DRAW_COUNTRY_CHESS_COUNT], std::vector<Chess>&canplays)const;
-    // virtual void Selected(Chess *pChess[MAX_COUNTRY_INDEX][DRAW_COUNTRY_CHESS_COUNT], std::vector<Chess>&canplays)const = 0;
+    virtual void Selected(Chess **pChess, std::vector<Chess>&canplays)const;
+    // virtual void Selected(Chess **pChess, std::vector<Chess>&canplays)const = 0;
 };
 class Wei:public Chess{
 public:
@@ -84,7 +84,7 @@ public:
     Wei(uint32_t chess, uint32_t country, uint32_t row, uint32_t column);
     Wei(uint32_t chess, uint32_t country, uint32_t fontIndex, uint32_t row, uint32_t column);
     ~Wei();
-    virtual void Selected(Chess *pChess[MAX_COUNTRY_INDEX][DRAW_COUNTRY_CHESS_COUNT], std::vector<Chess>&canplays)const;
+    virtual void Selected(Chess **pChess, std::vector<Chess>&canplays)const;
 };
 
 class Shu:public Chess{
@@ -94,7 +94,7 @@ public:
     Shu(uint32_t chess, uint32_t country, uint32_t row, uint32_t column);
     Shu(uint32_t chess, uint32_t country, uint32_t fontIndex, uint32_t row, uint32_t column);
     ~Shu();
-    virtual void Selected(Chess *pChess[MAX_COUNTRY_INDEX][DRAW_COUNTRY_CHESS_COUNT], std::vector<Chess>&canplays)const;
+    virtual void Selected(Chess **pChess, std::vector<Chess>&canplays)const;
 };
 
 class Wu:public Chess{
@@ -104,7 +104,7 @@ public:
     Wu(uint32_t chess, uint32_t country, uint32_t row, uint32_t column);
     Wu(uint32_t chess, uint32_t country, uint32_t fontIndex, uint32_t row, uint32_t column);
     ~Wu();
-    virtual void Selected(Chess *pChess[MAX_COUNTRY_INDEX][DRAW_COUNTRY_CHESS_COUNT], std::vector<Chess>&canplays)const;
+    virtual void Selected(Chess **pChess, std::vector<Chess>&canplays)const;
 };
 
 class Han:public Chess{
@@ -114,7 +114,7 @@ public:
     Han(uint32_t chess, uint32_t country, uint32_t row, uint32_t column);
     Han(uint32_t chess, uint32_t country, uint32_t fontIndex, uint32_t row, uint32_t column);
     ~Han();
-    virtual void Selected(Chess *pChess[MAX_COUNTRY_INDEX][DRAW_COUNTRY_CHESS_COUNT], std::vector<Chess>&canplays)const;
+    virtual void Selected(Chess **pChess, std::vector<Chess>&canplays)const;
 };
 class Bing:public Chess{
     glm::vec2 GetBingBack()const;
@@ -125,7 +125,7 @@ public:
     Bing(uint32_t chess, uint32_t country, uint32_t row, uint32_t column);
     Bing(uint32_t chess, uint32_t country, uint32_t fontIndex, uint32_t row, uint32_t column);
     ~Bing();
-    virtual void Selected(Chess *pChess[MAX_COUNTRY_INDEX][DRAW_COUNTRY_CHESS_COUNT], std::vector<Chess>&canplays)const;
+    virtual void Selected(Chess **pChess, std::vector<Chess>&canplays)const;
 };
 class Pao:public Chess{
 public:
@@ -134,7 +134,7 @@ public:
     Pao(uint32_t chess, uint32_t country, uint32_t row, uint32_t column);
     Pao(uint32_t chess, uint32_t country, uint32_t fontIndex, uint32_t row, uint32_t column);
     ~Pao();
-    virtual void Selected(Chess *pChess[MAX_COUNTRY_INDEX][DRAW_COUNTRY_CHESS_COUNT], std::vector<Chess>&canplays)const;
+    virtual void Selected(Chess **pChess, std::vector<Chess>&canplays)const;
 };
 class Che:public Chess{
     // //测试性函数
@@ -142,14 +142,14 @@ class Che:public Chess{
     // void floatToMatrix(const float *m, glm::mat4&r);
     // //removeColumn不包含0
     // void RemoveRowColumn(const float *m, uint32_t removeColumn, uint32_t column, float *r);
-    // void SetMatrix(Chess *pChess[MAX_COUNTRY_INDEX][DRAW_COUNTRY_CHESS_COUNT], float m[CHESSBOARD_ROW * CHESSBOARD_COLUMN]);
+    // void SetMatrix(Chess **pChess, float m[CHESSBOARD_ROW * CHESSBOARD_COLUMN]);
 public:
     Che();
     Che(uint32_t row, uint32_t column);
     Che(uint32_t chess, uint32_t country, uint32_t row, uint32_t column);
     Che(uint32_t chess, uint32_t country, uint32_t fontIndex, uint32_t row, uint32_t column);
     ~Che();
-    virtual void Selected(Chess *pChess[MAX_COUNTRY_INDEX][DRAW_COUNTRY_CHESS_COUNT], std::vector<Chess>&canplays)const;
+    virtual void Selected(Chess **pChess, std::vector<Chess>&canplays)const;
 };
 class Ma:public Chess{
 public:
@@ -158,7 +158,7 @@ public:
     Ma(uint32_t chess, uint32_t country, uint32_t row, uint32_t column);
     Ma(uint32_t chess, uint32_t country, uint32_t fontIndex, uint32_t row, uint32_t column);
     ~Ma();
-    virtual void Selected(Chess *pChess[MAX_COUNTRY_INDEX][DRAW_COUNTRY_CHESS_COUNT], std::vector<Chess>&canplays)const;
+    virtual void Selected(Chess **pChess, std::vector<Chess>&canplays)const;
 };
 class Xiang:public Chess{
     bool IsAbroad(uint32_t row, uint32_t column)const;
@@ -168,7 +168,7 @@ public:
     Xiang(uint32_t chess, uint32_t country, uint32_t row, uint32_t column);
     Xiang(uint32_t chess, uint32_t country, uint32_t fontIndex, uint32_t row, uint32_t column);
     ~Xiang();
-    virtual void Selected(Chess *pChess[MAX_COUNTRY_INDEX][DRAW_COUNTRY_CHESS_COUNT], std::vector<Chess>&canplays)const;
+    virtual void Selected(Chess **pChess, std::vector<Chess>&canplays)const;
 };
 class Shi:public Chess{
 public:
@@ -177,7 +177,7 @@ public:
     Shi(uint32_t chess, uint32_t country, uint32_t row, uint32_t column);
     Shi(uint32_t chess, uint32_t country, uint32_t fontIndex, uint32_t row, uint32_t column);
     ~Shi();
-    virtual void Selected(Chess *pChess[MAX_COUNTRY_INDEX][DRAW_COUNTRY_CHESS_COUNT], std::vector<Chess>&canplays)const;
+    virtual void Selected(Chess **pChess, std::vector<Chess>&canplays)const;
 };
 //main.cpp需要用到
 uint32_t GetTerritoryIndex(uint32_t row, uint32_t column);
