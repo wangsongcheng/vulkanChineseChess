@@ -24,7 +24,7 @@ public:
     ~Game();
     bool GameOver();
 
-    void InitinalizeGame();
+    void InitinalizeGame(int32_t player = -1);
 
     void InitializeChess();
 
@@ -42,6 +42,11 @@ public:
 
     // void SelectChess(VkDevice device, const Chess *pChess);
     void CaptureChess(const Chess *play, const Chess *target);
+
+    //自选棋子
+
+    //-1表示需要重新随机
+    void NewGame(int32_t play = -1);
 
     // void UpdateChessUniform(VkDevice device);
     // void UpdateSelectChessUniform(VkDevice device, std::vector<Chess>&canplays);

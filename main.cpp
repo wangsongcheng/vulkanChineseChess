@@ -960,7 +960,7 @@ void UpdateImgui(VkCommandBuffer command){
             ImGui::TableNextColumn();
             if(ImGui::Button(g_Ai.IsPause()?"开始":"暂停")){
                 if(g_Ai.IsPause()){
-                    g_Ai.Start();
+                    if(currentCountry != player)g_Ai.Start();
                 }
                 else{
                     g_Ai.Pause();
@@ -1102,18 +1102,18 @@ void *PlayChessFun(void *userData){
     g_Game.NextCountry();
     //下完棋要调用下面的函数
 #ifdef INTERNET_MODE
-    if(g_ServerAppaction){
-        for (auto it = g_Players.begin(); it != g_Players.end(); ++it){
-            if(it->ai && it->index == g_CurrentCountry){
-                g_Ai.Enable();
-                break;
+        if(g_ServerAppaction){
+            for (auto it = g_Players.begin(); it != g_Players.end(); ++it){
+                if(!g_Ai.IsPause() && it->ai && it->index == g_CurrentCountry){
+                    g_Ai.Enable();
+                    break;
+                }
             }
         }
-    }
 #else
-    if(g_Game.GetCurrentCountry() != g_Game.GetPlayer()){
-        g_Ai.Enable();
-    }
+        if(!g_Ai.IsPause() && g_Ai.GetCurrentCountry() != g_Ai.GetPlayer()){
+            g_Ai.Enable();
+        }
 #endif
     return nullptr;
 }
@@ -1271,7 +1271,7 @@ void Setup(GLFWwindow *window){
     }
     GetLocalIp(g_ServerIp);
 #else
-    // g_Ai.CreatePthread(&g_Game);
+    g_Ai.CreatePthread(&g_Game);
 #endif
 }
 

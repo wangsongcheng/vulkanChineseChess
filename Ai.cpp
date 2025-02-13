@@ -61,7 +61,7 @@ void *AiPlayChess(void *userData){
 #ifdef INTERNET_MODE
         if(g_ServerAppaction){
             for (auto it = g_Players.begin(); it != g_Players.end(); ++it){
-                if(it->ai && it->index == g_CurrentCountry){
+                if(!pAi->IsPause() && it->ai && it->index == g_CurrentCountry){
                     pAi->Enable();
                     break;
                 }
@@ -69,7 +69,7 @@ void *AiPlayChess(void *userData){
         }
 #else
         pAi->NextCountry();
-        if(pAi->GetCurrentCountry() != pAi->GetPlayer()){
+        if(!pAi->IsPause() && pAi->GetCurrentCountry() != pAi->GetPlayer()){
             pAi->Enable();
         }
 #endif

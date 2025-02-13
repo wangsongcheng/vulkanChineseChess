@@ -13,10 +13,13 @@ bool Game::GameOver(){
     }
     return deathCount > 1;
 }
-void Game::InitinalizeGame(){
+void Game::InitinalizeGame(int32_t player){
     mCurrentCountry = rand()%mCountryCount;
 #ifndef INTERNET_MODE
-    mPlayer = rand()%mCountryCount;
+    if(player != -1)
+        mPlayer = player;
+    else
+        mPlayer = rand()%mCountryCount;
 #endif
 }
 void Game::InitializeChess(){
