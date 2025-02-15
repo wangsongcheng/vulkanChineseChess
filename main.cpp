@@ -225,7 +225,21 @@ void NewGame(int32_t player = -1, int32_t currentCountry = -1){
     UpdateChessUniform(g_VulkanDevice.device);
     if(!g_Game.IsOnline())g_Ai.Start();
     g_PlayChessMutex.unlock();
-    if(g_Ai.IsEnd() && !g_Game.IsOnline())g_Ai.CreatePthread(&g_Game, &g_OnLine);
+    if(g_Ai.IsEnd()){
+        if(g_Game.IsOnline()){
+            if(g_OnLine.IsServer()){
+                for (auto it = g_Players.begin(); it != g_Players.end(); ++it){
+                    if(it->ai){
+                        g_Ai.CreatePthread(&g_Game, &g_OnLine);
+                        break;
+                    }
+                }
+            }
+        }
+        else{
+            g_Ai.CreatePthread(&g_Game, &g_OnLine);
+        }
+    }
 }
 void ShowPlayerCountryCombo(){
     static std::string currentCountryItem = g_CountryItems[0][0];
@@ -401,7 +415,7 @@ void *server_start(void *userData){
                 sprintf(g_Players[i].name, "player%d", i + 1);
             }
             //调用这个函数，期望的是能告诉所有客户端，有新客户端加入，并且会把加入的客户端信息发送给所有客户端
-            //然后单独给刚加入的客户端发送所有玩家信息            
+            //然后单独给刚加入的客户端发送所有玩家信息
             g_OnLine.SendClientInfoation(i, &g_Players[i]);
             for (uint32_t uiClientIndex = 0; uiClientIndex < i; ++uiClientIndex){
                 g_OnLine.SendClientInfoation(uiClientIndex, &g_Players[uiClientIndex]);
@@ -409,18 +423,16 @@ void *server_start(void *userData){
             if(message.event != AI_JOIN_GAME_GAME_EVENT)CreateThread(process_server, &socketIndex[i]);
         }
     }
+    if(g_Game.HanCanPslay()){
+        message.event = ENABLE_HANG_GAME_EVENT;
+        g_OnLine.SendToAllClient(&message, sizeof(GameMessage));
+    }
     RandomCountry();
     SendPlayersInfoation();
     g_OnLine.SendCurrentCountry(rand()%g_Game.GetCountryCount());
     //游戏开始, 发消息告诉所有客户端游戏开始
     message.event = GAME_START_GAME_EVENT;
     g_OnLine.SendToAllClient(&message, sizeof(message));
-    for (auto it = g_Players.begin(); it != g_Players.end(); ++it){
-        if(it->ai){
-            g_Ai.CreatePthread(&g_Game, &g_OnLine);
-            break;
-        }
-    }
     return nullptr;
 }
 #else
@@ -493,17 +505,16 @@ void Invert(uint32_t row, uint32_t column, uint32_t&newRow, uint32_t&newColumn){
 }
 //country为下棋的国家
 void RotateChess(uint32_t country, uint32_t row, uint32_t column, uint32_t&newRow, uint32_t&newColumn){
-    // auto aiClientIndex = g_OnLine.GetAiClientIndex();
+    uint32_t uiCountry = country;
     const uint32_t clientIndex = g_OnLine.GetClientIndex();
-    if(country != g_Players[clientIndex].uCountry){
-        //因为ai下棋的位置和服务端一样，所以必须用服务端的国家索引
-        uint32_t uiCountry = country;
-        for (size_t i = 0; i < g_Game.GetCountryCount(); ++i){
-            if(g_Players[i].ai && g_Players[i].uCountry == country){
-                uiCountry = g_Players[0].uCountry;
-                break;
-            }
+    for (size_t i = 0; i < g_Game.GetCountryCount(); ++i){
+        if(g_Players[i].ai && g_Players[i].uCountry == country){
+            uiCountry = g_Players[0].uCountry;
+            break;
         }
+    }
+    if(uiCountry != g_Players[clientIndex].uCountry){
+        //因为ai下棋的位置和服务端一样，所以必须用服务端的国家索引
         if(g_JiangPos[uiCountry].x == g_JiangPos[g_Players[clientIndex].uCountry].x){
             Invert(row, column, newRow, newColumn);
         }
@@ -569,6 +580,9 @@ void *process_client(void *userData){
             printf("game start, you country index is %d\n", g_Players[clientIndex].uCountry);
             NewGame(g_Players[clientIndex].uCountry, g_Game.GetCurrentCountry());
             InitJiangPos();
+        }
+        else if(message.event == ENABLE_HANG_GAME_EVENT){
+            g_Game.EnableHan();
         }
         else if(message.event == JOINS_GAME_GAME_EVENT){
             const uint32_t clientIndex = message.clientIndex;
@@ -737,6 +751,15 @@ void ShowOnlineMode(bool&showConnectServer){
         ShowClientWidget();
     }
     if(!g_OnLine.IsServer()){
+        static bool enableHan;
+        if(ImGui::Checkbox("启用汉势力", &enableHan)){
+            if(enableHan){
+                g_Game.EnableHan();
+            }
+            else{
+                g_Game.DiscardHan();
+            }
+        }
         //如果创建好房间或连接了客户端后, 不应该继续显示下面的按钮
         if(ImGui::BeginTable("客户端信息", 2)){
             ImGui::TableNextColumn();

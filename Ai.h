@@ -20,7 +20,7 @@ class Ai{
     // HANDLE mHandle;
     HANDLE mAiSemaphore;
 #endif
-    bool mEnd;
+    bool mEnd = true;
     bool mPause;
     Game *mGame;
     OnLine *mOnline;
@@ -37,6 +37,7 @@ public:
     inline void End(){
         mEnd = true;
         mGame = nullptr;
+        mOnline = nullptr;
     }
     inline bool IsEnd(){
         return mEnd;

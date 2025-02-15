@@ -67,14 +67,16 @@ public:
     inline bool IsGameStart(){
         return mInfo.bGameStart;
     }
-    inline bool HanCanPslay(){
+    inline bool HanCanPslay()const{
         return mChessboard.HanCanPslay();
     }
     inline void EnableHan(){
         mChessboard.EnableHan();
+        mCountryCount = MAX_COUNTRY_INDEX;
     }
     inline void DiscardHan(){
         mChessboard.DiscardHan();
+        mCountryCount = MAX_COUNTRY_INDEX - 1;
     }
     inline uint32_t GetCurrentCountry(){
         return mCurrentCountry;

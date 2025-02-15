@@ -30,7 +30,7 @@ public:
     inline Chess **GetChess()const{
         return (Chess **)mChess;
     }
-    inline bool HanCanPslay(){
+    inline bool HanCanPslay()const{
         return mHanCanPlay;
     }
     inline void EnableHan(){

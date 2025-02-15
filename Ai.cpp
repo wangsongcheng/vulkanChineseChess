@@ -1,25 +1,10 @@
 #include "Ai.h"
-#include "LuaFrame.h"
 void PlayChess(Chess *pChess, uint32_t dstRow, uint32_t dstColumn);
 extern std::vector<Player>g_Players;
-#ifdef __linux
-lua_State *InitLua(){
-    lua_State *luaState = luaL_newstate();
-    luaL_openlibs(luaState);
-    registration_function(luaState);
-    return luaState;
-}
-#endif
-#ifdef __linux
-void aiPlay(const Ai *pAi, lua_State *pL){
+void aiPlay(const Ai *pAi){
     uint32_t dstRow, dstColumn;
     Chess *pSelect = nullptr, *pTarget = nullptr;
-    if(pL){
-        GetSelectAndTarget(pL, &pSelect, &pTarget, &dstRow, &dstColumn);
-    }
-    else{
-        pAi->GetPlayChess(pAi->GetCurrentCountry(), &pSelect, &pTarget, &dstRow, &dstColumn);
-    }
+    pAi->GetPlayChess(pAi->GetCurrentCountry(), &pSelect, &pTarget, &dstRow, &dstColumn);
     Chess target(dstRow, dstColumn);
     // SelectChess(g_VulkanDevice.device, pSelect);
     if(pAi->IsOnline()){
@@ -36,64 +21,29 @@ void aiPlay(const Ai *pAi, lua_State *pL){
     }
     // UnSelectChess(g_VulkanDevice.device);
 }
-#else
-void aiPlay(const Ai *pAi){
-    uint32_t dstRow, dstColumn;
-    Chess *pSelect = nullptr, *pTarget = nullptr;
-    pAi->GetPlayChess(pAi->GetCurrentCountry(), &pSelect, &pTarget, &dstRow, &dstColumn);
-    Chess target(dstRow, dstColumn);
-    // SelectChess(g_VulkanDevice.device, pSelect);
-    if(pAi->IsOnline()){
-        if(pTarget){
-            pAi->SendPlayChessMessage(g_Players[pSelect->GetCountry()], pSelect, pTarget);
-        }
-        else{
-            target.SetCountry(MAX_COUNTRY_INDEX);
-            pAi->SendPlayChessMessage(g_Players[pSelect->GetCountry()], pSelect, &target);
-        }
-    }
-    else{
-        PlayChess(pSelect, dstRow, dstColumn);
-    }
-    // UnSelectChess(g_VulkanDevice.device);
-}
-#endif
 void *AiPlayChess(void *userData){
     Ai *pAi = (Ai *)userData;
 #ifdef __linux
-    lua_State *luaState = InitLua();
-    if(luaL_loadfile(luaState, "ai.lua") || lua_pcall(luaState, 0, 0, 0)){
-        luaError(luaState, "load luad file error:%s\n", lua_tostring(luaState, -1));
-        lua_close(luaState);
-        luaState = nullptr;
-    }
-    if(pAi->GetPlayer() != pAi->GetCurrentCountry()){
+    if(g_Players[pAi->GetCurrentCountry()].ai){
         //因为创建的时候固定为0,所以如果此时应该ai出牌，那么应该先调用下面的函数一次
         pAi->Enable();
     }
 #endif
     printf("function %s start\n", __FUNCTION__);
-    while(!pAi->GameOver() || pAi->IsEnd()){
+    while(!pAi->GameOver() || !pAi->IsEnd()){
         pAi->Wait();
         if(pAi->IsPause()){
             printf("function %s pause\n", __FUNCTION__);
-           pAi->Wait(); 
+           pAi->Wait();
         }
-#ifdef __linux
-        aiPlay(pAi, luaState);
-#else
         aiPlay(pAi);
-#endif
-        pAi->NextCountry();
-        // printf("current country:%d\n", pAi->GetCurrentCountry());
-        pAi->EnableNextCountry();
+        if(!pAi->IsOnline()){
+            pAi->NextCountry();
+            // printf("current country:%d\n", pAi->GetCurrentCountry());
+            pAi->EnableNextCountry();
+        }
     }
     printf("function %s end\n", __FUNCTION__);
-#ifdef __linux
-    if(luaState){
-        lua_close(luaState);
-    }
-#endif
     return nullptr;
 }
 // bool CanUseCountry(uint32_t countryIndex, const char *country){
@@ -513,7 +463,7 @@ void Ai::EnableNextCountry(){
         }
     }
     else{
-        if(!IsPause() && GetCurrentCountry() != GetPlayer()){
+        if(!IsPause() && currentCountry != GetPlayer()){
             Enable();
         }
     }
