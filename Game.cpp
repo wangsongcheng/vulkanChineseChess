@@ -1,5 +1,6 @@
 #include "Game.h"
 Game::Game(/* args */){
+    mCountryCount = MAX_COUNTRY_INDEX - 1;
 }
 
 Game::~Game(){
@@ -13,14 +14,22 @@ bool Game::GameOver(){
     }
     return deathCount > 1;
 }
-void Game::InitinalizeGame(int32_t player){
-    mCurrentCountry = rand()%mCountryCount;
-#ifndef INTERNET_MODE
+void Game::InitinalizeGame(int32_t player, int32_t currentCountry){
+    StartGame();
+    if(HanCanPslay()){
+        mCountryCount = MAX_COUNTRY_INDEX;
+    }
+    else{
+        mCountryCount = MAX_COUNTRY_INDEX - 1;
+    }
+    if(currentCountry != -1)
+        mCurrentCountry = currentCountry;
+    else
+        mCurrentCountry = rand()%mCountryCount;
     if(player != -1)
         mPlayer = player;
     else
         mPlayer = rand()%mCountryCount;
-#endif
 }
 void Game::InitializeChess(){
     mChessboard.InitializeChess(mPlayer);

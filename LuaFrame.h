@@ -1,5 +1,6 @@
 #ifndef LUA_FRAME_INCLUDE
 #define LUA_FRAME_INCLUDE
+#ifdef __linux
 #include <lua.hpp>
 #include <cstdint>
 #include <lualib.h>
@@ -65,4 +66,5 @@ void registration_function(lua_State *L);
 // int32_t get_table_val(lua_State *L, const char *table_name, const char *key, bool&val);
 // int32_t get_table_val(lua_State *L, const char *table_name, const char *key, uint32_t&val);
 // int32_t get_table_val(lua_State *L, const char *table_name, const char *key, char *val);
+#endif
 #endif

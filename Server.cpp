@@ -1,19 +1,4 @@
 #include "Server.h"
-void Server::SendSelfInfoation(uint32_t clientIndex){
-    GameMessage message;
-    message.event = SELF_CLIENT_INFORMATION_GAME_EVENT;
-    message.clientIndex = clientIndex;
-    SendToClient(clientIndex, &message, sizeof(message));
-}
-void Server::SendPlayerNameInfoation(uint32_t count, const std::array<Player, 3>&players){
-    GameMessage message;
-    message.event = JOINS_GAME_GAME_EVENT;
-    for (uint32_t uiClient = 0; uiClient < count; ++uiClient){
-        message.clientIndex = uiClient;
-        strcpy(message.player.name, players[uiClient].name);
-        SendToAllClient(&message, sizeof(message));
-    }
-}
 Server::Server(/* args */){
 }
 
@@ -53,7 +38,7 @@ bool Server::CreateServer(int listenCount){
     return true;
 }
 
-void Server::SendToAllClient(const void *__buf, size_t __n){
+void Server::SendToAllClient(const void *__buf, size_t __n)const{
     for (auto it = mClients.begin(); it != mClients.end(); ++it){
         it->SendTo(__buf, __n);
     }
@@ -63,16 +48,13 @@ SOCKET Server::AcceptClient(uint32_t client, void *__buf, size_t __n){
     socklen_t size = sizeof(client_addr);
     SOCKET s = accept(mSocket, (struct sockaddr *)&client_addr, &size);
     mClients[client].SetScoket(s);
-    mClients[client].RecvFrom(__buf, __n);
-    GameMessage *pMessage = (GameMessage *)__buf;
-    if(pMessage->event != AI_JOIN_GAME_GAME_EVENT)SendSelfInfoation(client);
     return s;
 }
-void Server::RecvFromClient(uint32_t client, void *__buf, size_t __n){
+void Server::RecvFromClient(uint32_t client, void *__buf, size_t __n)const{
     mClients[client].RecvFrom(__buf, __n);
 }
 
-void Server::SendToClient(uint32_t client, const void *__buf, size_t __n){
+void Server::SendToClient(uint32_t client, const void *__buf, size_t __n)const{
     mClients[client].SendTo(__buf, __n);
 }
 // SOCKET Server::AcceptClient(uint32_t count, std::array<Player, 3>&players) {

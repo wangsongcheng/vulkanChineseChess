@@ -51,7 +51,7 @@ function GetTargetChess(currentCountry, chess)
         if IsChess(country, targetChess) and currentCountry ~= country then
             row = canplayRow
             column = canplayColumn
-            io.write("have target:row  = ", row, ", column = ", column, "\n");
+            -- io.write("have target:row  = ", row, ", column = ", column, "\n");
             break
         end
     end
@@ -64,7 +64,7 @@ function CanPlay(currentCountry, chess)
     for i = 0, canplayCount - 1 do
         local canplayRow, canplayColumn = GetCanPlayRowColumn(currentCountry, chess, i)
         if IsChess(currentCountry, chess) == false or currentCountry ~= GetCountry(canplayRow, canplayColumn) then
-            io.write("this chess(", chess, ") can play, can play row = ", canplayRow, ", column = ", canplayColumn, "\n")
+            -- io.write("this chess(", chess, ") can play, can play row = ", canplayRow, ", column = ", canplayColumn, "\n")
             bCanplay = true
             break
         end
@@ -79,7 +79,7 @@ function GetSelectAndTarget(currentCountry, chessCount)
     local targetRow = -1
     local selectColumn = -1;
     local targetColumn = -1;
-    io.write("------------in lua source file, function GetSelectAndTarget:currentCountry = ", currentCountry, ", chessCount = ", chessCount, "-------------\n")
+    -- io.write("------------in lua source file, function GetSelectAndTarget:currentCountry = ", currentCountry, ", chessCount = ", chessCount, "-------------\n")
     while  true do
         chess = math.random(0, chessCount)
         if CanPlay(currentCountry, chess) then
@@ -87,19 +87,19 @@ function GetSelectAndTarget(currentCountry, chessCount)
             break
         end
     end
-    io.write("chess = ", chess, "\n")
+    -- io.write("chess = ", chess, "\n")
     targetRow, targetColumn = GetTargetChess(currentCountry, chess)
-    io.write("targetRow = ", targetRow, ", targetColumn = ", targetColumn, "\n")
+    -- io.write("targetRow = ", targetRow, ", targetColumn = ", targetColumn, "\n")
     if targetRow == -1 and targetColumn == -1 then
         local canplayCount = GetCanPlayCount(currentCountry, chess)
-        io.write("canplayCount = ", canplayCount, "\n")
+        -- io.write("canplayCount = ", canplayCount, "\n")
         for i = 0, canplayCount do
             local canplayRow, canplayColumn = GetCanPlayRowColumn(currentCountry, chess, i)
-            io.write("canplayRow = ", canplayRow, ", canplayColumn = ", canplayColumn, "\n")
+            -- io.write("canplayRow = ", canplayRow, ", canplayColumn = ", canplayColumn, "\n")
             if IsChess(currentCountry, chess) then
                 targetRow = canplayRow
                 targetColumn = canplayColumn
-                io.write("targetRow = ", targetRow, ", targetColumn = ", targetColumn, "\n")
+                -- io.write("targetRow = ", targetRow, ", targetColumn = ", targetColumn, "\n")
                 break
             end
         end

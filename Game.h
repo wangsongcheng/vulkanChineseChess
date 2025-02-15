@@ -6,25 +6,27 @@
 #include "VulkanWireframe.h"
 #ifdef __linux
 #include <unistd.h>
+#endif
+#ifndef MAX_BYTE
 #define MAX_BYTE 0xff
 #endif
-// #define INTERNET_MODE
+struct GameInof{
+    bool bOnline;
+    bool bGameStart;
+};
 class Game{
+    GameInof mInfo;
     uint32_t mPlayer;
     // VulkanDevice mDevice;
-    uint32_t mCurrentCountry;
-#ifdef HAN_CAN_PLAY
-    const uint32_t mCountryCount = MAX_COUNTRY_INDEX;
-#else
-    const uint32_t mCountryCount = MAX_COUNTRY_INDEX - 1;
-#endif
+    uint32_t mCountryCount;
     Chessboard mChessboard;
+    uint32_t mCurrentCountry;
 public:
     Game(/* args */);
     ~Game();
     bool GameOver();
 
-    void InitinalizeGame(int32_t player = -1);
+    void InitinalizeGame(int32_t player = -1, int32_t currentCountry = -1);
 
     void InitializeChess();
 
@@ -46,10 +48,28 @@ public:
     //自选棋子
 
     //-1表示需要重新随机
-    void NewGame(int32_t play = -1);
+    // void NewGame(int32_t play = -1);
 
     // void UpdateChessUniform(VkDevice device);
     // void UpdateSelectChessUniform(VkDevice device, std::vector<Chess>&canplays);
+    inline uint32_t GetCountryCount(){
+        return mCountryCount;
+    }
+    inline void SetOnline(bool online = true){
+        mInfo.bOnline = online;
+    }
+    inline bool IsOnline()const{
+        return mInfo.bOnline;
+    }
+    inline void StartGame(bool start = true){
+        mInfo.bGameStart = start;
+    }
+    inline bool IsGameStart(){
+        return mInfo.bGameStart;
+    }
+    inline bool HanCanPslay(){
+        return mChessboard.HanCanPslay();
+    }
     inline void EnableHan(){
         mChessboard.EnableHan();
     }
@@ -58,6 +78,9 @@ public:
     }
     inline uint32_t GetCurrentCountry(){
         return mCurrentCountry;
+    }
+    inline void SetCurrentCountry(uint32_t country){
+        mCurrentCountry = country;        
     }
     inline uint32_t GetPlayer(){
         return mPlayer;

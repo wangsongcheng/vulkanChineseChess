@@ -7,22 +7,20 @@ class Server{
     SOCKET mSocket;
     char mName[MAX_BYTE];
     std::array<Client, 4>mClients;
-    void SendSelfInfoation(uint32_t clientIndex);
-    void SendPlayerNameInfoation(uint32_t count, const std::array<Player, 3>&players);
 public:
     Server(/* args */);
     ~Server();
     bool CreateServer(int listenCount);
-    void SendToAllClient(const void *__buf, size_t __n);
+    void SendToAllClient(const void *__buf, size_t __n)const;
     SOCKET AcceptClient(uint32_t client, void *__buf, size_t __n);
-    void RecvFromClient(uint32_t client, void *__buf, size_t __n);
-    void SendToClient(uint32_t client, const void *__buf, size_t __n);
+    void RecvFromClient(uint32_t client, void *__buf, size_t __n)const;
+    void SendToClient(uint32_t client, const void *__buf, size_t __n)const;
     // SOCKET AcceptClient(uint32_t count, std::array<Player, 3>&players);
 
-    inline auto GetClientInfo(){
+    inline auto GetClientInfo()const{
         return mClients;
     }
-    inline const char *GetName(){
+    inline const char *GetName()const{
         return mName;
     }
     inline void ShutdownClient(){

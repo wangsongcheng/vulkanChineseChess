@@ -1,3 +1,4 @@
+#ifdef __linux
 #include "LuaFrame.h"
 #include <string>
 #include <iostream>
@@ -189,3 +190,4 @@ void luaError(lua_State *L, const char *fmt, ...){
     va_end(argp);
     lua_close(L);
 }
+#endif

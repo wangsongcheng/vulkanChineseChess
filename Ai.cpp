@@ -1,17 +1,16 @@
 #include "Ai.h"
 #include "LuaFrame.h"
 void PlayChess(Chess *pChess, uint32_t dstRow, uint32_t dstColumn);
-#ifdef INTERNET_MODE
-#include "SocketFrame.h"
-extern std::array<Player, g_DefaultCountryCount>g_Players;
-void SendPlayChessMessage(const Player&game, const Chess *pSelect, const Chess *pTarget);
-#endif
+extern std::vector<Player>g_Players;
+#ifdef __linux
 lua_State *InitLua(){
     lua_State *luaState = luaL_newstate();
     luaL_openlibs(luaState);
     registration_function(luaState);
     return luaState;
 }
+#endif
+#ifdef __linux
 void aiPlay(const Ai *pAi, lua_State *pL){
     uint32_t dstRow, dstColumn;
     Chess *pSelect = nullptr, *pTarget = nullptr;
@@ -23,28 +22,51 @@ void aiPlay(const Ai *pAi, lua_State *pL){
     }
     Chess target(dstRow, dstColumn);
     // SelectChess(g_VulkanDevice.device, pSelect);
-#ifdef INTERNET_MODE
-    if(pTarget){
-        SendPlayChessMessage(g_Players[pSelect->GetCountry()], pSelect, pTarget);
+    if(pAi->IsOnline()){
+        if(pTarget){
+            pAi->SendPlayChessMessage(g_Players[pAi->GetCurrentCountry()], pSelect, pTarget);
+        }
+        else{
+            target.SetCountry(MAX_COUNTRY_INDEX);
+            pAi->SendPlayChessMessage(g_Players[pAi->GetCurrentCountry()], pSelect, &target);
+        }
     }
     else{
-        target.SetCountry(MAX_COUNTRY_INDEX);
-        SendPlayChessMessage(g_Players[pSelect->GetCountry()], pSelect, &target);
+        PlayChess(pSelect, dstRow, dstColumn);
     }
-#else
-    PlayChess(pSelect, dstRow, dstColumn);
-#endif
     // UnSelectChess(g_VulkanDevice.device);
 }
+#else
+void aiPlay(const Ai *pAi){
+    uint32_t dstRow, dstColumn;
+    Chess *pSelect = nullptr, *pTarget = nullptr;
+    pAi->GetPlayChess(pAi->GetCurrentCountry(), &pSelect, &pTarget, &dstRow, &dstColumn);
+    Chess target(dstRow, dstColumn);
+    // SelectChess(g_VulkanDevice.device, pSelect);
+    if(pAi->IsOnline()){
+        if(pTarget){
+            pAi->SendPlayChessMessage(g_Players[pSelect->GetCountry()], pSelect, pTarget);
+        }
+        else{
+            target.SetCountry(MAX_COUNTRY_INDEX);
+            pAi->SendPlayChessMessage(g_Players[pSelect->GetCountry()], pSelect, &target);
+        }
+    }
+    else{
+        PlayChess(pSelect, dstRow, dstColumn);
+    }
+    // UnSelectChess(g_VulkanDevice.device);
+}
+#endif
 void *AiPlayChess(void *userData){
     Ai *pAi = (Ai *)userData;
+#ifdef __linux
     lua_State *luaState = InitLua();
     if(luaL_loadfile(luaState, "ai.lua") || lua_pcall(luaState, 0, 0, 0)){
         luaError(luaState, "load luad file error:%s\n", lua_tostring(luaState, -1));
         lua_close(luaState);
         luaState = nullptr;
     }
-#ifdef __linux
     if(pAi->GetPlayer() != pAi->GetCurrentCountry()){
         //因为创建的时候固定为0,所以如果此时应该ai出牌，那么应该先调用下面的函数一次
         pAi->Enable();
@@ -57,29 +79,39 @@ void *AiPlayChess(void *userData){
             printf("function %s pause\n", __FUNCTION__);
            pAi->Wait(); 
         }
+#ifdef __linux
         aiPlay(pAi, luaState);
-#ifdef INTERNET_MODE
-        if(g_ServerAppaction){
-            for (auto it = g_Players.begin(); it != g_Players.end(); ++it){
-                if(!pAi->IsPause() && it->ai && it->index == g_CurrentCountry){
-                    pAi->Enable();
-                    break;
-                }
-            }
-        }
 #else
-        pAi->NextCountry();
-        if(!pAi->IsPause() && pAi->GetCurrentCountry() != pAi->GetPlayer()){
-            pAi->Enable();
-        }
+        aiPlay(pAi);
 #endif
+        pAi->NextCountry();
+        // printf("current country:%d\n", pAi->GetCurrentCountry());
+        pAi->EnableNextCountry();
     }
     printf("function %s end\n", __FUNCTION__);
+#ifdef __linux
     if(luaState){
         lua_close(luaState);
     }
+#endif
     return nullptr;
 }
+// bool CanUseCountry(uint32_t countryIndex, const char *country){
+//     bool bCanUse = true;
+//     uint32_t playerIndex = 0;
+//     for (auto it = g_Players.begin(); it != g_Players.end(); ++it, ++playerIndex){
+//         if(countryIndex != playerIndex && !strcmp(it->country, country)){
+//             bCanUse = false;
+//             break;
+//         }
+//     }
+//     return bCanUse;
+// }
+// void Swap(uint32_t *src, uint32_t *dst){
+//     uint32_t temp = *src;
+//     *src = *dst;
+//     *dst = temp;
+// }
 /*
 编写象棋游戏的AI涉及多个关键步骤，包括棋盘表示、走法生成、评估函数和搜索算法。以下是一个分步指南和示例代码片段：
 
@@ -470,11 +502,28 @@ void Ai::Enable(){
     SetEvent(mAiSemaphore);
 #endif // WIN32
 }
-void Ai::CreatePthread(Game *pGame){
+void Ai::EnableNextCountry(){
+    const uint32_t currentCountry = GetCurrentCountry();
+    if(IsOnline() && IsServer()){
+        for (auto it = g_Players.begin(); it != g_Players.end(); ++it){
+            if(!IsPause() && it->ai && it->uCountry == currentCountry){
+                Enable();
+                break;
+            }
+        }
+    }
+    else{
+        if(!IsPause() && GetCurrentCountry() != GetPlayer()){
+            Enable();
+        }
+    }
+}
+void Ai::CreatePthread(Game *pGame, OnLine *pOnline){
     if(mGame != nullptr)return;
     mEnd = false;
     mPause = false;
     mGame = pGame;
+    mOnline = pOnline;
 #ifdef WIN32
     DWORD  pthreadId;
     CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)AiPlayChess, this, 0, &pthreadId);
@@ -484,7 +533,7 @@ void Ai::CreatePthread(Game *pGame){
     pthread_create(&pthreadId, nullptr, AiPlayChess, this);
 #endif
 }
-void Ai::GetPlayChess(uint32_t country, Chess **pSelect, Chess **pTarget, uint32_t *row, uint32_t *column)const{
+void Ai::GetPlayChess(uint32_t country, Chess **pSelect, Chess **pTarget, uint32_t *row, uint32_t *column) const{
     std::vector<Chess>canplays;
     // const ChessInfo *pSelect = nullptr, *pRival = nullptr;
     // const uint32_t nextCountry = GetNextCountry(g_CurrentCountry);
