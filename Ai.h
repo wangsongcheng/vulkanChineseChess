@@ -48,9 +48,9 @@ public:
     inline void Pause(){
         mPause = true;
     }
-    inline void Start(){
+    inline void Start(bool enable = false){
         mPause = false;
-        Enable();
+        if(enable)Enable();
     }
     inline bool IsOnline()const{
         return mGame->IsOnline();

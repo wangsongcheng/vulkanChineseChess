@@ -3,6 +3,8 @@
 #ifdef __linux
 #include <pthread.h>
 #endif
+#include <chrono>
+#include <thread>
 #include <mutex>
 #include <ranges>
 #include <random>
@@ -237,7 +239,7 @@ void NewGame(int32_t player = -1, int32_t currentCountry = -1){
             }
         }
         else{
-            g_Ai.CreatePthread(&g_Game, &g_OnLine);
+            // g_Ai.CreatePthread(&g_Game, &g_OnLine);
         }
     }
 }
@@ -297,7 +299,7 @@ void ShowSinglePlayerMode(){
         ImGui::TableNextColumn();
         if(ImGui::Button(g_Ai.IsPause()?"开始":"暂停")){
             if(g_Ai.IsPause()){
-                if(currentCountry != player)g_Ai.Start();
+                g_Ai.Start(currentCountry != player);
             }
             else{
                 g_Ai.Pause();
@@ -949,9 +951,9 @@ Chess *GetChess(const glm::vec2&mousePos){
 }
 
 const Chess *SelectChess(uint32_t country, const glm::vec2&mousePos){
-    // const Chess *pSelected = GetChess(mousePos);
+    const Chess *pSelected = GetChess(mousePos);
     //想让玩家不能操作其他势力棋子, 则用下面的函数
-    const Chess *pSelected = g_Game.GetChess(country, mousePos);
+    // const Chess *pSelected = g_Game.GetChess(country, mousePos);
     if(g_Game.IsOnline() && g_Game.IsGameStart() && country != g_Players[g_OnLine.GetClientIndex()].uCountry){
         pSelected = nullptr;
     }
@@ -1242,7 +1244,21 @@ int main(){
     }
     SetupVulkan(window);
     Setup(window);
+    const double targetFrameTime = 1.0 / 60.0; // 目标帧时间（例如60 FPS）
+    auto previousTime = std::chrono::high_resolution_clock::now();
     while (!glfwWindowShouldClose(window)) {
+        auto currentTime = std::chrono::high_resolution_clock::now();
+        double elapsedTime = std::chrono::duration<double>(currentTime - previousTime).count();
+
+        if (elapsedTime < targetFrameTime) {
+            // 计算剩余需要等待的时间
+            double sleepTime = (targetFrameTime - elapsedTime) * 1000; // 转换为毫秒
+            std::this_thread::sleep_for(std::chrono::milliseconds((int)sleepTime));
+        }
+
+        // 更新前一帧时间
+        previousTime = std::chrono::high_resolution_clock::now();
+
         display(window);
 
         glfwPollEvents();

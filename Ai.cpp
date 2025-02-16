@@ -453,18 +453,20 @@ void Ai::Enable(){
 #endif // WIN32
 }
 void Ai::EnableNextCountry(){
-    const uint32_t currentCountry = GetCurrentCountry();
-    if(IsOnline() && IsServer()){
-        for (auto it = g_Players.begin(); it != g_Players.end(); ++it){
-            if(!IsPause() && it->ai && it->uCountry == currentCountry){
-                Enable();
-                break;
+    if(mGame && mOnline){
+        const uint32_t currentCountry = GetCurrentCountry();
+        if(IsOnline() && IsServer()){
+            for (auto it = g_Players.begin(); it != g_Players.end(); ++it){
+                if(!IsPause() && it->ai && it->uCountry == currentCountry){
+                    Enable();
+                    break;
+                }
             }
         }
-    }
-    else{
-        if(!IsPause() && currentCountry != GetPlayer()){
-            Enable();
+        else{
+            if(!IsPause() && currentCountry != GetPlayer()){
+                Enable();
+            }
         }
     }
 }
