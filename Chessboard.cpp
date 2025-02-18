@@ -346,37 +346,23 @@ void Chessboard::GetCountryChess(uint32_t srcCountry, uint32_t dstCountry){
         }
     }
 }
-uint32_t Chessboard::Check(){
-    uint32_t country = INVALID_COUNTRY_INDEX;
-    for (size_t uiCountry = 0; uiCountry < MAX_COUNTRY_INDEX; ++uiCountry){
-        if(Check(uiCountry)){
-            country = uiCountry;
-            break;
-        }
-    }
-    return country;
-}
-bool Chessboard::Check(uint32_t country){
-    bool bCheck = false;
-    //找出除自身外的棋子中，目标是否包含自身的将军
-    for (size_t uiCountry = 0; uiCountry < MAX_COUNTRY_INDEX; ++uiCountry){
-        for (size_t uiChess = 0; uiChess < DRAW_COUNTRY_CHESS_COUNT; ++uiChess){
-            if(uiCountry != country){
-                std::vector<Chess>canplays;
-                if(mChess[uiCountry][uiChess])mChess[uiCountry][uiChess]->Selected((Chess **)mChess, canplays);
-                for(auto it:canplays){
-                    const Chess *pChess = GetChess(it.GetRow(), it.GetColumn());
-                    if(pChess && pChess->GetChess() == JIANG_CHESS_INDEX){
-                        bCheck = true;
-                        uiCountry = MAX_COUNTRY_INDEX;
-                        uiChess = DRAW_COUNTRY_CHESS_COUNT;
-                        break;
-                    }
-                }                
+uint32_t Chessboard::Check(uint32_t country, uint32_t chess){
+    uint32_t dstCountry = INVALID_COUNTRY_INDEX;
+    for (size_t uiChess = 0; uiChess < DRAW_COUNTRY_CHESS_COUNT; ++uiChess){
+        std::vector<Chess>canplays;
+        if(mChess[country][uiChess]){
+            mChess[country][uiChess]->Selected((Chess **)mChess, canplays);
+            for(auto it:canplays){
+                const Chess *pChess = GetChess(it.GetRow(), it.GetColumn());
+                if(pChess && pChess->GetChess() == chess){
+                    dstCountry = pChess->GetCountry();
+                    uiChess = DRAW_COUNTRY_CHESS_COUNT;
+                    break;
+                }
             }
-        }
+        }             
     }
-    return bCheck;
+    return dstCountry;
 }
 uint32_t Chessboard::GetChessCount(uint32_t country){
     uint32_t count = 0;

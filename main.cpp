@@ -917,7 +917,7 @@ void *PlayChessFun(void *userData){
     Chess *pStart = g_Game.GetChess(ppc.srcCountry, ppc.srcRow, ppc.srcColumn);
     PlayChess(pStart, ppc.dstRow, ppc.dstColumn);
     const uint32_t country = g_Game.Check();
-    if(country != INVALID_COUNTRY_INDEX){
+    if(country != INVALID_COUNTRY_INDEX && g_Game.GetNextCountry() != country){
         g_Game.ExtraTurn(country);
     }
     else{

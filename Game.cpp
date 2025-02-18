@@ -43,6 +43,9 @@ void Game::NextCountry(){
         mCurrentCountry = GetNextCountry(mCurrentCountry);
     }
 }
+uint32_t Game::GetNextCountry(){
+    return GetNextCountry(mCurrentCountry);
+}
 uint32_t Game::GetNextCountry(uint32_t country){
     do{
         country = (country + 1) % mCountryCount;
@@ -57,4 +60,16 @@ void Game::ExtraTurn(uint32_t country){
 
 void Game::CaptureChess(const Chess *play, const Chess *target){
     mChessboard.CaptureChess(play, target);
+}
+
+uint32_t Game::Check(){
+    uint32_t country = INVALID_COUNTRY_INDEX, currentCountry = mCurrentCountry;
+    do{
+        country = mChessboard.Check(currentCountry, JIANG_CHESS_INDEX);
+        if(INVALID_COUNTRY_INDEX != country){
+            break;
+        }
+        currentCountry = GetNextCountry(currentCountry);
+    } while (currentCountry != mCurrentCountry);
+    return country;
 }

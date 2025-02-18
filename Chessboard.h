@@ -18,10 +18,8 @@ public:
     void InitializeChess(uint32_t playerCountry);
     void CaptureChess(const Chess *play, const Chess *target);
     void GetCountryChess(uint32_t srcCountry, uint32_t dstCountry);
-    //返回的是被将军的势力, 该势力需要想办法解除将军
-    uint32_t Check();
-    //country是被将军的国家
-    bool Check(uint32_t country);
+    //返回country中, 目标包含chess的国家
+    uint32_t Check(uint32_t country, uint32_t chess);
 
     uint32_t GetChessCount(uint32_t country);
     Chess *GetChess(uint32_t row, uint32_t column)const;

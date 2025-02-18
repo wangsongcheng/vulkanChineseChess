@@ -33,6 +33,8 @@ public:
     // void Cleanup();
     // void Setup(VulkanDevice device, VkDescriptorSetLayout setLayout, VkQueue graphics, VulkanPool pool);
     void NextCountry();
+    // uint32_t GetCountry();
+    uint32_t GetNextCountry();
     uint32_t GetNextCountry(uint32_t country);
 
     void ExtraTurn(uint32_t country);
@@ -53,9 +55,7 @@ public:
 
     // void UpdateChessUniform(VkDevice device);
     // void UpdateSelectChessUniform(VkDevice device, std::vector<Chess>&canplays);
-    inline uint32_t Check(){
-        return mChessboard.Check();
-    }
+    uint32_t Check();
     inline uint32_t GetCountryCount(){
         return mCountryCount;
     }
