@@ -24,18 +24,23 @@ void aiPlay(const Ai *pAi){
 void *AiPlayChess(void *userData){
     Ai *pAi = (Ai *)userData;
 #ifdef __linux
-    if(g_Players[pAi->GetCurrentCountry()].ai){
-        //因为创建的时候固定为0,所以如果此时应该ai出牌，那么应该先调用下面的函数一次
+    if(pAi->IsOnline()){
+        if(g_Players[pAi->GetCurrentCountry()].ai){
+            //因为创建的时候固定为0,所以如果此时应该ai出牌，那么应该先调用下面的函数一次
+            pAi->Enable();
+        }
+    }
+    else if(pAi->GetCurrentCountry() != pAi->GetPlayer()){
         pAi->Enable();
     }
 #endif
     printf("function %s start\n", __FUNCTION__);
     while(!pAi->GameOver() || !pAi->IsEnd()){
         pAi->Wait();
-        if(pAi->IsPause()){
-            printf("function %s pause\n", __FUNCTION__);
-           pAi->Wait();
-        }
+        // if(pAi->IsPause()){
+        //     printf("function %s pause\n", __FUNCTION__);
+        //    pAi->Wait();
+        // }
         aiPlay(pAi);
         if(!pAi->IsOnline()){
             pAi->NextCountry();
@@ -457,23 +462,23 @@ void Ai::EnableNextCountry(){
         const uint32_t currentCountry = GetCurrentCountry();
         if(IsOnline() && IsServer()){
             for (auto it = g_Players.begin(); it != g_Players.end(); ++it){
-                if(!IsPause() && it->ai && it->uCountry == currentCountry){
+                if(!IsEnd() && it->ai && it->uCountry == currentCountry){
                     Enable();
                     break;
                 }
             }
         }
         else{
-            if(!IsPause() && currentCountry != GetPlayer()){
+            if(!IsEnd() && currentCountry != GetPlayer()){
                 Enable();
             }
         }
     }
 }
 void Ai::CreatePthread(Game *pGame, OnLine *pOnline){
-    if(mGame != nullptr)return;
+    if(!mEnd)return;
     mEnd = false;
-    mPause = false;
+    // mPause = false;
     mGame = pGame;
     mOnline = pOnline;
 #ifdef WIN32

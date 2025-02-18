@@ -21,7 +21,7 @@ class Ai{
     HANDLE mAiSemaphore;
 #endif
     bool mEnd = true;
-    bool mPause;
+    // bool mPause;
     Game *mGame;
     OnLine *mOnline;
     int32_t CanPlay(uint32_t country, const std::vector<Chess>&canplays)const;
@@ -36,22 +36,20 @@ public:
 
     inline void End(){
         mEnd = true;
-        mGame = nullptr;
-        mOnline = nullptr;
     }
     inline bool IsEnd(){
         return mEnd;
     }
-    inline bool IsPause(){
-        return mPause;
-    }
-    inline void Pause(){
-        mPause = true;
-    }
-    inline void Start(bool enable = false){
-        mPause = false;
-        if(enable)Enable();
-    }
+    // inline bool IsPause(){
+    //     return mPause;
+    // }
+    // inline void Pause(){
+    //     mPause = true;
+    // }
+    // inline void Start(bool enable = false){
+    //     mPause = false;
+    //     if(enable)Enable();
+    // }
     inline bool IsOnline()const{
         return mGame->IsOnline();
     }

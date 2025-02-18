@@ -308,31 +308,75 @@ void Chessboard::CaptureChess(const Chess *play, const Chess *target){
     }
 }
 void Chessboard::GetCountryChess(uint32_t srcCountry, uint32_t dstCountry){
-    if(!mHanCanPlay){
-        if(dstCountry == HAN_COUNTRY_INDEX){
-            for (uint32_t uiChess = HAN_PAO_CHESS_INDEX; uiChess < HAN_CHESS_COUNT; ++uiChess){
-                Chess *pChess = mChess[dstCountry][uiChess];
-                if(pChess){
-                    uint32_t fontIndex;
-                    if(uiChess >= HAN_PAO_CHESS_INDEX && uiChess < HAN_PAO_CHESS_INDEX + HAN_PAO_CHESS_COUNT){
-                        fontIndex = FONT_INDEX_PAO;
-                        mChess[srcCountry][uiChess + COUNTRY_CHESS_COUNT] = new Pao;
-                    }
-                    else if(uiChess >= HAN_CHE_CHESS_INDEX && uiChess < HAN_CHE_CHESS_INDEX + HAN_CHE_CHESS_COUNT){
-                        fontIndex = FONT_INDEX_CHE;
-                        mChess[srcCountry][uiChess + COUNTRY_CHESS_COUNT] = new Che;
-                    }
-                    mChess[srcCountry][uiChess + COUNTRY_CHESS_COUNT]->SetCountry(srcCountry);
-                    mChess[srcCountry][uiChess + COUNTRY_CHESS_COUNT]->SetFontIndex(fontIndex);
-                    mChess[srcCountry][uiChess + COUNTRY_CHESS_COUNT]->SetChess(uiChess + COUNTRY_CHESS_COUNT);
-                    mChess[srcCountry][uiChess + COUNTRY_CHESS_COUNT]->SetPos(pChess->GetRow(), pChess->GetColumn());
+    uint32_t fontIndex;
+    for (uint32_t uiChess = JIANG_CHESS_INDEX + 1; uiChess < DRAW_COUNTRY_CHESS_COUNT; ++uiChess){
+        Chess *pChess = mChess[dstCountry][uiChess];
+        if(pChess){
+            if(uiChess >= MA_CHESS_INDEX && uiChess < MA_CHESS_INDEX + MA_CHESS_COUNT){
+                fontIndex = FONT_INDEX_MA;
+                mChess[srcCountry][uiChess + COUNTRY_CHESS_COUNT] = new Ma();
+            }
+            else if(uiChess >= PAO_CHESS_INDEX && uiChess < PAO_CHESS_INDEX + PAO_CHESS_COUNT){
+                fontIndex = FONT_INDEX_PAO;
+                mChess[srcCountry][uiChess + COUNTRY_CHESS_COUNT] = new Pao();
+            }
+            else if(uiChess >= CHE_CHESS_INDEX && uiChess < CHE_CHESS_INDEX + CHE_CHESS_COUNT){
+                fontIndex = FONT_INDEX_CHE;
+                mChess[srcCountry][uiChess + COUNTRY_CHESS_COUNT] = new Che();
+            }
+            else if(uiChess >= SHI_CHESS_INDEX && uiChess < SHI_CHESS_INDEX + SHI_CHESS_COUNT){
+                fontIndex = FONT_INDEX_SHI;
+                mChess[srcCountry][uiChess + COUNTRY_CHESS_COUNT] = new Shi();
+            }
+            else if(uiChess >= XIANG_CHESS_INDEX && uiChess < XIANG_CHESS_INDEX + XIANG_CHESS_COUNT){
+                fontIndex = FONT_INDEX_XIANG;
+                mChess[srcCountry][uiChess + COUNTRY_CHESS_COUNT] = new Xiang();
+            }
+            else if(uiChess >= BING_CHESS_INDEX&& uiChess < BING_CHESS_INDEX + BING_CHESS_COUNT){
+                fontIndex = FONT_INDEX_BING;
+                mChess[srcCountry][uiChess + COUNTRY_CHESS_COUNT] = new Bing();
+            }
+            mChess[srcCountry][uiChess + COUNTRY_CHESS_COUNT]->SetCountry(srcCountry);
+            mChess[srcCountry][uiChess + COUNTRY_CHESS_COUNT]->SetFontIndex(fontIndex);
+            mChess[srcCountry][uiChess + COUNTRY_CHESS_COUNT]->SetChess(uiChess + COUNTRY_CHESS_COUNT);
+            mChess[srcCountry][uiChess + COUNTRY_CHESS_COUNT]->SetPos(pChess->GetRow(), pChess->GetColumn());
 
-                    delete mChess[dstCountry][uiChess];
-                    mChess[dstCountry][uiChess] = nullptr;
-                }
+            delete mChess[dstCountry][uiChess];
+            mChess[dstCountry][uiChess] = nullptr;
+        }
+    }
+}
+uint32_t Chessboard::Check(){
+    uint32_t country = INVALID_COUNTRY_INDEX;
+    for (size_t uiCountry = 0; uiCountry < MAX_COUNTRY_INDEX; ++uiCountry){
+        if(Check(uiCountry)){
+            country = uiCountry;
+            break;
+        }
+    }
+    return country;
+}
+bool Chessboard::Check(uint32_t country){
+    bool bCheck = false;
+    //找出除自身外的棋子中，目标是否包含自身的将军
+    for (size_t uiCountry = 0; uiCountry < MAX_COUNTRY_INDEX; ++uiCountry){
+        for (size_t uiChess = 0; uiChess < DRAW_COUNTRY_CHESS_COUNT; ++uiChess){
+            if(uiCountry != country){
+                std::vector<Chess>canplays;
+                if(mChess[uiCountry][uiChess])mChess[uiCountry][uiChess]->Selected((Chess **)mChess, canplays);
+                for(auto it:canplays){
+                    const Chess *pChess = GetChess(it.GetRow(), it.GetColumn());
+                    if(pChess && pChess->GetChess() == JIANG_CHESS_INDEX){
+                        bCheck = true;
+                        uiCountry = MAX_COUNTRY_INDEX;
+                        uiChess = DRAW_COUNTRY_CHESS_COUNT;
+                        break;
+                    }
+                }                
             }
         }
     }
+    return bCheck;
 }
 uint32_t Chessboard::GetChessCount(uint32_t country){
     uint32_t count = 0;

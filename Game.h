@@ -16,11 +16,11 @@ struct GameInof{
 };
 class Game{
     GameInof mInfo;
-    uint32_t mPlayer;
     // VulkanDevice mDevice;
     uint32_t mCountryCount;
     Chessboard mChessboard;
     uint32_t mCurrentCountry;
+    uint32_t mPlayer = INVALID_COUNTRY_INDEX, mBackupPlayer = INVALID_COUNTRY_INDEX;
 public:
     Game(/* args */);
     ~Game();
@@ -32,9 +32,10 @@ public:
 
     // void Cleanup();
     // void Setup(VulkanDevice device, VkDescriptorSetLayout setLayout, VkQueue graphics, VulkanPool pool);
-    
     void NextCountry();
     uint32_t GetNextCountry(uint32_t country);
+
+    void ExtraTurn(uint32_t country);
 
     // void UnSelectChess();
     // void PlayChess(Chess *pChess, uint32_t dstRow, uint32_t dstColumn);
@@ -52,6 +53,9 @@ public:
 
     // void UpdateChessUniform(VkDevice device);
     // void UpdateSelectChessUniform(VkDevice device, std::vector<Chess>&canplays);
+    inline uint32_t Check(){
+        return mChessboard.Check();
+    }
     inline uint32_t GetCountryCount(){
         return mCountryCount;
     }

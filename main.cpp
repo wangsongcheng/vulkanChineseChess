@@ -220,12 +220,14 @@ auto CreateThread(void *(*__start_routine)(void *), void *__arg){
     return pthreadId;
 }
 void NewGame(int32_t player = -1, int32_t currentCountry = -1){
-    if(!g_Game.IsOnline())g_Ai.Pause();
+    g_Game.StartGame();
+    g_Ai.End();
+    // if(!g_Game.IsOnline())g_Ai.Pause();
     g_PlayChessMutex.lock();
     g_Game.InitinalizeGame(player, currentCountry);
     g_Game.InitializeChess();
     UpdateChessUniform(g_VulkanDevice.device);
-    if(!g_Game.IsOnline())g_Ai.Start();
+    // if(!g_Game.IsOnline())g_Ai.Start();
     g_PlayChessMutex.unlock();
     if(g_Ai.IsEnd()){
         if(g_Game.IsOnline()){
@@ -239,7 +241,7 @@ void NewGame(int32_t player = -1, int32_t currentCountry = -1){
             }
         }
         else{
-            // g_Ai.CreatePthread(&g_Game, &g_OnLine);
+            g_Ai.CreatePthread(&g_Game, &g_OnLine);
         }
     }
 }
@@ -269,47 +271,6 @@ void ShowPlayerCountryCombo(){
             }
         }
         ImGui::EndCombo();
-    }
-}
-void ShowSinglePlayerMode(){
-    const char *countryName[4];
-    countryName[WU_COUNTRY_INDEX] = "吴";
-    countryName[WEI_COUNTRY_INDEX] = "魏";
-    countryName[SHU_COUNTRY_INDEX] = "蜀";
-    countryName[HAN_COUNTRY_INDEX] = "汉";
-    const uint32_t currentCountry = g_Game.GetCurrentCountry(), player = g_Game.GetPlayer();
-    if(currentCountry != -1 && player){
-        ImGui::Text("你是%s, 该%s下棋\n", countryName[player], player == currentCountry?"你":countryName[currentCountry]);
-    }
-    static bool enableHan;
-    if(ImGui::Checkbox("启用汉势力", &enableHan)){
-        if(enableHan){
-            g_Game.EnableHan();
-        }
-        else{
-            g_Game.DiscardHan();
-        }
-        NewGame();
-    }
-    if(ImGui::BeginTable("单人模式-按钮表格", 2)){
-        ImGui::TableNextColumn();
-        if(ImGui::Button("新游戏")){
-            NewGame();
-        }
-        ImGui::TableNextColumn();
-        if(ImGui::Button(g_Ai.IsPause()?"开始":"暂停")){
-            if(g_Ai.IsPause()){
-                g_Ai.Start(currentCountry != player);
-            }
-            else{
-                g_Ai.Pause();
-            }
-        }
-        ImGui::EndTable();
-    }
-    ShowPlayerCountryCombo();
-    if(ImGui::Button("返回")){
-        g_Game.StartGame(false);
     }
 }
 void ResetCountryItem(std::vector<std::string>&countryItems){
@@ -715,23 +676,25 @@ void ShowClientWidget(){
     }
 }
 void ShowGameWidget(){
-    const char *countryName[4];
-    countryName[WU_COUNTRY_INDEX] = "吴";
-    countryName[WEI_COUNTRY_INDEX] = "魏";
-    countryName[SHU_COUNTRY_INDEX] = "蜀";
-    countryName[HAN_COUNTRY_INDEX] = "汉";
-    const uint32_t currentCountry = g_Game.GetCurrentCountry(), player = g_Game.GetPlayer(), clientIndex = g_OnLine.GetClientIndex();
-    if(currentCountry != -1){
-        ImGui::Text("你是%s, 该%s下棋\n", countryName[g_Players[clientIndex].uCountry], g_Players[clientIndex].uCountry == currentCountry?"你":countryName[currentCountry]);
+    if(ImGui::Begin("三国象棋")){
+        const char *countryName[4];
+        countryName[WU_COUNTRY_INDEX] = "吴";
+        countryName[WEI_COUNTRY_INDEX] = "魏";
+        countryName[SHU_COUNTRY_INDEX] = "蜀";
+        countryName[HAN_COUNTRY_INDEX] = "汉";
+        const uint32_t currentCountry = g_Game.GetCurrentCountry(), player = g_Game.GetPlayer(), clientIndex = g_OnLine.GetClientIndex();
+        if(currentCountry != INVALID_COUNTRY_INDEX){
+            ImGui::Text("你是%s, 该%s下棋\n", countryName[g_Players[clientIndex].uCountry], g_Players[clientIndex].uCountry == currentCountry?"你":countryName[currentCountry]);
+        }
     }
-    ShowClientWidget();
+    ImGui::End();
 }
-void ShowServerWidget(bool gameStart){
+void ShowServerWidget(){
     //在非广播模式下，直接显示本机ip。(或许广播模式下也可以显示)
     static std::string localIp = g_OnLine.GetLocalIp();
     ImGui::Text("本机ip:%s", localIp.c_str());
     ShowClientWidget();
-    if(!gameStart){
+    if(!g_Game.IsGameStart()){
         if(ImGui::Button("添加电脑")){
             uint32_t aiCount = 0;
             for (auto it = g_Players.begin(); it != g_Players.end(); it++){
@@ -745,14 +708,89 @@ void ShowServerWidget(bool gameStart){
         }
     }
 }
-void ShowOnlineMode(bool&showConnectServer){
-    if(g_OnLine.IsServer()){
-        ShowServerWidget(g_Game.IsGameStart());
+bool ShowConnectServerInterface(){
+    bool show = true;
+    if(ImGui::Begin("连接服务端")){
+        static char serverIp[MAX_BYTE] = {0};
+        ImGui::InputText("服务端ip", serverIp, sizeof(serverIp));
+        if(ImGui::BeginTable("确定取消按钮", 3)){
+            ImGui::TableNextColumn();
+            if(ImGui::Button("确定")){
+                show = false;
+                CreateClient(serverIp);
+            }
+            ImGui::TableNextColumn();
+            if(ImGui::Button("使用本机ip连接")){
+                strcpy(serverIp, g_OnLine.GetLocalIp().c_str());
+                // show = false;
+                // CreateClient(g_ServerIp);
+            }
+            ImGui::TableNextColumn();
+            if(ImGui::Button("取消")){
+                show = false;
+            }
+            ImGui::EndTable();
+        }
+        ImGui::End();
     }
-    else{
-        ShowClientWidget();
+    return show;
+}
+bool ShowOnlineModeMainInterface(bool *mainInterface){
+    bool ret = false;
+    static bool bShowConnectServer;
+    if(ImGui::Begin("局域网联机")){
+        if(g_OnLine.IsServer()){
+            ShowServerWidget();
+        }
+        else{
+            ShowClientWidget();
+        }
+        if(!g_OnLine.IsServer()){
+            static bool enableHan;
+            if(ImGui::Checkbox("启用汉势力", &enableHan)){
+                if(enableHan){
+                    g_Game.EnableHan();
+                }
+                else{
+                    g_Game.DiscardHan();
+                }
+            }
+            //如果创建好房间或连接了客户端后, 不应该继续显示下面的按钮
+            if(ImGui::BeginTable("客户端信息", 2)){
+                ImGui::TableNextColumn();
+                if(ImGui::Button("创建服务端")){
+                    CreateServer("name");
+                }
+                ImGui::TableNextColumn();
+                if(ImGui::Button("连接服务端")){
+                    bShowConnectServer = true;
+                }
+                ImGui::EndTable();
+            }
+        }
+        if(ImGui::Button("返回")){
+            ret = true;
+            *mainInterface = true;
+        }
     }
-    if(!g_OnLine.IsServer()){
+    ImGui::End();
+    if(bShowConnectServer){
+        bShowConnectServer = ShowConnectServerInterface();
+    }
+    return !ret;
+}
+bool ShowSinglePlayerModeMainInterface(bool *mainInterface){
+    bool ret = false;
+    const char *countryName[4];
+    countryName[WU_COUNTRY_INDEX] = "吴";
+    countryName[WEI_COUNTRY_INDEX] = "魏";
+    countryName[SHU_COUNTRY_INDEX] = "蜀";
+    countryName[HAN_COUNTRY_INDEX] = "汉";
+    const uint32_t currentCountry = g_Game.GetCurrentCountry(), player = g_Game.GetPlayer();
+    if(ImGui::Begin("单人模式")){
+        if(currentCountry != INVALID_COUNTRY_INDEX && player != INVALID_COUNTRY_INDEX){
+            ImGui::Text("你是%s, 该%s下棋\n", countryName[player], player == currentCountry?"你":countryName[currentCountry]);
+        }
         static bool enableHan;
         if(ImGui::Checkbox("启用汉势力", &enableHan)){
             if(enableHan){
@@ -761,110 +799,66 @@ void ShowOnlineMode(bool&showConnectServer){
             else{
                 g_Game.DiscardHan();
             }
+            NewGame();
         }
-        //如果创建好房间或连接了客户端后, 不应该继续显示下面的按钮
-        if(ImGui::BeginTable("客户端信息", 2)){
+        if(ImGui::BeginTable("单人模式-按钮表格", 2)){
             ImGui::TableNextColumn();
-            if(ImGui::Button("创建服务端")){
-                CreateServer("name");
-                // bShowCreateServer = true;
+            if(ImGui::Button("新游戏")){
+                NewGame();
             }
             ImGui::TableNextColumn();
-            if(ImGui::Button("连接服务端")){
-                showConnectServer = true;
+            if(ImGui::Button(g_Ai.IsEnd()?"开始":"暂停")){
+                if(g_Ai.IsEnd()){
+                    g_Ai.CreatePthread(&g_Game, &g_OnLine);
+                }
+                else{
+                    g_Ai.End();
+                }
+            }
+            ImGui::EndTable();
+        }
+        ShowPlayerCountryCombo();
+        if(ImGui::Button("返回")){
+            *mainInterface = true;
+            ret = true;
+            g_Game.StartGame(false);
+        }
+    }
+    ImGui::End();
+    return !ret;
+}
+bool MainInterface(bool *bSinglePlayer, bool *bOnline){
+    if(ImGui::Begin("主界面")){
+        if(ImGui::BeginTable("主界面-按钮表格", 2)){
+            ImGui::TableNextColumn();
+            if(ImGui::Button("单人")){
+                *bSinglePlayer = true;
+            }
+            ImGui::TableNextColumn();
+            if(ImGui::Button("局域网联机")){
+                *bOnline = true;
             }
             ImGui::EndTable();
         }
     }
-    if(ImGui::Button("返回")){
-        g_Game.SetOnline(false);
-    }
-}
-void MainInterface(){
-    static bool bShowConnectServer = false;
-    if(ImGui::Begin("三国象棋")){
-        if(g_Game.IsGameStart()){
-            if(g_Game.IsOnline()){
-                ShowGameWidget();
-            }
-            else{
-                ShowSinglePlayerMode();
-            }
-        }
-        else{
-            if(g_Game.IsOnline()){
-                ShowOnlineMode(bShowConnectServer);
-            }
-            else{
-                if(ImGui::BeginTable("主界面-按钮表格", 2)){
-                    ImGui::TableNextColumn();
-                    if(ImGui::Button("单人")){
-                        g_Game.StartGame();
-                        g_Game.SetOnline(false);
-                        NewGame();
-                    }
-                    ImGui::TableNextColumn();
-                    if(ImGui::Button("局域网联机")){
-                        g_Game.SetOnline();
-                    }
-                    ImGui::EndTable();
-                }
-            }
-        }
-    }
     ImGui::End();
-    // if(bShowCreateServer){
-    //     if(ImGui::Begin("创建房间")){
-    //         static char name[MAX_BYTE] = {0};
-    //         ImGui::InputText("输入房间名", name, sizeof(name));
-    //         //目前用不到房间名, 所以不需要判断
-    //         if(ImGui::BeginTable("确定取消按钮", 2)){
-    //             ImGui::TableNextColumn();
-    //             if(ImGui::Button("确定")){
-    //                 bShowCreateServer = false;
-    //                 CreateServer(name);
-    //             }
-    //             ImGui::TableNextColumn();
-    //             if(ImGui::Button("取消")){
-    //                 bShowCreateServer = false;
-    //             }
-    //             ImGui::EndTable();
-    //         }
-    //         ImGui::End();
-    //     }
-    // }
-    if(bShowConnectServer){
-        if(ImGui::Begin("连接服务端")){
-            static char serverIp[MAX_BYTE] = {0};
-            ImGui::InputText("服务端ip", serverIp, sizeof(serverIp));
-            if(ImGui::BeginTable("确定取消按钮", 3)){
-                ImGui::TableNextColumn();
-                if(ImGui::Button("确定")){
-                    bShowConnectServer = false;
-                    CreateClient(serverIp);
-                }
-                ImGui::TableNextColumn();
-                if(ImGui::Button("使用本机ip连接")){
-                    strcpy(serverIp, g_OnLine.GetLocalIp().c_str());
-                    // bShowConnectServer = false;
-                    // CreateClient(g_ServerIp);
-                }
-                ImGui::TableNextColumn();
-                if(ImGui::Button("取消")){
-                    bShowConnectServer = false;
-                }
-                ImGui::EndTable();
-            }
-            ImGui::End();
-        }
-    }
+    return !*bSinglePlayer && !*bOnline;
 }
 void UpdateImgui(VkCommandBuffer command){
     // static bool checkbuttonstatu;//检查框的状态。这个值传给imgui会影响到检查框
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
     
-    MainInterface();
+    static bool bMainInterface = true, bSinglePlayerInterface, bOnlineInterface;
+    if(bMainInterface){
+        bMainInterface = MainInterface(&bSinglePlayerInterface, &bOnlineInterface);
+    }
+    else if(bSinglePlayerInterface){
+        bSinglePlayerInterface = ShowSinglePlayerModeMainInterface(&bMainInterface);
+    }
+    else if(bOnlineInterface){
+        bOnlineInterface = ShowOnlineModeMainInterface(&bMainInterface);
+    }
 
     ImGui::Render();
     ImDrawData *draw_data = ImGui::GetDrawData();
@@ -922,7 +916,13 @@ void *PlayChessFun(void *userData){
     PPC ppc = *(PPC *)userData;
     Chess *pStart = g_Game.GetChess(ppc.srcCountry, ppc.srcRow, ppc.srcColumn);
     PlayChess(pStart, ppc.dstRow, ppc.dstColumn);
-    g_Game.NextCountry();
+    const uint32_t country = g_Game.Check();
+    if(country != INVALID_COUNTRY_INDEX){
+        g_Game.ExtraTurn(country);
+    }
+    else{
+        g_Game.NextCountry();
+    }
     //下完棋要调用下面的函数
     g_Ai.EnableNextCountry();
     return nullptr;
@@ -951,12 +951,20 @@ Chess *GetChess(const glm::vec2&mousePos){
 }
 
 const Chess *SelectChess(uint32_t country, const glm::vec2&mousePos){
+    //该函数只使用于单人模式
     const Chess *pSelected = GetChess(mousePos);
-    //想让玩家不能操作其他势力棋子, 则用下面的函数
+    //想让玩家不能操作其他势力棋子, 可以用下面的函数
     // const Chess *pSelected = g_Game.GetChess(country, mousePos);
-    if(g_Game.IsOnline() && g_Game.IsGameStart() && country != g_Players[g_OnLine.GetClientIndex()].uCountry){
-        pSelected = nullptr;
+    if(g_Game.IsOnline()){
+        if(country != g_Players[g_OnLine.GetClientIndex()].uCountry){
+            pSelected = nullptr;
+        }
     }
+    // else{
+    //     if(country != g_Game.GetPlayer()){
+    //         pSelected = nullptr;
+    //     }
+    // }
     if(pSelected){
         SelectChess(g_VulkanDevice.device, pSelected);
     }
@@ -1014,7 +1022,7 @@ void mousebutton(GLFWwindow *window,int button,int action,int mods){
     double xpos, ypos;
     glfwGetCursorPos(window, &xpos, &ypos);
     const glm::vec2 mousePos = glm::vec2(xpos, ypos);
-    if(action == GLFW_RELEASE && button == GLFW_MOUSE_BUTTON_LEFT){
+    if (g_Game.IsGameStart() && action == GLFW_RELEASE && button == GLFW_MOUSE_BUTTON_LEFT){
         if(g_Selected){
             PreparePlayChess(g_Selected, mousePos);
             g_Selected = nullptr;

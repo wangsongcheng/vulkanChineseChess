@@ -35,7 +35,13 @@ void Game::InitializeChess(){
     mChessboard.InitializeChess(mPlayer);
 }
 void Game::NextCountry(){
-    mCurrentCountry = GetNextCountry(mCurrentCountry);
+    if(mBackupPlayer != INVALID_COUNTRY_INDEX){
+        mCurrentCountry = mBackupPlayer;
+        mBackupPlayer = INVALID_COUNTRY_INDEX;
+    }
+    else{
+        mCurrentCountry = GetNextCountry(mCurrentCountry);
+    }
 }
 uint32_t Game::GetNextCountry(uint32_t country){
     do{
@@ -44,6 +50,10 @@ uint32_t Game::GetNextCountry(uint32_t country){
     return country;
 }
 
+void Game::ExtraTurn(uint32_t country){
+    mBackupPlayer = GetNextCountry(mCurrentCountry);
+    mCurrentCountry = country;
+}
 
 void Game::CaptureChess(const Chess *play, const Chess *target){
     mChessboard.CaptureChess(play, target);
