@@ -17,6 +17,7 @@ struct GameInof{
 class Game{
     GameInof mInfo;
     // VulkanDevice mDevice;
+    bool mHanCanPlay = false;
     uint32_t mCountryCount;
     Chessboard mChessboard;
     uint32_t mCurrentCountry;
@@ -27,8 +28,6 @@ public:
     bool GameOver();
 
     void InitinalizeGame(int32_t player = -1, int32_t currentCountry = -1);
-
-    void InitializeChess();
 
     // void Cleanup();
     // void Setup(VulkanDevice device, VkDescriptorSetLayout setLayout, VkQueue graphics, VulkanPool pool);
@@ -72,14 +71,14 @@ public:
         return mInfo.bGameStart;
     }
     inline bool HanCanPslay()const{
-        return mChessboard.HanCanPslay();
+        return mHanCanPlay;
     }
     inline void EnableHan(){
-        mChessboard.EnableHan();
+        mHanCanPlay = true;
         mCountryCount = MAX_COUNTRY_INDEX;
     }
     inline void DiscardHan(){
-        mChessboard.DiscardHan();
+        mHanCanPlay = false;
         mCountryCount = MAX_COUNTRY_INDEX - 1;
     }
     inline uint32_t GetCurrentCountry()const{

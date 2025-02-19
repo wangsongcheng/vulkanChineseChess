@@ -190,7 +190,7 @@ Chessboard::Chessboard(/* args */){
 
 Chessboard::~Chessboard(){
 }
-void Chessboard::InitializeChess(uint32_t playerCountry){
+void Chessboard::InitializeChess(uint32_t playerCountry, bool bHanCanPlay){
     for (uint32_t uiCountry = 0; uiCountry < MAX_COUNTRY_INDEX; ++uiCountry){
         DestroyCountry(uiCountry);
     }
@@ -198,7 +198,7 @@ void Chessboard::InitializeChess(uint32_t playerCountry){
     mChess[WEI_COUNTRY_INDEX][JIANG_CHESS_INDEX] = new Wei();
     mChess[SHU_COUNTRY_INDEX][JIANG_CHESS_INDEX] = new Shu();
     mChess[HAN_COUNTRY_INDEX][JIANG_CHESS_INDEX] = new Han();
-    if(mHanCanPlay){
+    if(bHanCanPlay){
         for (uint32_t uiCountry = 0; uiCountry < MAX_COUNTRY_INDEX; ++uiCountry){
             for (uint32_t uiChess = 0; uiChess < COUNTRY_CHESS_COUNT; ++uiChess){
                 if(uiChess >= MA_CHESS_INDEX && uiChess < MA_CHESS_INDEX + MA_CHESS_COUNT){
@@ -256,7 +256,7 @@ void Chessboard::InitializeChess(uint32_t playerCountry){
     }
     for (uint32_t uiCountry = 0; uiCountry < MAX_COUNTRY_INDEX; ++uiCountry){
         for (uint32_t uiChess = 0; uiChess < COUNTRY_CHESS_COUNT; ++uiChess){
-            if(mHanCanPlay){
+            if(bHanCanPlay){
                 InitChessInfo(uiCountry, mChess[uiCountry]);
             }
             else{
@@ -271,24 +271,24 @@ void Chessboard::InitializeChess(uint32_t playerCountry){
     }
     //以蜀为参照//把函数名中的国家坐标复制给chessInfo[playerCountry]
     InitShuChessRowAndColumn(mChess[playerCountry]);
-    if(!mHanCanPlay)InitHanChessRowAndColumn(playerCountry, mChess[HAN_COUNTRY_INDEX]);
+    if(!bHanCanPlay)InitHanChessRowAndColumn(playerCountry, mChess[HAN_COUNTRY_INDEX]);
     if(WU_COUNTRY_INDEX == playerCountry){
         InitWuChessRowAndColumn(mChess[WEI_COUNTRY_INDEX]);
         InitHanChessRowAndColumn(mChess[SHU_COUNTRY_INDEX]);
-        if(mHanCanPlay)InitWeiChessRowAndColumn(mChess[HAN_COUNTRY_INDEX]);
+        if(bHanCanPlay)InitWeiChessRowAndColumn(mChess[HAN_COUNTRY_INDEX]);
     }
     else if(WEI_COUNTRY_INDEX == playerCountry){
         InitHanChessRowAndColumn(mChess[WU_COUNTRY_INDEX]);
         InitWeiChessRowAndColumn(mChess[SHU_COUNTRY_INDEX]);
-        if(mHanCanPlay)InitWuChessRowAndColumn(mChess[HAN_COUNTRY_INDEX]);
+        if(bHanCanPlay)InitWuChessRowAndColumn(mChess[HAN_COUNTRY_INDEX]);
     }
     else if(SHU_COUNTRY_INDEX == playerCountry){
         InitWuChessRowAndColumn(mChess[WU_COUNTRY_INDEX]);
         InitWeiChessRowAndColumn(mChess[WEI_COUNTRY_INDEX]);
-        if(mHanCanPlay)InitHanChessRowAndColumn(mChess[HAN_COUNTRY_INDEX]);
+        if(bHanCanPlay)InitHanChessRowAndColumn(mChess[HAN_COUNTRY_INDEX]);
     }
     else if(HAN_COUNTRY_INDEX == playerCountry){
-        if(mHanCanPlay){
+        if(bHanCanPlay){
             InitWeiChessRowAndColumn(mChess[WU_COUNTRY_INDEX]);
             InitHanChessRowAndColumn(mChess[WEI_COUNTRY_INDEX]);
             InitWuChessRowAndColumn(mChess[SHU_COUNTRY_INDEX]);
@@ -298,10 +298,9 @@ void Chessboard::InitializeChess(uint32_t playerCountry){
 void Chessboard::CaptureChess(const Chess *play, const Chess *target){
     if(target){
         const uint32_t dstCountry = target->GetCountry(), dstChess = target->GetChess();
-        if(!mHanCanPlay){
-            if(target->GetChess() == JIANG_CHESS_INDEX){
-                GetCountryChess(play->GetCountry(), dstCountry);
-            }
+        if(dstChess == JIANG_CHESS_INDEX){
+            GetCountryChess(play->GetCountry(), dstCountry);
+            DestroyCountry(dstCountry);
         }
         delete mChess[dstCountry][dstChess];
         mChess[dstCountry][dstChess] = nullptr;
@@ -366,7 +365,7 @@ void Chessboard::GetCountryChess(uint32_t srcCountry, uint32_t dstCountry){
                     mChess[srcCountry][uiChess + COUNTRY_CHESS_COUNT] = new Bing();
                 }
             }
-            if(mChess[srcCountry][uiChess + COUNTRY_CHESS_COUNT]){
+            if(mChess[srcCountry][uiChess + COUNTRY_CHESS_COUNT * 2]){
                 mChess[srcCountry][uiChess + COUNTRY_CHESS_COUNT * 2]->SetCountry(srcCountry);
                 mChess[srcCountry][uiChess + COUNTRY_CHESS_COUNT * 2]->SetFontIndex(fontIndex);
                 mChess[srcCountry][uiChess + COUNTRY_CHESS_COUNT * 2]->SetChess(uiChess + COUNTRY_CHESS_COUNT);
@@ -378,9 +377,6 @@ void Chessboard::GetCountryChess(uint32_t srcCountry, uint32_t dstCountry){
                 mChess[srcCountry][uiChess + COUNTRY_CHESS_COUNT]->SetChess(uiChess + COUNTRY_CHESS_COUNT);
                 mChess[srcCountry][uiChess + COUNTRY_CHESS_COUNT]->SetPos(pChess->GetRow(), pChess->GetColumn());
             }
-
-            delete mChess[dstCountry][uiChess];
-            mChess[dstCountry][uiChess] = nullptr;
         }
     }
 }

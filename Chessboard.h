@@ -3,7 +3,6 @@
 #include "Chess.h"
 #include "VulkanChess.h"
 class Chessboard{
-    bool mHanCanPlay = false;
     Chess *mChess[MAX_COUNTRY_INDEX][DRAW_COUNTRY_CHESS_COUNT];
     void InitHanChessinfo(Chess *pChess[DRAW_COUNTRY_CHESS_COUNT]);
     void InitWuChessRowAndColumn(Chess *pChess[DRAW_COUNTRY_CHESS_COUNT]);
@@ -15,10 +14,11 @@ class Chessboard{
 public:
     Chessboard(/* args */);
     ~Chessboard();
-    void InitializeChess(uint32_t playerCountry);
     void CaptureChess(const Chess *play, const Chess *target);
+    //srcCountry获得dstCountry的棋子
     void GetCountryChess(uint32_t srcCountry, uint32_t dstCountry);
     //返回的棋子属于srcCountry, 该棋子下一步能吃掉dstCountry的chess
+    void InitializeChess(uint32_t playerCountry, bool bHanCanPlay = false);
     const Chess *Check(uint32_t srcCountry, uint32_t dstCountry, uint32_t chess)const;
 
     uint32_t GetChessCount(uint32_t country)const;
@@ -30,15 +30,6 @@ public:
 
     inline Chess **GetChess()const{
         return (Chess **)mChess;
-    }
-    inline bool HanCanPslay()const{
-        return mHanCanPlay;
-    }
-    inline void EnableHan(){
-        mHanCanPlay = true;
-    }
-    inline void DiscardHan(){
-        mHanCanPlay = false;
     }
     inline bool IsDeath(uint32_t country)const{
         return !mChess[country][JIANG_CHESS_INDEX];

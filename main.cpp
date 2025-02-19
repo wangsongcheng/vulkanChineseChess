@@ -225,7 +225,6 @@ void NewGame(int32_t player = -1, int32_t currentCountry = -1){
     // if(!g_Game.IsOnline())g_Ai.Pause();
     g_PlayChessMutex.lock();
     g_Game.InitinalizeGame(player, currentCountry);
-    g_Game.InitializeChess();
     UpdateChessUniform(g_VulkanDevice.device);
     // if(!g_Game.IsOnline())g_Ai.Start();
     g_PlayChessMutex.unlock();
@@ -586,7 +585,8 @@ void *process_client(void *userData){
             }
             PlayChess(pStart, dstRow, dstColumn);
             const uint32_t country = g_Game.Check();
-            if(country != INVALID_COUNTRY_INDEX && g_Game.GetNextCountry() != country){
+            uint32_t lastCountry = g_Game.GetCurrentCountry();
+            if(country != INVALID_COUNTRY_INDEX && country != lastCountry && g_Game.GetNextCountry() != country){
                 g_Game.ExtraTurn(country);
             }
             else{
@@ -925,7 +925,6 @@ void *PlayChessFun(void *userData){
     PlayChess(pStart, ppc.dstRow, ppc.dstColumn);
     uint32_t country = g_Game.Check();
     uint32_t lastCountry = g_Game.GetCurrentCountry();
-    //现在的写法会导致只要被将一方不解将，就可以一直下下去
     if(country != INVALID_COUNTRY_INDEX && country != lastCountry && g_Game.GetNextCountry() != country){
         g_Game.ExtraTurn(country);
     }

@@ -8,7 +8,7 @@ Game::~Game(){
 bool Game::GameOver(){
     uint32_t deathCount = 0;
     for (size_t i = 0; i < MAX_COUNTRY_INDEX; ++i){
-        if(mChessboard.IsDeath(i)){
+        if((mHanCanPlay || i != HAN_COUNTRY_INDEX) && mChessboard.IsDeath(i)){
             ++deathCount;
         }
     }
@@ -30,9 +30,7 @@ void Game::InitinalizeGame(int32_t player, int32_t currentCountry){
         mPlayer = player;
     else
         mPlayer = rand()%mCountryCount;
-}
-void Game::InitializeChess(){
-    mChessboard.InitializeChess(mPlayer);
+    mChessboard.InitializeChess(mPlayer, mHanCanPlay);
 }
 void Game::NextCountry(){
     if(mBackupPlayer != INVALID_COUNTRY_INDEX){
