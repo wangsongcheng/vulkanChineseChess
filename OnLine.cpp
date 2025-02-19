@@ -111,7 +111,7 @@ void OnLine::SendCurrentCountry(uint32_t currentCountry){
 }
 
 SOCKET OnLine::AcceptClient(uint32_t client, void *__buf, size_t __n){
-    SOCKET s = mServer.AcceptClient(client, __buf, __n);
+    SOCKET s = mServer.AcceptClient(client);
     if(s != INVALID_SOCKET){
         mServer.RecvFromClient(client, __buf, __n);
         GameMessage *pMessage = (GameMessage *)__buf;

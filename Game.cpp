@@ -43,10 +43,10 @@ void Game::NextCountry(){
         mCurrentCountry = GetNextCountry(mCurrentCountry);
     }
 }
-uint32_t Game::GetNextCountry(){
+uint32_t Game::GetNextCountry()const{
     return GetNextCountry(mCurrentCountry);
 }
-uint32_t Game::GetNextCountry(uint32_t country){
+uint32_t Game::GetNextCountry(uint32_t country)const{
     do{
         country = (country + 1) % mCountryCount;
     } while (mChessboard.IsDeath(country));
@@ -62,11 +62,12 @@ void Game::CaptureChess(const Chess *play, const Chess *target){
     mChessboard.CaptureChess(play, target);
 }
 
-uint32_t Game::Check(){
+uint32_t Game::Check()const{
     uint32_t country = INVALID_COUNTRY_INDEX, currentCountry = mCurrentCountry;
     do{
-        country = mChessboard.Check(currentCountry, JIANG_CHESS_INDEX);
-        if(INVALID_COUNTRY_INDEX != country){
+        const Chess *pChess = mChessboard.Check(mCurrentCountry, currentCountry, JIANG_CHESS_INDEX);
+        if(pChess){
+            country = currentCountry;
             break;
         }
         currentCountry = GetNextCountry(currentCountry);

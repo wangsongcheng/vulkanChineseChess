@@ -18,10 +18,10 @@ public:
     void InitializeChess(uint32_t playerCountry);
     void CaptureChess(const Chess *play, const Chess *target);
     void GetCountryChess(uint32_t srcCountry, uint32_t dstCountry);
-    //返回country中, 目标包含chess的国家
-    uint32_t Check(uint32_t country, uint32_t chess);
+    //返回的棋子属于srcCountry, 该棋子下一步能吃掉dstCountry的chess
+    const Chess *Check(uint32_t srcCountry, uint32_t dstCountry, uint32_t chess)const;
 
-    uint32_t GetChessCount(uint32_t country);
+    uint32_t GetChessCount(uint32_t country)const;
     Chess *GetChess(uint32_t row, uint32_t column)const;
     Chess *GetChess(uint32_t country, const glm::vec2&mousePos)const;
     Chess *GetChess(uint32_t country, uint32_t row, uint32_t column)const;

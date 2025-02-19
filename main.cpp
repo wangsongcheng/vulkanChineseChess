@@ -531,6 +531,7 @@ void *process_client(void *userData){
     do{
         g_OnLine.ClientRecvFrom(&message, sizeof(GameMessage));
         if(message.event == GAME_START_GAME_EVENT){
+            g_Game.SetOnline(true);
             uint32_t aiIndex = 1, index = 0;
             for (auto it = g_Players.begin() + 1; it != g_Players.end(); ++it, ++aiIndex){
                 if(it->ai){
@@ -584,7 +585,13 @@ void *process_client(void *userData){
                 dstColumn = pTarget->GetColumn();
             }
             PlayChess(pStart, dstRow, dstColumn);
-            g_Game.NextCountry();
+            const uint32_t country = g_Game.Check();
+            if(country != INVALID_COUNTRY_INDEX && g_Game.GetNextCountry() != country){
+                g_Game.ExtraTurn(country);
+            }
+            else{
+                g_Game.NextCountry();
+            }
             if(g_OnLine.IsServer())g_Ai.EnableNextCountry();
         }
         else if(message.event == GAME_OVER_GAME_EVENT){
@@ -745,7 +752,7 @@ bool ShowOnlineModeMainInterface(bool *mainInterface){
         else{
             ShowClientWidget();
         }
-        if(!g_OnLine.IsServer()){
+        if(!g_OnLine.IsServer() && !g_Game.IsGameStart()){
             static bool enableHan;
             if(ImGui::Checkbox("启用汉势力", &enableHan)){
                 if(enableHan){
@@ -916,8 +923,10 @@ void *PlayChessFun(void *userData){
     PPC ppc = *(PPC *)userData;
     Chess *pStart = g_Game.GetChess(ppc.srcCountry, ppc.srcRow, ppc.srcColumn);
     PlayChess(pStart, ppc.dstRow, ppc.dstColumn);
-    const uint32_t country = g_Game.Check();
-    if(country != INVALID_COUNTRY_INDEX && g_Game.GetNextCountry() != country){
+    uint32_t country = g_Game.Check();
+    uint32_t lastCountry = g_Game.GetCurrentCountry();
+    //现在的写法会导致只要被将一方不解将，就可以一直下下去
+    if(country != INVALID_COUNTRY_INDEX && country != lastCountry && g_Game.GetNextCountry() != country){
         g_Game.ExtraTurn(country);
     }
     else{
@@ -952,9 +961,12 @@ Chess *GetChess(const glm::vec2&mousePos){
 
 const Chess *SelectChess(uint32_t country, const glm::vec2&mousePos){
     //该函数只使用于单人模式
+#ifdef DEBUG
     const Chess *pSelected = GetChess(mousePos);
     //想让玩家不能操作其他势力棋子, 可以用下面的函数
-    // const Chess *pSelected = g_Game.GetChess(country, mousePos);
+#else
+    const Chess *pSelected = g_Game.GetChess(country, mousePos);
+#endif
     if(g_Game.IsOnline()){
         if(country != g_Players[g_OnLine.GetClientIndex()].uCountry){
             pSelected = nullptr;

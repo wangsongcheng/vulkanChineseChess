@@ -56,6 +56,9 @@ public:
     inline bool GameOver()const{
         return mGame->GameOver();
     }
+    inline auto GetAiClientIndex(){
+        return mOnline->GetAiClientIndex();        
+    }
     inline uint32_t GetPlayer()const{
         return mGame->GetPlayer();
     }

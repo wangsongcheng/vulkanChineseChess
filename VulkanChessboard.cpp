@@ -79,7 +79,7 @@ void VulkanChessboard::CreateRectResource(VulkanDevice device, VulkanPool pool, 
         0, 1, 2, 0, 3, 1,//.../
         0, 2, 3, 2, 3, 1
     };
-    GetRectVertices(glm::vec3(1, .8, .2), vertices);
+    GetRectVertices(glm::vec3(.7, .5, .3), vertices);
     GetRectVertices(glm::vec3(0), vertices + 4 * 6);
     mRect.indexCount = 6;
     mRect.vertexCount = 4;

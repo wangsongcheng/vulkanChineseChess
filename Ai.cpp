@@ -25,7 +25,8 @@ void *AiPlayChess(void *userData){
     Ai *pAi = (Ai *)userData;
 #ifdef __linux
     if(pAi->IsOnline()){
-        if(g_Players[pAi->GetCurrentCountry()].ai){
+        auto aiClientIndex = pAi->GetAiClientIndex();
+        if(g_Players[aiClientIndex[0]].uCountry == pAi->GetCurrentCountry() || (aiClientIndex[1] != INVALID_PLAYER_INDEX && g_Players[aiClientIndex[1]].uCountry == pAi->GetCurrentCountry())){
             //因为创建的时候固定为0,所以如果此时应该ai出牌，那么应该先调用下面的函数一次
             pAi->Enable();
         }

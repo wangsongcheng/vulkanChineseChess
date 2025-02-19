@@ -1,6 +1,8 @@
 #ifndef ONLINE_H
 #define ONLINE_H
+#include <array>
 #include "Server.h"
+#include "Chess.h"
 enum GameEvent{
     GAME_OVER_GAME_EVENT = 0,
     GAME_START_GAME_EVENT,

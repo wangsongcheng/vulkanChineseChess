@@ -34,8 +34,8 @@ public:
     // void Setup(VulkanDevice device, VkDescriptorSetLayout setLayout, VkQueue graphics, VulkanPool pool);
     void NextCountry();
     // uint32_t GetCountry();
-    uint32_t GetNextCountry();
-    uint32_t GetNextCountry(uint32_t country);
+    uint32_t GetNextCountry()const;
+    uint32_t GetNextCountry(uint32_t country)const;
 
     void ExtraTurn(uint32_t country);
 
@@ -55,8 +55,8 @@ public:
 
     // void UpdateChessUniform(VkDevice device);
     // void UpdateSelectChessUniform(VkDevice device, std::vector<Chess>&canplays);
-    uint32_t Check();
-    inline uint32_t GetCountryCount(){
+    uint32_t Check()const;
+    inline uint32_t GetCountryCount()const{
         return mCountryCount;
     }
     inline void SetOnline(bool online = true){
@@ -68,7 +68,7 @@ public:
     inline void StartGame(bool start = true){
         mInfo.bGameStart = start;
     }
-    inline bool IsGameStart(){
+    inline bool IsGameStart()const{
         return mInfo.bGameStart;
     }
     inline bool HanCanPslay()const{
@@ -82,19 +82,19 @@ public:
         mChessboard.DiscardHan();
         mCountryCount = MAX_COUNTRY_INDEX - 1;
     }
-    inline uint32_t GetCurrentCountry(){
+    inline uint32_t GetCurrentCountry()const{
         return mCurrentCountry;
     }
     inline void SetCurrentCountry(uint32_t country){
         mCurrentCountry = country;        
     }
-    inline uint32_t GetPlayer(){
+    inline uint32_t GetPlayer()const{
         return mPlayer;
     }
     inline auto GetChess()const{
         return mChessboard.GetChess();
     }
-    inline uint32_t GetChessCount(uint32_t country){
+    inline uint32_t GetChessCount(uint32_t country)const{
         return mChessboard.GetChessCount(country);
     }
     inline auto GetChess(uint32_t country, const glm::vec2&mousePos)const{
@@ -106,11 +106,11 @@ public:
     inline auto GetChess(uint32_t country, uint32_t row, uint32_t column)const{
         return mChessboard.GetChess(country, row, column);
     }
-    inline bool isCurrentCountry(uint32_t country){
+    inline bool isCurrentCountry(uint32_t country)const{
         return country == mCurrentCountry;
     }
     inline void DestroyCountry(uint32_t country){
-        return mChessboard.DestroyCountry(country);
+        mChessboard.DestroyCountry(country);
     }
     inline bool IsDeath(uint32_t country)const{
         return mChessboard.IsDeath(country);

@@ -1,21 +1,19 @@
 #ifndef SERVER_INCLUDE_H
 #define SERVER_INCLUDE_H
-#include <array>
+#include <vector>
 #include "Client.h"
-#include "SocketFrame.h"
 class Server{
     SOCKET mSocket;
     char mName[MAX_BYTE];
-    std::array<Client, 4>mClients;
+    std::vector<Client>mClients;
 public:
     Server(/* args */);
     ~Server();
     bool CreateServer(int listenCount);
+    SOCKET AcceptClient(uint32_t client);
     void SendToAllClient(const void *__buf, size_t __n)const;
-    SOCKET AcceptClient(uint32_t client, void *__buf, size_t __n);
     void RecvFromClient(uint32_t client, void *__buf, size_t __n)const;
     void SendToClient(uint32_t client, const void *__buf, size_t __n)const;
-    // SOCKET AcceptClient(uint32_t count, std::array<Player, 3>&players);
 
     inline auto GetClientInfo()const{
         return mClients;
