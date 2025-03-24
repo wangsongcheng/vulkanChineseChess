@@ -15,9 +15,5 @@ void main() {
 	texColor.y = texColor.x;
 	texColor.z = texColor.x;
 	texColor.a = texColor.x;
-//	outColor = vec4(.25, .25, .25, 1);
-//	outColor = vec4(.7, .7, .7, 1);
-//	outColor = vec4(texColor.r, .25, .5, 1);
 	outColor = texColor;
-//	outColor = vec4(texColor.r, texColor.g, texColor.b, 1);
 }

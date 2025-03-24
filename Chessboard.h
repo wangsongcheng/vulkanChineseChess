@@ -17,8 +17,8 @@ public:
     void CaptureChess(const Chess *play, const Chess *target);
     //srcCountry获得dstCountry的棋子
     void GetCountryChess(uint32_t srcCountry, uint32_t dstCountry);
-    //返回的棋子属于srcCountry, 该棋子下一步能吃掉dstCountry的chess
     void InitializeChess(uint32_t playerCountry, bool bHanCanPlay = false);
+    //返回的棋子属于srcCountry, 该棋子下一步能吃掉dstCountry的chess
     const Chess *Check(uint32_t srcCountry, uint32_t dstCountry, uint32_t chess)const;
 
     uint32_t GetChessCount(uint32_t country)const;

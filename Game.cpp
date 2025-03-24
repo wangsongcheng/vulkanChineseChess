@@ -63,7 +63,7 @@ void Game::CaptureChess(const Chess *play, const Chess *target){
 uint32_t Game::Check()const{
     uint32_t country = INVALID_COUNTRY_INDEX, currentCountry = mCurrentCountry;
     do{
-        const Chess *pChess = mChessboard.Check(mCurrentCountry, currentCountry, JIANG_CHESS_INDEX);
+        const Chess *pChess = Check(mCurrentCountry, currentCountry, JIANG_CHESS_INDEX);
         if(pChess){
             country = currentCountry;
             break;

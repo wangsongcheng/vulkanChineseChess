@@ -2,6 +2,7 @@
 #define VULKAN_CHESS_INCLUDE
 #include "glm/glm.hpp"
 #include "vulkanFrame.h"
+#include "BaseGraphic.hpp"
 #include "glm/gtc/matrix_transform.hpp"
 
 #define CHESS_WIDTH 20
@@ -97,7 +98,8 @@ class VulkanChess{
         VkSampler sampler;
         VulkanImage image;//魏, 蜀, 吴, 漢, 兵, 炮, 車, 馬, 相, 士
     }fonts;
-    BaseGraphic mChess, mFont;
+    Rect mFont;
+    Circle mChess;
     void GetCircularVertex(const glm::vec3&color, std::vector<Vertex>&vertices);
     void CreateFontResource(VulkanDevice device, VulkanPool pool, VkQueue graphics);
     void CreateChessResource(VulkanDevice device, VulkanPool pool, VkQueue graphics);

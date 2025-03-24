@@ -1,5 +1,5 @@
-glslangValidator -V base.vert -o baseVert.spv
-glslangValidator -V base.frag -o baseFrag.spv
+glslangValidator -V base.vert -o base.vert.spv
+glslangValidator -V base.frag -o base.frag.spv
 
-glslangValidator -V baseFont.vert -o baseFontVert.spv
-glslangValidator -V baseFont.frag -o baseFontFrag.spv
+glslangValidator -V font.vert -o font.vert.spv
+glslangValidator -V font.frag -o font.frag.spv

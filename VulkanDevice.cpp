@@ -24,6 +24,21 @@ bool VulkanDevice::GetPhysicalDevices(bool (*GetPhysicalDevices)(VkPhysicalDevic
     vkGetPhysicalDeviceMemoryProperties(physicalDevice, &memoryProperties);
     return true;
 }
+uint32_t VulkanDevice::GetQueueFamiliesIndex(VkQueueFlagBits queue){
+    int32_t queueFamilyIndex = -1;
+    uint32_t queueFamilyCount = 0;
+	vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueFamilyCount, nullptr);
+
+	std::vector<VkQueueFamilyProperties>queueFamiliesProperties(queueFamilyCount);
+	vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueFamilyCount, queueFamiliesProperties.data());
+	for (int i = 0; i < queueFamilyCount; ++i) {
+        if (queueFamiliesProperties[i].queueCount > 0 && queueFamiliesProperties[i].queueFlags & queue) {
+            queueFamilyIndex = i;
+            break;
+        }
+    }
+    return queueFamilyIndex;
+}
 VkResult VulkanDevice::CreateInstance(const std::vector<const char *> &instanceExtensions, VkApplicationInfo *pApplicationInfo){
     std::vector<const char *>layers;
     std::vector<const char *>extensions = instanceExtensions;
@@ -45,21 +60,14 @@ void VulkanDevice::Cleanup(){
     vkDestroyInstance(instance, nullptr);
 }
 VkResult VulkanDevice::CreateDevice(VkSurfaceKHR surface, const std::vector<const char *> &deviceExtensions){
-    uint32_t queueFamilyCount;
+    uint32_t queueFamilyCount = 1;
 	const float queuePriorities = 1.0f;
-    uint32_t queueFamily[2] = { (uint32_t)-1, (uint32_t)-1 };
-    GetGraphicAndPresentQueueFamiliesIndex(surface, queueFamily);
-    if(queueFamily[0] == queueFamily[1]){
-        queueFamilyCount = 1;
-    }
-    else {
-        queueFamily[0] != -1 && queueFamily[1] != -1?queueFamilyCount = 2:queueFamilyCount = 1;
-    }
+    uint32_t queueFamilies = GetQueueFamiliesIndex(VK_QUEUE_GRAPHICS_BIT, surface);
     std::vector<VkDeviceQueueCreateInfo>queueCreateInfos(queueFamilyCount);
     for (size_t i = 0; i < queueCreateInfos.size(); ++i){
         queueCreateInfos[i].sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
         queueCreateInfos[i].queueCount = 1;
-        queueCreateInfos[i].queueFamilyIndex = queueFamily[i];
+        queueCreateInfos[i].queueFamilyIndex = queueFamilies;
         queueCreateInfos[i].pQueuePriorities = &queuePriorities;
     }
     VkPhysicalDeviceFeatures features;
@@ -85,21 +93,28 @@ uint32_t VulkanDevice::GetQueueFamiliesIndex(VkQueueFlagBits queue, VkSurfaceKHR
 
 	std::vector<VkQueueFamilyProperties>queueFamiliesProperties(queueFamilyCount);
 	vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueFamilyCount, queueFamiliesProperties.data());
-	for (int i = 0; i < queueFamilyCount; ++i) {
-		if (queueFamiliesProperties[i].queueFlags & queue) {
-            if(surface == VK_NULL_HANDLE){
-			    queueFamilyIndex = i;
+    VkBool32 presentSupport = false;
+    if (queue & VK_QUEUE_FLAG_BITS_MAX_ENUM && surface != VK_NULL_HANDLE){
+        //该队列族有呈现能力即可
+        for (int i = 0; i < queueFamilyCount; ++i) {
+            vkGetPhysicalDeviceSurfaceSupportKHR(physicalDevice, i, surface, &presentSupport);
+            if (presentSupport) {
+                queueFamilyIndex = i;
                 break;
             }
-            else{
-                VkBool32 presentSupport = false;
-                vkGetPhysicalDeviceSurfaceSupportKHR(physicalDevice, i, surface, &presentSupport);
-                if (presentSupport) {
-                    queueFamilyIndex = i;
-                    break;
-                }
+        }
+    }
+    else if(surface != VK_NULL_HANDLE){
+        //该队列族有呈现能力且和参数一致的队列族
+        for (int i = 0; i < queueFamilyCount; ++i) {
+            vkGetPhysicalDeviceSurfaceSupportKHR(physicalDevice, i, surface, &presentSupport);
+            if (queueFamiliesProperties[i].queueFlags & queue && presentSupport) {
+                queueFamilyIndex = i;
             }
-		}
+        }
+    }
+    else{
+        queueFamilyIndex = GetQueueFamiliesIndex(queue);
     }
     return queueFamilyIndex;
 }
@@ -130,10 +145,4 @@ uint32_t VulkanDevice::findMemoryTypeIndex(uint32_t typeFilter, VkMemoryProperty
 		}
 	}
 	return -1;
-}
-void VulkanDevice::GetGraphicAndPresentQueueFamiliesIndex(VkSurfaceKHR surface, uint32_t queueFamilies[2]){
-    queueFamilies[GRAPHICS_QUEUE_INDEX] = GetQueueFamiliesIndex(VK_QUEUE_GRAPHICS_BIT, surface);
-    if(queueFamilies[GRAPHICS_QUEUE_INDEX] != -1){
-        queueFamilies[PRESENT_QUEUE_INDEX] = queueFamilies[GRAPHICS_QUEUE_INDEX];
-    }
 }

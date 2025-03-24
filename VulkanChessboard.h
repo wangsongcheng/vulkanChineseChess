@@ -2,6 +2,7 @@
 #define VULKAN_CHESSBOARD_INCLUDE
 #include "glm/glm.hpp"
 #include "vulkanFrame.h"
+#include "BaseGraphic.hpp"
 #include "glm/gtc/matrix_transform.hpp"
 #define CHESSBOARD_ROW 16
 #define CHESSBOARD_COLUMN CHESSBOARD_ROW
@@ -46,7 +47,7 @@ class VulkanChessboard{
             // VulkanBuffer selectChess;
         }wireframe;
     }uniforms;
-    BaseGraphic mRect;
+    Rect mRect;
     void UpdateGridUniform(VkDevice device);
     void UpdateBigGridUniform(VkDevice device);
     void UpdateJiuGongGeWireframeUniform(VkDevice device);

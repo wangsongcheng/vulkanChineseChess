@@ -2,6 +2,8 @@
 #define VULKAN_WINDOW_H
 #include "VulkanImage.h"
 #include "VulkanDevice.h"
+#define PRESENT_QUEUE_INDEX 1
+#define GRAPHICS_QUEUE_INDEX 0
 #define SWAPCHAIN_FORMAT VK_FORMAT_B8G8R8A8_UNORM
 #define SWAPCHAIN_COLOR_SPACE VK_COLOR_SPACE_SRGB_NONLINEAR_KHR
 struct VulkanSwapchain{
@@ -21,9 +23,9 @@ struct VulkanWindow{
     std::vector<VkFramebuffer>framebuffers;
     void Cleanup(VulkanDevice device);
     void CleanupSwapchain(VkDevice device);
-    void CreateFrameBuffer(VulkanDevice device, bool createDepthImage);
     VkResult CreateRenderPass(VkDevice device, bool useDepthImage = true);
+    void CreateFrameBuffer(VulkanDevice device, bool createDepthImage = true);
 private:
-    void CreateDepthImage(VulkanDevice device, const VkExtent2D&swapchainExtent, VulkanImage&image);
+    void CreateDepthImage(VulkanDevice device, const VkExtent3D&swapchainExtent, VulkanImage&image);
 };
 #endif

@@ -55,6 +55,9 @@ public:
     // void UpdateChessUniform(VkDevice device);
     // void UpdateSelectChessUniform(VkDevice device, std::vector<Chess>&canplays);
     uint32_t Check()const;
+    inline const Chess *Check(uint32_t srcCountry, uint32_t dstCountry, uint32_t chess) const{
+        return mChessboard.Check(srcCountry, dstCountry, chess);
+    }
     inline uint32_t GetCountryCount()const{
         return mCountryCount;
     }

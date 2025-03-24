@@ -48,12 +48,9 @@ void VulkanChess::CreateFontResource(VulkanDevice device, VulkanPool pool, VkQue
         Vertex(glm::vec3(.0f, .0f, .0f), glm::vec3(0.0f, 0.0f, 0)), //左上
         Vertex(glm::vec3(1.0f, 1.0f, .0f), glm::vec3(1.0f, 1.0f, 0))//右下
     };
-    mFont.indexCount = 6;
-    mFont.index.CreateBuffer(device, sizeof(indices), VK_BUFFER_USAGE_INDEX_BUFFER_BIT|VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-    mFont.vertex.CreateBuffer(device, sizeof(vertices), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT|VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-    mFont.index.UpdateData(device, indices, graphics, pool);
-    mFont.vertex.UpdateData(device, vertices, graphics, pool);
-
+    mFont.CreateIndexBuffer(device, indices, sizeof(indices), graphics, pool);
+    mFont.CreateVertexBuffer(device, vertices, sizeof(vertices), 4, graphics, pool);
+    
 	long int size = 0;
 	unsigned char *fontBuffer = NULL;
 	FILE *fontFile = fopen("fonts/SourceHanSerifCN-Bold.otf", "rb");
@@ -69,7 +66,7 @@ void VulkanChess::CreateFontResource(VulkanDevice device, VulkanPool pool, VkQue
 	}
     const uint32_t fontImageCount = 10;
     const uint32_t imageSize = CHESS_WIDTH * 2 * CHESS_HEIGHT * 2;
-    unsigned char *datas = new unsigned char[imageSize * fontImageCount];
+    std::vector<unsigned char *>datas(fontImageCount);
     wchar_t word[10];
     word[FONT_INDEX_MA] = L'馬';
     word[FONT_INDEX_WU] = L'吴';
@@ -81,12 +78,15 @@ void VulkanChess::CreateFontResource(VulkanDevice device, VulkanPool pool, VkQue
     word[FONT_INDEX_SHI] = L'士';
     word[FONT_INDEX_BING] = L'兵';
     word[FONT_INDEX_XIANG] = L'相';
-    memset(datas, 0, imageSize * fontImageCount);
     for (size_t i = 0; i < fontImageCount; ++i){
-        GetFontImageData(fontBuffer, CHESS_WIDTH * 2, CHESS_HEIGHT * 2, word[i], datas + i * imageSize);
+        datas[i] = new unsigned char[imageSize];
+        memset(datas[i], 0, imageSize);
+        GetFontImageData(fontBuffer, CHESS_WIDTH * 2, CHESS_HEIGHT * 2, word[i], datas[i]);
     }
-    vulkanFrame::CreateFontImageArray(device, datas, fontImageCount, CHESS_WIDTH * 2, CHESS_HEIGHT * 2, fonts.image, pool, graphics);
-    delete[]datas;
+    vulkanFrame::CreateImageArray(device, (void *const *)datas.data(), fontImageCount, CHESS_WIDTH * 2, CHESS_HEIGHT * 2, fonts.image, pool, graphics, 1);
+    for (auto&it:datas){
+        delete[]it;
+    }
     fclose(fontFile);
     free(fontBuffer);
 }

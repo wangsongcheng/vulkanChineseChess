@@ -50,6 +50,9 @@ public:
     //     mPause = false;
     //     if(enable)Enable();
     // }
+    // inline const Chess *Check(uint32_t srcCountry, uint32_t dstCountry, uint32_t chess)const{
+    //     mGame->Check(srcCountry, dstCountry, chess);
+    // }
     inline bool IsOnline()const{
         return mGame->IsOnline();
     }

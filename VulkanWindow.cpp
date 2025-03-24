@@ -99,15 +99,13 @@ VkResult VulkanSwapchain::CreateSwapchain(VulkanDevice device, VkSurfaceKHR surf
     createInfo.imageArrayLayers = 1;
     createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 
-    uint32_t queueFamilyIndices[2];
-    queueFamilyIndices[GRAPHICS_QUEUE_INDEX] = device.GetQueueFamiliesIndex(VK_QUEUE_GRAPHICS_BIT, surface);
-    if(queueFamilyIndices[GRAPHICS_QUEUE_INDEX] != -1){
-        queueFamilyIndices[PRESENT_QUEUE_INDEX] = queueFamilyIndices[GRAPHICS_QUEUE_INDEX];
-    }
-    if (queueFamilyIndices[0] != queueFamilyIndices[1]) {
+    uint32_t queueFamilyIndices;
+    queueFamilyIndices = device.GetQueueFamiliesIndex(VK_QUEUE_GRAPHICS_BIT, surface);
+    if (queueFamilyIndices == -1) {
         createInfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
         createInfo.queueFamilyIndexCount = 2;
-        createInfo.pQueueFamilyIndices = queueFamilyIndices;
+        uint32_t queue[2] = { queueFamilyIndices, device.GetQueueFamiliesIndex(VK_QUEUE_FLAG_BITS_MAX_ENUM, surface) };
+        createInfo.pQueueFamilyIndices = queue;
     } else {
         createInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
     }
@@ -151,7 +149,11 @@ void VulkanWindow::CreateFrameBuffer(VulkanDevice device, bool createDepthImage)
     framebuffers.resize(swapchainImages.size());
     std::vector<VkImageView>frameBufferAttachments(1);
     if(createDepthImage){
-        CreateDepthImage(device, swapchain.extent, depthImage);
+        VkExtent3D extent;
+        extent.depth = 1;
+        extent.width = swapchain.extent.width;
+        extent.height = swapchain.extent.height;
+        CreateDepthImage(device, extent, depthImage);
         frameBufferAttachments.push_back(depthImage.view);
     }
     VkFramebufferCreateInfo frameBufferInfo = {};
@@ -164,8 +166,9 @@ void VulkanWindow::CreateFrameBuffer(VulkanDevice device, bool createDepthImage)
     frameBufferInfo.attachmentCount = frameBufferAttachments.size();
     for (size_t i = 0; i < framebuffers.size(); ++i){
         swapchain.images[i].image = swapchainImages[i];
+        swapchain.images[i].format = SWAPCHAIN_FORMAT;
         // swapchain.images[i].AllocateAndBindMemory(device, VK_MEMORY_HEAP_DEVICE_LOCAL_BIT);
-        swapchain.images[i].CreateImageView(device.device, swapchain.format);
+        swapchain.images[i].CreateImageView(device.device);
         frameBufferAttachments[0] = swapchain.images[i].view;
         vkCreateFramebuffer(device.device, &frameBufferInfo, nullptr, &framebuffers[i]);
     }
@@ -225,9 +228,8 @@ VkResult VulkanWindow::CreateRenderPass(VkDevice device, bool useDepthImage){
     info.attachmentCount = attachmentDescription.size();
     return vkCreateRenderPass(device, &info, nullptr, &renderPass);
 }
-void VulkanWindow::CreateDepthImage(VulkanDevice device, const VkExtent2D &swapchainExtent, VulkanImage &image){
-    const VkExtent3D extent = {swapchainExtent.width, swapchainExtent.height, 1};
-    image.CreateImage(device.device, extent, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_FORMAT_D32_SFLOAT_S8_UINT);
+void VulkanWindow::CreateDepthImage(VulkanDevice device, const VkExtent3D &swapchainExtent, VulkanImage &image){
+    image.CreateImage(device.device, swapchainExtent, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_FORMAT_D32_SFLOAT_S8_UINT);
     image.AllocateAndBindMemory(device, VK_MEMORY_HEAP_DEVICE_LOCAL_BIT);
-    image.CreateImageView(device.device, VK_FORMAT_D32_SFLOAT_S8_UINT, VK_IMAGE_ASPECT_DEPTH_BIT|VK_IMAGE_ASPECT_STENCIL_BIT);
+    image.CreateImageView(device.device, VK_IMAGE_ASPECT_DEPTH_BIT|VK_IMAGE_ASPECT_STENCIL_BIT);
 }

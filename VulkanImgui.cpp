@@ -103,16 +103,13 @@ void VulkanImgui::CreateFontsTexture(VulkanDevice device, VkQueue graphics, Vulk
     unsigned char* pixels;
     int width, height;
     io.Fonts->GetTexDataAsRGBA32(&pixels, &width, &height);
-    // size_t upload_size = width * height * 4 * sizeof(char);
 
     vulkanFrame::CreateFontImage(device, pixels, width, height, mFont, pool, graphics);
 
-    // bd->FontDescriptorSet = (VkDescriptorSet)ImGui_ImplVulkan_AddTexture(bd->FontSampler, bd->Font.view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    // io.Fonts->AddFontFromFileTTF("/usr/share/fonts/noto-cjk/NotoSansCJK-Black.ttc", 20, NULL, io.Fonts->GetGlyphRangesChineseFull());
 
-    // Store our identifier
-    io.Fonts->SetTexID((ImTextureID)mSet);
-
-    IM_FREE(pixels);
+    // IM_FREE(pixels);
+    io.Fonts->ClearTexData();
 }
 // void VulkanImgui::CreateRect(VulkanDevice device, VkDeviceSize index_size, VkDeviceSize vertex_size){
 //     if(mRect.vertex.buffer != VK_NULL_HANDLE){
@@ -156,32 +153,10 @@ static uint32_t ImGui_ImplVulkan_MemoryType(VkPhysicalDevice physicalDevice, VkM
             return i;
     return 0xFFFFFFFF; // Unable to find memoryType
 }
-void VulkanImgui::CreateOrResizeBuffer(VkBuffer& buffer, VkDeviceMemory& buffer_memory, VkDeviceSize& p_buffer_size, size_t new_size, VkBufferUsageFlagBits usage){
-    VkResult err;
-    if (buffer != VK_NULL_HANDLE)
-        vkDestroyBuffer(mDevice.device, buffer, VK_NULL_HANDLE);
-    if (buffer_memory != VK_NULL_HANDLE)
-        vkFreeMemory(mDevice.device, buffer_memory, VK_NULL_HANDLE);
-
+void VulkanImgui::CreateOrResizeBuffer(VulkanBuffer&buffer, size_t new_size, VkBufferUsageFlagBits usage){
+    buffer.Destroy(mDevice.device);
     VkDeviceSize vertex_buffer_size_aligned = ((new_size - 1) / mBufferMemoryAlignment + 1) * mBufferMemoryAlignment;
-    VkBufferCreateInfo buffer_info = {};
-    buffer_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-    buffer_info.size = vertex_buffer_size_aligned;
-    buffer_info.usage = usage;
-    buffer_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-    err = vkCreateBuffer(mDevice.device, &buffer_info, VK_NULL_HANDLE, &buffer);
-
-    VkMemoryRequirements req;
-    vkGetBufferMemoryRequirements(mDevice.device, buffer, &req);
-    mBufferMemoryAlignment = (mBufferMemoryAlignment > req.alignment) ? mBufferMemoryAlignment : req.alignment;
-    VkMemoryAllocateInfo alloc_info = {};
-    alloc_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-    alloc_info.allocationSize = req.size;
-    alloc_info.memoryTypeIndex = ImGui_ImplVulkan_MemoryType(mDevice.physicalDevice, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, req.memoryTypeBits);
-    err = vkAllocateMemory(mDevice.device, &alloc_info, VK_NULL_HANDLE, &buffer_memory);
-
-    err = vkBindBufferMemory(mDevice.device, buffer, buffer_memory, 0);
-    p_buffer_size = req.size;
+    buffer.CreateBuffer(mDevice, vertex_buffer_size_aligned, usage, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
 }
 VulkanImgui::VulkanImgui(/* args */){
 }
@@ -198,22 +173,20 @@ void VulkanImgui::Cleanup(VkDevice device){
     vkDestroyDescriptorSetLayout(device, mSetLayout, VK_NULL_HANDLE);
 }
 
-void VulkanImgui::Setup(VulkanDevice device, VkQueue graphics, VulkanPool pool){
+void VulkanImgui::Setup(VulkanDevice device, VulkanPool pool){
     mDevice = device;
     mBufferMemoryAlignment = 256;
     vulkanFrame::CreateTextureSampler(device.device, mFontSampler);
     SetupDescriptorSetLayout(device.device);
     pool.AllocateDescriptorSets(device.device, &mSetLayout, 1, &mSet);
 
-    ImGuiIO&io = ImGui::GetIO();
-    io.Fonts->AddFontFromFileTTF("fonts/SourceHanSerifCN-Bold.otf", 20, NULL, io.Fonts->GetGlyphRangesChineseFull());
-    CreateFontsTexture(device, graphics, pool);
+    // ChangeFont(device, "fonts/SourceHanSerifCN-Bold.otf", graphics, pool);
 
-    VkDescriptorSetLayoutBinding binding[1] = {};
-    binding[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    binding[0].descriptorCount = 1;
-    binding[0].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-    vulkanFrame::UpdateDescriptorSets(device.device, binding, 1, {}, { mFont }, mSet, mFontSampler);
+    // VkDescriptorSetLayoutBinding binding[1] = {};
+    // binding[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    // binding[0].descriptorCount = 1;
+    // binding[0].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    // vulkanFrame::UpdateDescriptorSets(device.device, binding, 1, {}, { mFont }, mSet, mFontSampler);
 }
 
 void VulkanImgui::CreatePipeline(VkDevice device, VkRenderPass renderPass, VkPipelineCache cache){
@@ -286,6 +259,26 @@ void VulkanImgui::CreatePipeline(VkDevice device, VkRenderPass renderPass, VkPip
     vkDestroyShaderModule(device, shaderStages[0].module, VK_NULL_HANDLE);
     vkDestroyShaderModule(device, shaderStages[1].module, VK_NULL_HANDLE);
 }
+void VulkanImgui::CreateFont(VulkanDevice device, const char *font, VkQueue graphics, VulkanPool pool){
+    if(mFont.image != VK_NULL_HANDLE){
+        mFont.Destroy(device.device);
+    }
+
+    ImGuiIO&io = ImGui::GetIO();
+    io.Fonts->Clear();
+    io.Fonts->AddFontFromFileTTF(font, 20, NULL, io.Fonts->GetGlyphRangesChineseFull());
+
+    CreateFontsTexture(device, graphics, pool);
+
+    VkDescriptorSetLayoutBinding binding[1] = {};
+    binding[0].descriptorCount = 1;
+    binding[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    binding[0].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    vulkanFrame::UpdateDescriptorSets(device.device, binding, 1, {}, { mFont }, mSet, mFontSampler);
+
+    // Store our identifier
+    io.Fonts->SetTexID((ImTextureID)mSet);
+}
 
 void VulkanImgui::RenderDrawData(VkCommandBuffer command, ImDrawData *draw_data){
     // Avoid rendering when minimized, scale coordinates for retina displays (screen coordinates != framebuffer coordinates)
@@ -299,9 +292,9 @@ void VulkanImgui::RenderDrawData(VkCommandBuffer command, ImDrawData *draw_data)
         size_t vertex_size = draw_data->TotalVtxCount * sizeof(ImDrawVert);
         size_t index_size = draw_data->TotalIdxCount * sizeof(ImDrawIdx);
         if (mRect.vertex.buffer == VK_NULL_HANDLE || mRect.vertex.size < vertex_size)
-            CreateOrResizeBuffer(mRect.vertex.buffer, mRect.vertex.memory, mRect.vertex.size, vertex_size, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
+            CreateOrResizeBuffer(mRect.vertex, vertex_size, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
         if (mRect.index.buffer == VK_NULL_HANDLE || mRect.index.size < index_size)
-            CreateOrResizeBuffer(mRect.index.buffer, mRect.index.memory, mRect.index.size, vertex_size, VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
+            CreateOrResizeBuffer(mRect.index, index_size, VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
         // if (mRect.vertex.buffer == VK_NULL_HANDLE || mRect.vertex.size < vertex_size || mRect.index.buffer == VK_NULL_HANDLE || mRect.index.size < index_size){
         //     CreateRect(mDevice, index_size, vertex_size);
         //     mRect.indexCount = draw_data->TotalIdxCount;

@@ -83,9 +83,12 @@ void OnLine::JoinsGame(){
 
 void OnLine::Cleanup(){
     GameMessage message;
+    message.clientIndex = clientIndex;
     message.event = GAME_OVER_GAME_EVENT;
-    mServer.SendToAllClient(&message, sizeof(message));
-    mClient.SendTo(&message, sizeof(message));
+    if(IsServer())
+        mServer.SendToAllClient(&message, sizeof(message));
+    else
+        mClient.SendTo(&message, sizeof(message));
     mServer.ShutdownClient();
     mServer.ShutdownServer();
     mClient.Shutdown();

@@ -1,12 +1,5 @@
 #include "VulkanImage.h"
 #include "vulkanFrame.h"//CopyImage需要
-VkResult VulkanImage::CreateImage(VkDevice device, const VkExtent2D&extent, VkImageUsageFlags usage, VkFormat format, VkImageType type){
-    VkExtent3D e3d;
-    e3d.width = extent.width;
-    e3d.height = extent.height;
-    e3d.depth = 1;
-    return CreateImage(device, e3d, usage, format, type);
-}
 VkResult VulkanImage::CreateImage(VkDevice device, const VkExtent3D&extent, VkImageUsageFlags usage, VkFormat format, VkImageType type){
     return CreateImage(device, extent, usage, format, 1, type);
 }
@@ -17,7 +10,23 @@ VkResult VulkanImage::CreateImage(VkDevice device, const VkExtent3D &extent, VkI
     return CreateImage(device, extent, usage, format, type, tiling, arrayLayer);
 }
 VkResult VulkanImage::CreateImage(VkDevice device, const VkExtent3D &extent, VkImageUsageFlags usage, VkFormat format, VkImageType type, VkImageTiling tiling, uint32_t arrayLayer, VkSampleCountFlagBits samples, VkImageLayout initialLayout){
-    size = extent;
+    this->size = extent;
+    this->format = format;
+	if(format == VK_FORMAT_R8_UNORM){
+		channels = 1;
+	}
+	else if(format == VK_FORMAT_R8G8_UNORM){
+		channels = 2;
+	}
+	else if(format == VK_FORMAT_R8G8B8_UNORM){
+		channels = 3;
+	}
+	else if(format == VK_FORMAT_R8G8B8A8_UNORM){
+		channels = 4;
+	}
+    else{
+        channels = 4;
+    }
     VkImageCreateInfo imageInfo = {};
     imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
     imageInfo.mipLevels = 1;
@@ -35,10 +44,10 @@ VkResult VulkanImage::CreateImage(VkDevice device, const VkExtent3D &extent, VkI
     imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
     return vkCreateImage(device, &imageInfo, nullptr, &image);
 }
-VkResult VulkanImage::CreateImageView(VkDevice device, VkFormat format, VkImageViewType type, uint32_t arrayLayer){
-    return CreateImageView(device, format, VK_IMAGE_ASPECT_COLOR_BIT, type, arrayLayer);
+VkResult VulkanImage::CreateImageView(VkDevice device, VkImageViewType type, uint32_t arrayLayer){
+    return CreateImageView(device, VK_IMAGE_ASPECT_COLOR_BIT, type, arrayLayer);
 }
-VkResult VulkanImage::CreateImageView(VkDevice device, VkFormat format, VkImageAspectFlags aspectMask, VkImageViewType type, uint32_t arrayLayer) {
+VkResult VulkanImage::CreateImageView(VkDevice device, VkImageAspectFlags aspectMask, VkImageViewType type, uint32_t arrayLayer) {
 	VkImageViewCreateInfo imageViewInfo = {};
     imageViewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
 	imageViewInfo.image = image;
@@ -51,40 +60,38 @@ VkResult VulkanImage::CreateImageView(VkDevice device, VkFormat format, VkImageA
     imageViewInfo.subresourceRange.layerCount = arrayLayer;
 	return vkCreateImageView(device, &imageViewInfo, nullptr, &view);
 }
-void VulkanImage::CopyImage(VkDevice device, const VulkanBuffer &dataBuffer, uint32_t width, uint32_t height, VulkanPool pool, VkQueue graphics){
-	VkCommandBuffer cmd;
-	vulkanFrame::BeginSingleTimeCommands(device, pool, cmd);
+void VulkanImage::CopyImage(VkDevice device, const VulkanBuffer &dataBuffer, VulkanPool pool, VkQueue graphics){
+	VkCommandBuffer cmd = vulkanFrame::BeginSingleTimeCommands(device, pool);
     vulkanFrame::SetImageLayout(cmd, image, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT);
     VkBufferImageCopy bufferCopyRegions = {};
     // bufferCopyRegions.bufferOffset = bufferOffset;
     bufferCopyRegions.imageSubresource.layerCount = 1;
-    bufferCopyRegions.imageExtent = { width, height, 1 };
+    bufferCopyRegions.imageExtent = { size.width, size.height, 1 };
     // bufferCopyRegions.imageSubresource.baseArrayLayer = baseArrayLayer;
     bufferCopyRegions.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
 	vkCmdCopyBufferToImage(cmd, dataBuffer.buffer, image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &bufferCopyRegions);
     vulkanFrame::SetImageLayout(cmd, image, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT);
 	vulkanFrame::EndSingleTimeCommands(device, pool.command, graphics, cmd);
 }
-void VulkanImage::CopyImage(VulkanDevice device, const void *const *datas, uint32_t imageCount, uint32_t width, uint32_t height, VulkanPool pool, VkQueue graphics){
+void VulkanImage::CopyImage(VulkanDevice device, const void *const *datas, uint32_t imageCount, VulkanPool pool, VkQueue graphics){
     VulkanBuffer tempStorageBuffer;
-	const VkDeviceSize imageSize = width * height * 4;
+	const VkDeviceSize imageSize = size.width * size.height * channels;
 	tempStorageBuffer.CreateBuffer(device, imageSize * imageCount, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
     for (size_t i = 0; i < imageCount; i++){
 	    tempStorageBuffer.UpdateData(device.device, imageSize, datas[i], i * imageSize);
     }
-    CopyImage(device.device, tempStorageBuffer, imageCount, width, height, pool, graphics);
+    CopyImage(device.device, tempStorageBuffer, imageCount, pool, graphics);
     tempStorageBuffer.Destroy(device.device);
 }
-void VulkanImage::CopyImage(VkDevice device, const VulkanBuffer &dataBuffer, uint32_t imageCount, uint32_t width, uint32_t height, VulkanPool pool, VkQueue graphics){
-	VkCommandBuffer cmd;
-	const VkDeviceSize imageSize = width * height * 4;
-	vulkanFrame::BeginSingleTimeCommands(device, pool, cmd);
+void VulkanImage::CopyImage(VkDevice device, const VulkanBuffer &dataBuffer, uint32_t imageCount, VulkanPool pool, VkQueue graphics){
+	const VkDeviceSize imageSize = size.width * size.height * channels;
+	VkCommandBuffer cmd = vulkanFrame::BeginSingleTimeCommands(device, pool);
 	vulkanFrame::SetImageLayout(cmd, image, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, imageCount);
 	std::vector<VkBufferImageCopy> bufferCopyRegions(imageCount);
 	for (size_t i = 0; i < imageCount; ++i) {
         bufferCopyRegions[i].imageExtent.depth = 1;
-        bufferCopyRegions[i].imageExtent.width = width;
-        bufferCopyRegions[i].imageExtent.height = height;
+        bufferCopyRegions[i].imageExtent.width = size.width;
+        bufferCopyRegions[i].imageExtent.height = size.height;
         bufferCopyRegions[i].bufferOffset = imageSize * i;
         bufferCopyRegions[i].imageSubresource.layerCount = 1;
         bufferCopyRegions[i].imageSubresource.baseArrayLayer = i;
@@ -94,12 +101,12 @@ void VulkanImage::CopyImage(VkDevice device, const VulkanBuffer &dataBuffer, uin
 	vulkanFrame::SetImageLayout(cmd, image, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, imageCount);
 	vulkanFrame::EndSingleTimeCommands(device, pool.command, graphics, cmd);
 }
-void VulkanImage::CopyImage(VulkanDevice device, const void *datas, uint32_t width, uint32_t height, VulkanPool pool, VkQueue graphics){
+void VulkanImage::CopyImage(VulkanDevice device, const void *datas, VulkanPool pool, VkQueue graphics){
     VulkanBuffer tempStorageBuffer;
-	VkDeviceSize imageSize = width * height * 4;
+	VkDeviceSize imageSize = size.width * size.height * channels;
 	tempStorageBuffer.CreateBuffer(device, imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
     tempStorageBuffer.UpdateData(device.device, imageSize, datas);
-    CopyImage(device.device, tempStorageBuffer, width, height, pool, graphics);
+    CopyImage(device.device, tempStorageBuffer, pool, graphics);
     tempStorageBuffer.Destroy(device.device);
 }
 

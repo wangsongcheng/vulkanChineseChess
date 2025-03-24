@@ -493,6 +493,8 @@ void Ai::CreatePthread(Game *pGame, OnLine *pOnline){
 }
 void Ai::GetPlayChess(uint32_t country, Chess **pSelect, Chess **pTarget, uint32_t *row, uint32_t *column) const{
     std::vector<Chess>canplays;
+    // 继续用if 写ai吧。先考虑防守，将优先级最高，必须立即解，依次是车马，炮相士兵
+    // 进攻的话，看看棋谱吧，特别是有可能和残局差不多的布局
     // const ChessInfo *pSelect = nullptr, *pRival = nullptr;
     // const uint32_t nextCountry = GetNextCountry(g_CurrentCountry);
     // const ChessInfo * = GetRival(g_CurrentCountry, (uint32_t)JIANG_CHESS_INDEX);

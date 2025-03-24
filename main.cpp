@@ -90,17 +90,15 @@ void SetupVulkan(GLFWwindow *window){
     VK_CHECK(g_VulkanDevice.CreateDebugUtilsMessenger(debugUtilsMessenger));
     glfwCreateWindowSurface(g_VulkanDevice.instance, window, nullptr, &g_VulkanWindow.surface);
     VK_CHECK(g_VulkanDevice.CreateDevice(g_VulkanWindow.surface));
-    uint32_t queueFamilies[2];
-    queueFamilies[GRAPHICS_QUEUE_INDEX] = g_VulkanDevice.GetQueueFamiliesIndex(VK_QUEUE_GRAPHICS_BIT, g_VulkanWindow.surface);
-    if(queueFamilies[GRAPHICS_QUEUE_INDEX] != -1){
-        queueFamilies[PRESENT_QUEUE_INDEX] = queueFamilies[GRAPHICS_QUEUE_INDEX];
-        vkGetDeviceQueue(g_VulkanDevice.device, queueFamilies[PRESENT_QUEUE_INDEX], queueFamilies[GRAPHICS_QUEUE_INDEX], &g_VulkanQueue.present);
-        vkGetDeviceQueue(g_VulkanDevice.device, queueFamilies[GRAPHICS_QUEUE_INDEX], queueFamilies[GRAPHICS_QUEUE_INDEX], &g_VulkanQueue.graphics);
+    uint32_t queueFamilies = g_VulkanDevice.GetQueueFamiliesIndex(VK_QUEUE_GRAPHICS_BIT, g_VulkanWindow.surface);
+    if(queueFamilies != -1){
+        vkGetDeviceQueue(g_VulkanDevice.device, queueFamilies, queueFamilies, &g_VulkanQueue.present);
+        vkGetDeviceQueue(g_VulkanDevice.device, queueFamilies, queueFamilies, &g_VulkanQueue.graphics);
     }
     g_VulkanWindow.swapchain.CreateSwapchain(g_VulkanDevice, g_VulkanWindow.surface);
 
     g_VulkanWindow.CreateRenderPass(g_VulkanDevice.device);
-    g_VulkanWindow.CreateFrameBuffer(g_VulkanDevice, true);
+    g_VulkanWindow.CreateFrameBuffer(g_VulkanDevice);
 
     g_VulkanPool.CreatePool(g_VulkanDevice, 8);
 
@@ -874,7 +872,7 @@ void UpdateImgui(VkCommandBuffer command){
 }
 void RecordCommand(VkCommandBuffer command, VkFramebuffer frame){
     vulkanFrame::BeginCommands(command, VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT);
-    vulkanFrame::BeginRenderPassGeneral(command, frame, g_VulkanWindow.renderPass, g_WindowWidth, g_WindowHeight);
+    vulkanFrame::BeginRenderPass(command, frame, g_VulkanWindow.renderPass, g_WindowWidth, g_WindowHeight);
 
     const glm::mat4 projection = glm::ortho(0.0f, (float)g_WindowWidth, 0.0f, (float)g_WindowHeight, -1.0f, 1.0f);
     vkCmdBindPipeline(command, VK_PIPELINE_BIND_POINT_GRAPHICS, g_Fill);
@@ -1120,8 +1118,8 @@ void CreateGraphicsPipeline(VkDevice device, VkPipelineLayout layout){
     inputState.pVertexAttributeDescriptions = attributeDescriptions.data();
     inputState.vertexAttributeDescriptionCount = attributeDescriptions.size();
 
-    shaderStages[0] = Pipeline::LoadShader(device, "shaders/baseVert.spv", VK_SHADER_STAGE_VERTEX_BIT);
-    shaderStages[1] = Pipeline::LoadShader(device, "shaders/baseFrag.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
+    shaderStages[0] = Pipeline::LoadShader(device, "shaders/base.vert.spv", VK_SHADER_STAGE_VERTEX_BIT);
+    shaderStages[1] = Pipeline::LoadShader(device, "shaders/base.frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
 
     // pipelineCreateInfo.pTessellationState = ;
     pipelineCreateInfo.layout = layout;
@@ -1142,8 +1140,8 @@ void CreateGraphicsPipeline(VkDevice device, VkPipelineLayout layout){
     vkDestroyShaderModule(device, shaderStages[0].module, VK_NULL_HANDLE);
     vkDestroyShaderModule(device, shaderStages[1].module, VK_NULL_HANDLE);
     rasterizationState = Pipeline::initializers::pipelineRasterizationStateCreateInfo(VK_POLYGON_MODE_FILL, VK_CULL_MODE_NONE, VK_FRONT_FACE_CLOCKWISE, 0);
-    shaderStages[0] = Pipeline::LoadShader(device, "shaders/baseFontVert.spv", VK_SHADER_STAGE_VERTEX_BIT);
-    shaderStages[1] = Pipeline::LoadShader(device, "shaders/baseFontFrag.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
+    shaderStages[0] = Pipeline::LoadShader(device, "shaders/font.vert.spv", VK_SHADER_STAGE_VERTEX_BIT);
+    shaderStages[1] = Pipeline::LoadShader(device, "shaders/font.frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
     VK_CHECK(vkCreateGraphicsPipelines(device, g_pipelineCache, 1, &pipelineCreateInfo, nullptr, &g_Font));
     vkDestroyShaderModule(device, shaderStages[0].module, VK_NULL_HANDLE);
     vkDestroyShaderModule(device, shaderStages[1].module, VK_NULL_HANDLE);
@@ -1188,8 +1186,9 @@ void Setup(GLFWwindow *window){
     ImGui::StyleColorsDark();
 
     ImGui_ImplGlfw_InitForVulkan(window, true);
-    g_VulkanImgui.Setup(g_VulkanDevice, g_VulkanQueue.graphics, g_VulkanPool);
+    g_VulkanImgui.Setup(g_VulkanDevice, g_VulkanPool);
     g_VulkanImgui.CreatePipeline(g_VulkanDevice.device, g_VulkanWindow.renderPass, g_pipelineCache);
+    g_VulkanImgui.CreateFont(g_VulkanDevice, "fonts/SourceHanSerifCN-Bold.otf", g_VulkanQueue.graphics, g_VulkanPool);
     g_OnLine.Init();
     for (size_t i = 0; i < MAX_COUNTRY_INDEX - 1; i++){
         ResetCountryItem(g_CountryItems[i]);
