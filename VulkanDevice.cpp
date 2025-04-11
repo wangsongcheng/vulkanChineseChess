@@ -20,18 +20,17 @@ bool VulkanDevice::GetPhysicalDevices(bool (*GetPhysicalDevices)(VkPhysicalDevic
     if(physicalDevice == VK_NULL_HANDLE){
         physicalDevice = physicalDevices[0];
     }
+    uint32_t queueFamilyCount = 0;
     vkGetPhysicalDeviceProperties(physicalDevice, &physicalDeviceProperties);
     vkGetPhysicalDeviceMemoryProperties(physicalDevice, &memoryProperties);
+	vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueFamilyCount, nullptr);
+	queueFamiliesProperties.resize(queueFamilyCount);
+	vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueFamilyCount, queueFamiliesProperties.data());
     return true;
 }
 uint32_t VulkanDevice::GetQueueFamiliesIndex(VkQueueFlagBits queue){
     int32_t queueFamilyIndex = -1;
-    uint32_t queueFamilyCount = 0;
-	vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueFamilyCount, nullptr);
-
-	std::vector<VkQueueFamilyProperties>queueFamiliesProperties(queueFamilyCount);
-	vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueFamilyCount, queueFamiliesProperties.data());
-	for (int i = 0; i < queueFamilyCount; ++i) {
+	for (int i = 0; i < queueFamiliesProperties.size(); ++i) {
         if (queueFamiliesProperties[i].queueCount > 0 && queueFamiliesProperties[i].queueFlags & queue) {
             queueFamilyIndex = i;
             break;
@@ -60,15 +59,16 @@ void VulkanDevice::Cleanup(){
     vkDestroyInstance(instance, nullptr);
 }
 VkResult VulkanDevice::CreateDevice(VkSurfaceKHR surface, const std::vector<const char *> &deviceExtensions){
-    uint32_t queueFamilyCount = 1;
 	const float queuePriorities = 1.0f;
-    uint32_t queueFamilies = GetQueueFamiliesIndex(VK_QUEUE_GRAPHICS_BIT, surface);
-    std::vector<VkDeviceQueueCreateInfo>queueCreateInfos(queueFamilyCount);
-    for (size_t i = 0; i < queueCreateInfos.size(); ++i){
-        queueCreateInfos[i].sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-        queueCreateInfos[i].queueCount = 1;
-        queueCreateInfos[i].queueFamilyIndex = queueFamilies;
-        queueCreateInfos[i].pQueuePriorities = &queuePriorities;
+    std::set<uint32_t>uniqueQueueFamilies = {GetQueueFamiliesIndex(VK_QUEUE_GRAPHICS_BIT), GetQueueFamiliesIndex(surface)};
+    std::vector<VkDeviceQueueCreateInfo>queueCreateInfos;
+    VkDeviceQueueCreateInfo queueInfo = {};
+    queueInfo.queueCount = 1;
+    queueInfo.pQueuePriorities = &queuePriorities;
+    queueInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+    for(auto queueFamily:uniqueQueueFamilies){
+        queueInfo.queueFamilyIndex = queueFamily;
+        queueCreateInfos.push_back(queueInfo);
     }
     VkPhysicalDeviceFeatures features;
 	vkGetPhysicalDeviceFeatures(physicalDevice, &features);
@@ -86,35 +86,18 @@ VkResult VulkanDevice::CreateDevice(VkSurfaceKHR surface, const std::vector<cons
     deviceCreateInfo.queueCreateInfoCount = queueCreateInfos.size();
     return vkCreateDevice(physicalDevice, &deviceCreateInfo, nullptr, &device);
 }
-uint32_t VulkanDevice::GetQueueFamiliesIndex(VkQueueFlagBits queue, VkSurfaceKHR surface){
+uint32_t VulkanDevice::GetQueueFamiliesIndex(VkSurfaceKHR surface){
     int32_t queueFamilyIndex = -1;
-    uint32_t queueFamilyCount = 0;
-	vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueFamilyCount, nullptr);
-
-	std::vector<VkQueueFamilyProperties>queueFamiliesProperties(queueFamilyCount);
-	vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueFamilyCount, queueFamiliesProperties.data());
     VkBool32 presentSupport = false;
-    if (queue & VK_QUEUE_FLAG_BITS_MAX_ENUM && surface != VK_NULL_HANDLE){
+    if (surface != VK_NULL_HANDLE){
         //该队列族有呈现能力即可
-        for (int i = 0; i < queueFamilyCount; ++i) {
+        for (int i = 0; i < queueFamiliesProperties.size(); ++i) {
             vkGetPhysicalDeviceSurfaceSupportKHR(physicalDevice, i, surface, &presentSupport);
             if (presentSupport) {
                 queueFamilyIndex = i;
                 break;
             }
         }
-    }
-    else if(surface != VK_NULL_HANDLE){
-        //该队列族有呈现能力且和参数一致的队列族
-        for (int i = 0; i < queueFamilyCount; ++i) {
-            vkGetPhysicalDeviceSurfaceSupportKHR(physicalDevice, i, surface, &presentSupport);
-            if (queueFamiliesProperties[i].queueFlags & queue && presentSupport) {
-                queueFamilyIndex = i;
-            }
-        }
-    }
-    else{
-        queueFamilyIndex = GetQueueFamiliesIndex(queue);
     }
     return queueFamilyIndex;
 }
@@ -133,10 +116,13 @@ VkResult VulkanDevice::AllocateMemory(VkDeviceSize size, uint32_t typeFilter, Vk
     allocateInfo.pNext = nullptr;
     allocateInfo.allocationSize = size;
     allocateInfo.memoryTypeIndex = findMemoryTypeIndex(typeFilter, properties);
+    if (allocateInfo.memoryTypeIndex == -1) {
+        throw std::runtime_error("Failed to find suitable memory type!");
+    }
 	return vkAllocateMemory(device, &allocateInfo, nullptr, &memory);
 }
-void VulkanDevice::GetPhysicalDeviceProperties(VkPhysicalDeviceProperties &properties){
-    properties = physicalDeviceProperties;
+const VkPhysicalDeviceProperties&VulkanDevice::GetPhysicalDeviceProperties(){
+    return physicalDeviceProperties;
 }
 uint32_t VulkanDevice::findMemoryTypeIndex(uint32_t typeFilter, VkMemoryPropertyFlags properties){
     for (size_t i = 0; i < memoryProperties.memoryTypeCount; i++){

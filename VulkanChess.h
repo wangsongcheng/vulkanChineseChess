@@ -96,7 +96,7 @@ class VulkanChess{
     // }pipelines;
     struct{
         VkSampler sampler;
-        VulkanImage image;//魏, 蜀, 吴, 漢, 兵, 炮, 車, 馬, 相, 士
+        VulkanFontImage image;//魏, 蜀, 吴, 漢, 兵, 炮, 車, 馬, 相, 士
     }fonts;
     Rect mFont;
     Circle mChess;

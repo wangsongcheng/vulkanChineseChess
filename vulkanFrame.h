@@ -3,8 +3,8 @@
 #include <assert.h>
 #include "VulkanPool.h"
 #include "VulkanBuffer.h"
-#include "VulkanImage.h"
 #include "VulkanDevice.h"
+#include "VulkanImage.h"
 #define VK_CHECK(x)                                                 \
 do{                                                               \
         VkResult err = x;                                           \
@@ -17,6 +17,15 @@ struct VulkanQueue{
     VkQueue present = VK_NULL_HANDLE;
     VkQueue graphics = VK_NULL_HANDLE;
     VkQueue compute = VK_NULL_HANDLE;
+    void CreateQueue(VulkanDevice device, VkSurfaceKHR surface){
+        uint32_t queueFamilies[3];
+        queueFamilies[0] = device.GetQueueFamiliesIndex(surface);
+        queueFamilies[1] = device.GetQueueFamiliesIndex(VK_QUEUE_GRAPHICS_BIT);
+        queueFamilies[2] = device.GetQueueFamiliesIndex(VK_QUEUE_COMPUTE_BIT);
+        if(queueFamilies[0] != -1)vkGetDeviceQueue(device.device, queueFamilies[0], queueFamilies[0], &present);
+        if(queueFamilies[1] != -1)vkGetDeviceQueue(device.device, queueFamilies[1], queueFamilies[1], &graphics);
+        if(queueFamilies[2] != -1)vkGetDeviceQueue(device.device, queueFamilies[2], queueFamilies[2], &compute);
+    }
 };
 struct VulkanSynchronize{
     std::vector<VkFence>fences;
@@ -35,19 +44,6 @@ namespace vulkanFrame{
     const char *cvmx_chip_type_to_string(VkResult type);
 
     VkResult CreateTextureSampler(VkDevice device, VkSampler &sampler);
-
-    void CreateGreyImage(VulkanDevice device, const void *datas, uint32_t width, uint32_t height, VulkanImage&image, VulkanPool pool, VkQueue graphics);
-    void CreateFontImage(VulkanDevice device, const void *datas, uint32_t width, uint32_t height, VulkanImage&image, VulkanPool pool, VkQueue graphics, uint32_t channels = 4);
-
-    void CreateCubeImage(VulkanDevice device, const void*const*datas, uint32_t width, VulkanImage&image, VulkanPool pool, VkQueue graphics);
-    // void CreateCubeImage(VulkanDevice device, const VulkanBuffer&dataBuffer, uint32_t width, VulkanImage&image, VulkanPool pool, VkQueue graphics);
-    //底层函数
-    void CreateTextureImage(VulkanDevice device, const void *datas, uint32_t width, uint32_t height, VulkanImage&image, VulkanPool pool, VkQueue graphics, uint32_t channels = 4);
-    // void CreateTextureImage(VulkanDevice device, const VulkanBuffer&dataBuffer, uint32_t width, uint32_t height, VulkanImage&image, VulkanPool pool, VkQueue graphics, uint32_t channels = 4);
-    void CreateImageArray(VulkanDevice device, const void*const*datas, uint32_t imageCount, uint32_t width, uint32_t height, VulkanImage&image, VulkanPool pool, VkQueue graphics, uint32_t channels = 4, VkImageViewType type = VK_IMAGE_VIEW_TYPE_2D_ARRAY);
-    // void CreateImageArray(VulkanDevice device, const VulkanBuffer&dataBuffer, uint32_t imageCount, uint32_t width, uint32_t height, VulkanImage&image, VulkanPool pool, VkQueue graphics, uint32_t channels = 4, VkImageViewType type = VK_IMAGE_VIEW_TYPE_2D_ARRAY);
-
-    void CopyImage(VkDevice device, VulkanImage&src, VulkanImage&dst, VulkanPool pool, VkQueue graphics);
     
     VkResult CreateDescriptorSetLayout(VkDevice device, const VkDescriptorSetLayoutBinding *pBinding, uint32_t count, VkDescriptorSetLayout *pSetLayout);
 
@@ -61,9 +57,9 @@ namespace vulkanFrame{
     //返回vkQueuePresentKHR的执行结果
     VkResult Render(VkDevice device, uint32_t currentFrame, const VkCommandBuffer& commandbuffers, VkSwapchainKHR swapchain, const VulkanQueue&vulkanQueue, const VulkanSynchronize&vulkanSynchronize, void(*recreateSwapchain)(void* userData) = nullptr, void* userData = nullptr);
 
-    void SetImageLayout(VkCommandBuffer cmdbuffer, VkImage image, VkImageAspectFlags aspectMask, VkImageLayout oldImageLayout, VkImageLayout newImageLayout, VkPipelineStageFlags srcStageMask, VkPipelineStageFlags dstStageMask);
-    void SetImageLayout(VkCommandBuffer cmdbuffer, VkImage image, VkImageLayout oldImageLayout, VkImageLayout newImageLayout, VkImageSubresourceRange subresourceRange, VkPipelineStageFlags srcStageMask, VkPipelineStageFlags dstStageMask);
-    void SetImageLayout(VkCommandBuffer cmdbuffer, VkImage image, VkImageAspectFlags aspectMask, VkImageLayout oldImageLayout, VkImageLayout newImageLayout, VkPipelineStageFlags srcStageMask, VkPipelineStageFlags dstStageMask, uint32_t imageCount);
+    // void SetImageLayout(VkCommandBuffer cmdbuffer, VkImage image, VkImageAspectFlags aspectMask, VkImageLayout oldImageLayout, VkImageLayout newImageLayout, VkPipelineStageFlags srcStageMask, VkPipelineStageFlags dstStageMask);
+    // void SetImageLayout(VkCommandBuffer cmdbuffer, VkImage image, VkImageLayout oldImageLayout, VkImageLayout newImageLayout, VkImageSubresourceRange subresourceRange, VkPipelineStageFlags srcStageMask, VkPipelineStageFlags dstStageMask);
+    // void SetImageLayout(VkCommandBuffer cmdbuffer, VkImage image, VkImageAspectFlags aspectMask, VkImageLayout oldImageLayout, VkImageLayout newImageLayout, VkPipelineStageFlags srcStageMask, VkPipelineStageFlags dstStageMask, uint32_t imageCount);
 
     VkResult Submit(VkDevice device, const VkCommandBuffer&commandbuffers, VkQueue graphics, const VkSemaphore&imageAcquired, const VkSemaphore&renderComplete, const VkFence&fence = VK_NULL_HANDLE);
     //setlayoutBindings可以用偏移

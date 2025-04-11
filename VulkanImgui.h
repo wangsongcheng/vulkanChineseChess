@@ -7,16 +7,16 @@
 #ifdef _MSC_VER
 #undef CreateFont
 #endif
-class VulkanImgui{
+class VulkanImGui{
     //因为imgui确实需要一条不同的管线，所以这里需要一个管线对象
     struct{
         VkPipeline pipeline;
         VkPipelineLayout layout;
     }pipelines;
     BaseGraphic mRect;
-    VulkanImage mFont;
     VkDescriptorSet mSet;
     VulkanDevice mDevice;
+    VulkanFontImage mFont;
     VkSampler mFontSampler;
     VkDescriptorSetLayout mSetLayout;
     VkDeviceSize mBufferMemoryAlignment;
@@ -27,8 +27,8 @@ class VulkanImgui{
     void CreateOrResizeBuffer(VulkanBuffer&buffer, size_t new_size, VkBufferUsageFlagBits usage);
     void SetupRenderState(VkCommandBuffer command, ImDrawData* draw_data, int fb_width, int fb_height);
 public:
-    VulkanImgui(/* args */);
-    ~VulkanImgui();
+    VulkanImGui(/* args */);
+    ~VulkanImGui();
     void Cleanup(VkDevice device);
     void Setup(VulkanDevice device, VulkanPool pool);
 

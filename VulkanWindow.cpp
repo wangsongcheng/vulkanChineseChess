@@ -28,11 +28,42 @@ SwapChainSupportDetails querySwapChainSupport(VkPhysicalDevice physicalDevice, V
     return details;
 }
 VkSurfaceFormatKHR chooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats) {
-    for (const auto& availableFormat : availableFormats) {
-        if (availableFormat.format == SWAPCHAIN_FORMAT && availableFormat.colorSpace == SWAPCHAIN_COLOR_SPACE) {
-            return availableFormat;
+    // 优先选择的格式列表（按优先级排序）
+    const std::vector<std::pair<VkFormat, VkColorSpaceKHR>> priorityList = {
+        // 最佳选择：UNORM 格式 + sRGB 非线性颜色空间（广泛兼容）
+        {VK_FORMAT_B8G8R8A8_UNORM, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR},
+        {VK_FORMAT_R8G8B8A8_UNORM, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR},
+
+        // 备用选择：设备支持的其他格式，但避免 SRGB 自动转换
+        {VK_FORMAT_B8G8R8A8_SRGB, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR},
+        {VK_FORMAT_R8G8B8A8_SRGB, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR},
+
+        // 兜底：直接使用第一个可用格式
+        {VK_FORMAT_UNDEFINED, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR}
+    };
+    // 第一阶段：尝试找到完全匹配的格式
+    for (const auto& preferred : priorityList) {
+        for (const auto& available : availableFormats) {
+            const bool formatMatches = 
+                (preferred.first == VK_FORMAT_UNDEFINED) || 
+                (preferred.first == available.format);
+                
+            if (formatMatches && (preferred.second == available.colorSpace)) {
+                return available;
+            }
         }
     }
+
+    // 第二阶段：放宽颜色空间要求
+    for (const auto& preferred : priorityList) {
+        for (const auto& available : availableFormats) {
+            if (preferred.first == available.format) {
+                return available;
+            }
+        }
+    }
+
+    // 保底方案：直接返回第一个可用格式
     return availableFormats[0];
 }
 // VkExtent2D chooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities) {
@@ -76,7 +107,7 @@ VkPresentModeKHR chooseSwapPresentMode(const std::vector<VkPresentModeKHR>& avai
 VkResult VulkanSwapchain::CreateSwapchain(VulkanDevice device, VkSurfaceKHR surface){
     SwapChainSupportDetails swapChainSupport = querySwapChainSupport(device.physicalDevice, surface);
 
-    VkSurfaceFormatKHR surfaceFormat = chooseSwapSurfaceFormat(swapChainSupport.formats);
+    surfaceFormat = chooseSwapSurfaceFormat(swapChainSupport.formats);
     VkPresentModeKHR presentMode = chooseSwapPresentMode(swapChainSupport.presentModes);
     // VkExtent2D extent = chooseSwapExtent(swapChainSupport.capabilities);
 
@@ -85,7 +116,7 @@ VkResult VulkanSwapchain::CreateSwapchain(VulkanDevice device, VkSurfaceKHR surf
     if (swapChainSupport.capabilities.maxImageCount > 0 && imageCount > swapChainSupport.capabilities.maxImageCount) {
         imageCount = swapChainSupport.capabilities.maxImageCount;
     }
-    format = surfaceFormat.format;
+    // imageCount = std::clamp(imageCount, 2u, 3u);
     extent = swapChainSupport.capabilities.currentExtent;
 
     VkSwapchainCreateInfoKHR createInfo{};
@@ -99,13 +130,11 @@ VkResult VulkanSwapchain::CreateSwapchain(VulkanDevice device, VkSurfaceKHR surf
     createInfo.imageArrayLayers = 1;
     createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 
-    uint32_t queueFamilyIndices;
-    queueFamilyIndices = device.GetQueueFamiliesIndex(VK_QUEUE_GRAPHICS_BIT, surface);
-    if (queueFamilyIndices == -1) {
+    uint32_t queueFamilyIndices[2] = { device.GetQueueFamiliesIndex(VK_QUEUE_GRAPHICS_BIT), device.GetQueueFamiliesIndex(surface) };
+    if (queueFamilyIndices[0] != queueFamilyIndices[1]) {
         createInfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
         createInfo.queueFamilyIndexCount = 2;
-        uint32_t queue[2] = { queueFamilyIndices, device.GetQueueFamiliesIndex(VK_QUEUE_FLAG_BITS_MAX_ENUM, surface) };
-        createInfo.pQueueFamilyIndices = queue;
+        createInfo.pQueueFamilyIndices = queueFamilyIndices;
     } else {
         createInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
     }
@@ -166,8 +195,7 @@ void VulkanWindow::CreateFrameBuffer(VulkanDevice device, bool createDepthImage)
     frameBufferInfo.attachmentCount = frameBufferAttachments.size();
     for (size_t i = 0; i < framebuffers.size(); ++i){
         swapchain.images[i].image = swapchainImages[i];
-        swapchain.images[i].format = SWAPCHAIN_FORMAT;
-        // swapchain.images[i].AllocateAndBindMemory(device, VK_MEMORY_HEAP_DEVICE_LOCAL_BIT);
+        swapchain.images[i].format = swapchain.surfaceFormat.format;
         swapchain.images[i].CreateImageView(device.device);
         frameBufferAttachments[0] = swapchain.images[i].view;
         vkCreateFramebuffer(device.device, &frameBufferInfo, nullptr, &framebuffers[i]);
@@ -194,7 +222,7 @@ VkResult VulkanWindow::CreateRenderPass(VkDevice device, bool useDepthImage){
     // subPass.pResolveAttachments =  VK_NULL_HANDLE;//用于多重采样的颜色附着
     // subPass.pPreserveAttachments = VK_NULL_HANDLE;//保留的附着, 用于在子流程之间传递数据
     std::vector<VkAttachmentDescription>attachmentDescription(1);
-    attachmentDescription[0].format = swapchain.format;
+    attachmentDescription[0].format = swapchain.surfaceFormat.format;
     attachmentDescription[0].samples = VK_SAMPLE_COUNT_1_BIT;
     attachmentDescription[0].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
     attachmentDescription[0].storeOp = VK_ATTACHMENT_STORE_OP_STORE;

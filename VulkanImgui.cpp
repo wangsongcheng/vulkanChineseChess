@@ -83,49 +83,32 @@ static uint32_t __glsl_shader_frag_spv[] ={
     0x00000007,0x0000001d,0x00000012,0x0000001c,0x0003003e,0x00000009,0x0000001d,0x000100fd,
     0x00010038
 };
-void VulkanImgui::CreatePipelineLayout(VkDevice device){
+void VulkanImGui::CreatePipelineLayout(VkDevice device){
     VkPipelineLayoutCreateInfo info = Pipeline::initializers::pipelineLayoutCreateInfo(1, 1);
     VkPushConstantRange pushConstantRange = Pipeline::initializers::pushConstantRange(VK_SHADER_STAGE_VERTEX_BIT, sizeof(float) * 4, 0);
     info.pSetLayouts = &mSetLayout;
     info.pPushConstantRanges = &pushConstantRange;
     VK_CHECK(vkCreatePipelineLayout(device, &info, nullptr, &pipelines.layout));
 }
-void VulkanImgui::SetupDescriptorSetLayout(VkDevice device){
+void VulkanImGui::SetupDescriptorSetLayout(VkDevice device){
     VkDescriptorSetLayoutBinding binding[1] = {};
     binding[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     binding[0].descriptorCount = 1;
     binding[0].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
     vulkanFrame::CreateDescriptorSetLayout(device, binding, 1, &mSetLayout);
 }
-void VulkanImgui::CreateFontsTexture(VulkanDevice device, VkQueue graphics, VulkanPool pool){
+void VulkanImGui::CreateFontsTexture(VulkanDevice device, VkQueue graphics, VulkanPool pool){
     ImGuiIO& io = ImGui::GetIO();
 
     unsigned char* pixels;
     int width, height;
     io.Fonts->GetTexDataAsRGBA32(&pixels, &width, &height);
 
-    vulkanFrame::CreateFontImage(device, pixels, width, height, mFont, pool, graphics);
+    mFont.CreateImage(device, pixels, width, height, 4, graphics, pool);
 
-    // io.Fonts->AddFontFromFileTTF("/usr/share/fonts/noto-cjk/NotoSansCJK-Black.ttc", 20, NULL, io.Fonts->GetGlyphRangesChineseFull());
-
-    // IM_FREE(pixels);
     io.Fonts->ClearTexData();
 }
-// void VulkanImgui::CreateRect(VulkanDevice device, VkDeviceSize index_size, VkDeviceSize vertex_size){
-//     if(mRect.vertex.buffer != VK_NULL_HANDLE){
-//         mRect.Destroy(device.device);
-//     }
-//     VkMemoryRequirements req;
-//     vkGetBufferMemoryRequirements(mDevice.device, mRect.index.buffer, &req);
-//     mBufferMemoryAlignment = (mBufferMemoryAlignment > req.alignment) ? mBufferMemoryAlignment : req.alignment;
-//     VkDeviceSize index_buffer_size_aligned = ((index_size - 1) / mBufferMemoryAlignment + 1) * mBufferMemoryAlignment;
-//     mRect.index.CreateBuffer(device, index_size, VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
-//     vkGetBufferMemoryRequirements(mDevice.device, mRect.vertex.buffer, &req);
-//     mBufferMemoryAlignment = (mBufferMemoryAlignment > req.alignment) ? mBufferMemoryAlignment : req.alignment;
-//     VkDeviceSize vertex_buffer_size_aligned = ((vertex_size - 1) / mBufferMemoryAlignment + 1) * mBufferMemoryAlignment;
-//     mRect.vertex.CreateBuffer(device, vertex_buffer_size_aligned, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
-// }
-void VulkanImgui::SetupRenderState(VkCommandBuffer command, ImDrawData *draw_data, int fb_width, int fb_height){
+void VulkanImGui::SetupRenderState(VkCommandBuffer command, ImDrawData *draw_data, int fb_width, int fb_height){
     vkCmdBindPipeline(command, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelines.pipeline);
     // Bind Vertex And Index Buffer:
     mRect.Bind(command, sizeof(ImDrawIdx) == 2 ? VK_INDEX_TYPE_UINT16 : VK_INDEX_TYPE_UINT32);
@@ -153,18 +136,18 @@ static uint32_t ImGui_ImplVulkan_MemoryType(VkPhysicalDevice physicalDevice, VkM
             return i;
     return 0xFFFFFFFF; // Unable to find memoryType
 }
-void VulkanImgui::CreateOrResizeBuffer(VulkanBuffer&buffer, size_t new_size, VkBufferUsageFlagBits usage){
+void VulkanImGui::CreateOrResizeBuffer(VulkanBuffer&buffer, size_t new_size, VkBufferUsageFlagBits usage){
     buffer.Destroy(mDevice.device);
     VkDeviceSize vertex_buffer_size_aligned = ((new_size - 1) / mBufferMemoryAlignment + 1) * mBufferMemoryAlignment;
     buffer.CreateBuffer(mDevice, vertex_buffer_size_aligned, usage, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
 }
-VulkanImgui::VulkanImgui(/* args */){
+VulkanImGui::VulkanImGui(/* args */){
 }
 
-VulkanImgui::~VulkanImgui(){
+VulkanImGui::~VulkanImGui(){
 }
 
-void VulkanImgui::Cleanup(VkDevice device){
+void VulkanImGui::Cleanup(VkDevice device){
     mRect.Destroy(device);
     mFont.Destroy(device);
     vkDestroySampler(device, mFontSampler, VK_NULL_HANDLE);
@@ -173,7 +156,7 @@ void VulkanImgui::Cleanup(VkDevice device){
     vkDestroyDescriptorSetLayout(device, mSetLayout, VK_NULL_HANDLE);
 }
 
-void VulkanImgui::Setup(VulkanDevice device, VulkanPool pool){
+void VulkanImGui::Setup(VulkanDevice device, VulkanPool pool){
     mDevice = device;
     mBufferMemoryAlignment = 256;
     vulkanFrame::CreateTextureSampler(device.device, mFontSampler);
@@ -189,7 +172,7 @@ void VulkanImgui::Setup(VulkanDevice device, VulkanPool pool){
     // vulkanFrame::UpdateDescriptorSets(device.device, binding, 1, {}, { mFont }, mSet, mFontSampler);
 }
 
-void VulkanImgui::CreatePipeline(VkDevice device, VkRenderPass renderPass, VkPipelineCache cache){
+void VulkanImGui::CreatePipeline(VkDevice device, VkRenderPass renderPass, VkPipelineCache cache){
     CreatePipelineLayout(device);
 
     VkPipelineVertexInputStateCreateInfo inputState{};
@@ -259,7 +242,7 @@ void VulkanImgui::CreatePipeline(VkDevice device, VkRenderPass renderPass, VkPip
     vkDestroyShaderModule(device, shaderStages[0].module, VK_NULL_HANDLE);
     vkDestroyShaderModule(device, shaderStages[1].module, VK_NULL_HANDLE);
 }
-void VulkanImgui::CreateFont(VulkanDevice device, const char *font, VkQueue graphics, VulkanPool pool){
+void VulkanImGui::CreateFont(VulkanDevice device, const char *font, VkQueue graphics, VulkanPool pool){
     if(mFont.image != VK_NULL_HANDLE){
         mFont.Destroy(device.device);
     }
@@ -280,7 +263,7 @@ void VulkanImgui::CreateFont(VulkanDevice device, const char *font, VkQueue grap
     io.Fonts->SetTexID((ImTextureID)mSet);
 }
 
-void VulkanImgui::RenderDrawData(VkCommandBuffer command, ImDrawData *draw_data){
+void VulkanImGui::RenderDrawData(VkCommandBuffer command, ImDrawData *draw_data){
     // Avoid rendering when minimized, scale coordinates for retina displays (screen coordinates != framebuffer coordinates)
     int fb_width = (int)(draw_data->DisplaySize.x * draw_data->FramebufferScale.x);
     int fb_height = (int)(draw_data->DisplaySize.y * draw_data->FramebufferScale.y);

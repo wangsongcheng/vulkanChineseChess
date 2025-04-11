@@ -122,8 +122,7 @@ void VulkanChessboard::Cleanup(VkDevice device){
 }
 
 void VulkanChessboard::Setup(VulkanDevice device, VkDescriptorSetLayout setLayout, VkQueue graphics, VulkanPool pool){
-    VkPhysicalDeviceProperties physicalDeviceProperties;
-    device.GetPhysicalDeviceProperties(physicalDeviceProperties);
+    auto&physicalDeviceProperties = device.GetPhysicalDeviceProperties();
     uint32_t minUniformBufferOffset = ALIGN(sizeof(glm::mat4), physicalDeviceProperties.limits.minUniformBufferOffsetAlignment);
 
     CreateRectResource(device, pool, graphics);

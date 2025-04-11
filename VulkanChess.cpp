@@ -32,11 +32,11 @@ void GetFontImageData(const unsigned char *fontData, int bitmap_w, int bitmap_h,
     stbtt_MakeCodepointBitmap(&info, out + byteOffset, c_x2 - c_x1, c_y2 - c_y1, bitmap_w, scale, scale, word);
 }
 void VulkanChess::GetCircularVertex(const glm::vec3 &color, std::vector<Vertex> &vertices){
-    Vertex v = Vertex(glm::vec3(.0f), color);
-    vertices.push_back(v);
-    for (float i = 0; i < 360.0f; ++i){
-        const float r = glm::radians(i);
-        v.pos = glm::vec3(sin(r), cos(r), .0f);
+    Vertex v;
+    v.color = color;
+    vertices.emplace_back(Vertex(glm::vec3(0, 0, 0), color));
+    for (float t = 0; t < 1; t += .01f){
+        v.pos = glm::vec3(cos(t * 2 * glm::pi<float>()), sin(t * 2 * glm::pi<float>()), 0);
         vertices.push_back(v);
     }
 }
@@ -83,7 +83,7 @@ void VulkanChess::CreateFontResource(VulkanDevice device, VulkanPool pool, VkQue
         memset(datas[i], 0, imageSize);
         GetFontImageData(fontBuffer, CHESS_WIDTH * 2, CHESS_HEIGHT * 2, word[i], datas[i]);
     }
-    vulkanFrame::CreateImageArray(device, (void *const *)datas.data(), fontImageCount, CHESS_WIDTH * 2, CHESS_HEIGHT * 2, fonts.image, pool, graphics, 1);
+    fonts.image.CreateImageArray(device, (void *const *)datas.data(), fontImageCount, CHESS_WIDTH * 2, CHESS_HEIGHT * 2, 1, graphics, pool);
     for (auto&it:datas){
         delete[]it;
     }
@@ -103,9 +103,9 @@ void VulkanChess::CreateChessResource(VulkanDevice device, VulkanPool pool, VkQu
     mChess.vertexCount = circularVertices.size();
     std::vector<uint16_t> circularIndices;
     for (size_t i = 1; i < circularVertices.size(); ++i){
-        circularIndices.push_back(0);
         circularIndices.push_back(i);
         circularIndices.push_back(i + 1);
+        circularIndices.push_back(0);
     }
     mChess.indexCount = circularIndices.size();
     for (size_t uiCountry = 1; uiCountry < sizeof(countryColor) / sizeof(glm::vec3); ++uiCountry){
@@ -157,8 +157,7 @@ void VulkanChess::Cleanup(VkDevice device){
 }
 
 void VulkanChess::Setup(VulkanDevice device, VkDescriptorSetLayout setLayout, VkQueue graphics, VulkanPool pool){
-    VkPhysicalDeviceProperties physicalDeviceProperties;
-    device.GetPhysicalDeviceProperties(physicalDeviceProperties);
+    auto&physicalDeviceProperties = device.GetPhysicalDeviceProperties();
     uint32_t minUniformBufferOffset = ALIGN(sizeof(glm::mat4), physicalDeviceProperties.limits.minUniformBufferOffsetAlignment);
     uint32_t mFontMinUniformBufferOffset = ALIGN(sizeof(FontUniform), physicalDeviceProperties.limits.minUniformBufferOffsetAlignment);
 
