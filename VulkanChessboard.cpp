@@ -39,19 +39,19 @@ void VulkanChessboard::UpdateBigGridUniform(VkDevice device){
 void VulkanChessboard::UpdateJiuGongGeWireframeUniform(VkDevice device){
     const glm::mat4 gridScale = glm::scale(glm::mat4(1.0f), glm::vec3(CHESSBOARD_RECT_SIZE + CHESSBOARD_LINE_WIDTH, CHESSBOARD_RECT_SIZE + CHESSBOARD_LINE_WIDTH, 1));
     const glm::vec2 wu_jiugongge[] = {
-        glm::vec2(15, 7), glm::vec2(wu_jiugongge[0].x - 1, wu_jiugongge[0].y + 1),
+        glm::vec2(CHESSBOARD_COLUMN - 1, CHESSBOARD_ROW / 2 - 1), glm::vec2(wu_jiugongge[0].x - 1, wu_jiugongge[0].y + 1),
         glm::vec2(wu_jiugongge[1].x, wu_jiugongge[0].y), glm::vec2(wu_jiugongge[0].x, wu_jiugongge[1].y)
     };
     const glm::vec2 wei_jiugongge[] = {
-        glm::vec2(8, 0), glm::vec2(wei_jiugongge[0].x - 1, wei_jiugongge[0].y + 1),
+        glm::vec2(CHESSBOARD_COLUMN / 2, 0), glm::vec2(wei_jiugongge[0].x - 1, wei_jiugongge[0].y + 1),
         glm::vec2(wei_jiugongge[1].x, wei_jiugongge[0].y), glm::vec2(wei_jiugongge[0].x, wei_jiugongge[1].y)
     };
     const glm::vec2 shu_jiugongge[] = {
-        glm::vec2(8, 14), glm::vec2(shu_jiugongge[0].x - 1, shu_jiugongge[0].y + 1),
+        glm::vec2(CHESSBOARD_COLUMN / 2, CHESSBOARD_ROW - 2), glm::vec2(shu_jiugongge[0].x - 1, shu_jiugongge[0].y + 1),
         glm::vec2(shu_jiugongge[1].x, shu_jiugongge[0].y), glm::vec2(shu_jiugongge[0].x, shu_jiugongge[1].y)
     };
     const glm::vec2 han_jiugongge[] = {
-        glm::vec2(1, 7), glm::vec2(han_jiugongge[0].x - 1, han_jiugongge[0].y + 1),
+        glm::vec2(1, CHESSBOARD_ROW / 2 - 1), glm::vec2(han_jiugongge[0].x - 1, han_jiugongge[0].y + 1),
         glm::vec2(han_jiugongge[1].x, han_jiugongge[0].y), glm::vec2(han_jiugongge[0].x, han_jiugongge[1].y)
     };
     const glm::vec2 jiugonggePos[] = {

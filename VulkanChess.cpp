@@ -65,7 +65,7 @@ void VulkanChess::CreateFontResource(VulkanDevice device, VulkanPool pool, VkQue
         return;
 	}
     const uint32_t fontImageCount = 10;
-    const uint32_t imageSize = CHESS_WIDTH * 2 * CHESS_HEIGHT * 2;
+    const uint32_t imageSize = FONT_WIDTH * FONT_HEIGHT;
     std::vector<unsigned char *>datas(fontImageCount);
     wchar_t word[10];
     word[FONT_INDEX_MA] = L'馬';
@@ -81,9 +81,9 @@ void VulkanChess::CreateFontResource(VulkanDevice device, VulkanPool pool, VkQue
     for (size_t i = 0; i < fontImageCount; ++i){
         datas[i] = new unsigned char[imageSize];
         memset(datas[i], 0, imageSize);
-        GetFontImageData(fontBuffer, CHESS_WIDTH * 2, CHESS_HEIGHT * 2, word[i], datas[i]);
+        GetFontImageData(fontBuffer, FONT_WIDTH, FONT_HEIGHT, word[i], datas[i]);
     }
-    fonts.image.CreateImageArray(device, (void *const *)datas.data(), fontImageCount, CHESS_WIDTH * 2, CHESS_HEIGHT * 2, 1, graphics, pool);
+    fonts.image.CreateImageArray(device, (void *const *)datas.data(), fontImageCount, FONT_WIDTH, FONT_HEIGHT, 1, graphics, pool);
     for (auto&it:datas){
         delete[]it;
     }
@@ -93,11 +93,7 @@ void VulkanChess::CreateFontResource(VulkanDevice device, VulkanPool pool, VkQue
 void VulkanChess::CreateChessResource(VulkanDevice device, VulkanPool pool, VkQueue graphics){
     //这里得准备4*2种颜色的棋子
     std::vector<Vertex> circularVertices;
-    glm::vec3 countryColor[4];
-    countryColor[WU_COUNTRY_INDEX] = WU_CHESS_COUNTRY_COLOR; 
-    countryColor[WEI_COUNTRY_INDEX] = WEI_CHESS_COUNTRY_COLOR; 
-    countryColor[SHU_COUNTRY_INDEX] = SHU_CHESS_COUNTRY_COLOR; 
-    countryColor[HAN_COUNTRY_INDEX] = HAN_CHESS_COUNTRY_COLOR; 
+    glm::vec3 countryColor[] = { WU_CHESS_COUNTRY_COLOR, WEI_CHESS_COUNTRY_COLOR, SHU_CHESS_COUNTRY_COLOR, HAN_CHESS_COUNTRY_COLOR };
 
     GetCircularVertex(countryColor[0], circularVertices);
     mChess.vertexCount = circularVertices.size();
@@ -112,13 +108,8 @@ void VulkanChess::CreateChessResource(VulkanDevice device, VulkanPool pool, VkQu
         GetCircularVertex(countryColor[uiCountry], circularVertices);
     }
     for (size_t uiCountry = 0; uiCountry < sizeof(countryColor) / sizeof(glm::vec3); ++uiCountry){
-        if(uiCountry != HAN_COUNTRY_INDEX){
-            const glm::vec3 banColor = glm::vec3(countryColor[uiCountry].r * .6, countryColor[uiCountry].g * .6, countryColor[uiCountry].b * .6);
-            GetCircularVertex(banColor, circularVertices);
-        }
-        else{
-            GetCircularVertex(countryColor[uiCountry], circularVertices);
-        }
+        const glm::vec3 banColor = glm::vec3(countryColor[uiCountry].r * .5, countryColor[uiCountry].g * .5, countryColor[uiCountry].b * .5);
+        GetCircularVertex(banColor, circularVertices);
     }
     mChess.index.CreateBuffer(device, sizeof(uint16_t) * circularIndices.size(), VK_BUFFER_USAGE_INDEX_BUFFER_BIT|VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
     //8是4种颜色+亮度较低的颜色(表示不是该玩家下子)
@@ -126,10 +117,7 @@ void VulkanChess::CreateChessResource(VulkanDevice device, VulkanPool pool, VkQu
     mChess.index.UpdateData(device, circularIndices.data(), graphics, pool);
     mChess.vertex.UpdateData(device, circularVertices.data(), graphics, pool);
 }
-void VulkanChess::SetupDescriptorSet(VkDevice device, VkDescriptorSetLayout layout, VulkanPool pool){
-    pool.AllocateDescriptorSets(device, &layout, 1, &descriptorSet.font);
-    pool.AllocateDescriptorSets(device, &layout, 1, &descriptorSet.chess);
-    
+void VulkanChess::UpdateDescriptorSet(VkDevice device){
     VkDescriptorSetLayoutBinding descriptorSetLayoutBindings[2] = {};
     // descriptorSetLayoutBindings[0].binding = 0;
     descriptorSetLayoutBindings[0].descriptorCount = 1;
@@ -156,7 +144,9 @@ void VulkanChess::Cleanup(VkDevice device){
     vkDestroySampler(device, fonts.sampler, VK_NULL_HANDLE);
 }
 
-void VulkanChess::Setup(VulkanDevice device, VkDescriptorSetLayout setLayout, VkQueue graphics, VulkanPool pool){
+void VulkanChess::Setup(VulkanDevice device, uint32_t countryCount, uint32_t chessCount, VkDescriptorSetLayout layout, VkQueue graphics, VulkanPool pool){
+    game.chessCount = chessCount;
+    game.countryCount = countryCount;
     auto&physicalDeviceProperties = device.GetPhysicalDeviceProperties();
     uint32_t minUniformBufferOffset = ALIGN(sizeof(glm::mat4), physicalDeviceProperties.limits.minUniformBufferOffsetAlignment);
     uint32_t mFontMinUniformBufferOffset = ALIGN(sizeof(FontUniform), physicalDeviceProperties.limits.minUniformBufferOffsetAlignment);
@@ -165,46 +155,48 @@ void VulkanChess::Setup(VulkanDevice device, VkDescriptorSetLayout setLayout, Vk
     CreateFontResource(device, pool, graphics);
     CreateChessResource(device, pool, graphics);
     
-    uniform.chess.CreateBuffer(device, minUniformBufferOffset * CHESSBOARD_CHESS_TOTAL, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+    uniform.chess.CreateBuffer(device, minUniformBufferOffset * chessCount * countryCount, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
     uniform.chess.size = minUniformBufferOffset;
 
-    uniform.font.CreateBuffer(device, mFontMinUniformBufferOffset * CHESSBOARD_CHESS_TOTAL, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+    uniform.font.CreateBuffer(device, mFontMinUniformBufferOffset * chessCount * countryCount, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
     uniform.font.size = mFontMinUniformBufferOffset;
 
-    SetupDescriptorSet(device.device, setLayout, pool);
+    pool.AllocateDescriptorSets(device.device, &layout, 1, &descriptorSet.font);
+    pool.AllocateDescriptorSets(device.device, &layout, 1, &descriptorSet.chess);
+
+    UpdateDescriptorSet(device.device);
 }
 
-void VulkanChess::UpdateUniform(VkDevice device, uint32_t fontIndex, const glm::vec3&pos, uint32_t dynamicOffsets){
-    const glm::mat4 model = glm::scale(glm::translate(glm::mat4(1), pos), glm::vec3(CHESS_WIDTH, CHESS_HEIGHT, 1));
+void VulkanChess::UpdateUniform(VkDevice device, uint32_t fontIndex, const glm::vec2&pos, uint32_t width, uint32_t height, uint32_t dynamicOffsets){
+    const glm::mat4 model = glm::scale(glm::translate(glm::mat4(1), glm::vec3(pos.x, pos.y, 0)), glm::vec3(width, height, 1));
     uniform.chess.UpdateData(device, &model, dynamicOffsets * uniform.chess.size);
 
     FontUniform fontUbo;
     fontUbo.imageIndex = fontIndex;
-    glm::vec3 fontPos = pos;
-    fontPos.x -=  CHESS_WIDTH * .8;
-    fontPos.y -= CHESS_HEIGHT * 1;
-    fontUbo.model = glm::scale(glm::translate(glm::mat4(1), fontPos), glm::vec3(CHESS_WIDTH * 2, CHESS_HEIGHT * 2, 1));
+    glm::vec3 fontPos = glm::vec3(pos.x, pos.y, 0);
+    fontPos.x -=  width * .8;
+    fontPos.y -= height * 1;
+    fontUbo.model = glm::scale(glm::translate(glm::mat4(1), fontPos), glm::vec3(width * 2, height * 2, 1));
     uniform.font.UpdateData(device, &fontUbo, dynamicOffsets * uniform.font.size);
 }
 
 void VulkanChess::DrawFont(VkCommandBuffer command, VkPipelineLayout layout){
     uint32_t dynamicOffsets;
     mFont.Bind(command);
-    for (size_t i = 0; i < CHESSBOARD_CHESS_TOTAL; ++i){
+    for (size_t i = 0; i < game.chessCount * game.countryCount; ++i){
         dynamicOffsets = i * uniform.font.size;
         vkCmdBindDescriptorSets(command, VK_PIPELINE_BIND_POINT_GRAPHICS, layout, 0, 1, &descriptorSet.font, 1, &dynamicOffsets);
         mFont.Draw(command);
     }
 }
-
 void VulkanChess::DrawChess(VkCommandBuffer command, VkPipelineLayout layout, uint32_t currentCountry){
     mChess.Bind(command);
     uint32_t dynamicOffsets = 0;
-    for (size_t uiCountry = 0; uiCountry < MAX_COUNTRY_INDEX; ++uiCountry){
-        for (size_t uiChess = 0; uiChess < DRAW_COUNTRY_CHESS_COUNT; ++uiChess){
-            dynamicOffsets = ROW_COLUMN_TO_INDEX(uiCountry, uiChess, DRAW_COUNTRY_CHESS_COUNT) * uniform.chess.size;
+    for (size_t uiCountry = 0; uiCountry < game.countryCount; ++uiCountry){
+        for (size_t uiChess = 0; uiChess < game.chessCount; ++uiChess){
+            dynamicOffsets = ROW_COLUMN_TO_INDEX(uiCountry, uiChess, game.chessCount) * uniform.chess.size;
             vkCmdBindDescriptorSets(command, VK_PIPELINE_BIND_POINT_GRAPHICS, layout, 0, 1, &descriptorSet.chess, 1, &dynamicOffsets);
-            mChess.Draw(command, uiCountry == currentCountry?uiCountry * mChess.vertexCount:(4 + uiCountry) * mChess.vertexCount);
+            mChess.Draw(command, uiCountry == currentCountry?uiCountry * mChess.vertexCount:(game.countryCount + uiCountry) * mChess.vertexCount);
         }
     }
 }

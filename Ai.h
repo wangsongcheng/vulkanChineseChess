@@ -10,7 +10,7 @@
 #include "Chess.h"
 #include "Game.h"
 #include "OnLine.h"
-#include "VulkanChess.h"
+#include "Chessboard.h"
 class Ai{
 #ifdef __linux
     sem_t mAiSemaphore;
@@ -24,7 +24,7 @@ class Ai{
     // bool mPause;
     Game *mGame;
     OnLine *mOnline;
-    int32_t CanPlay(uint32_t country, const std::vector<Chess>&canplays)const;
+    int32_t CanPlay(uint32_t country, const std::vector<glm::vec2>&canplays)const;
 public:
     Ai(/* args */);
     ~Ai();

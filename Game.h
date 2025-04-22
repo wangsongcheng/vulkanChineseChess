@@ -2,7 +2,6 @@
 #define GAME_INCLUDE
 #include <iostream>
 #include "Chessboard.h"
-#include "VulkanDevice.h"
 #include "VulkanWireframe.h"
 #ifdef __linux
 #include <unistd.h>
@@ -10,10 +9,23 @@
 #ifndef MAX_BYTE
 #define MAX_BYTE 0xff
 #endif
+//不应该修改以下四个宏的值
+#define WU_COUNTRY_INDEX 0
+#define WEI_COUNTRY_INDEX 1
+#define SHU_COUNTRY_INDEX 2
+#define HAN_COUNTRY_INDEX 3
+
+#define INVALID_COUNTRY_INDEX -1
+//最好不要修改该宏的值
+#define MAX_COUNTRY_INDEX 4
 struct GameInof{
     bool bOnline;
     bool bGameStart;
 };
+/*
+    写得怎样不好说。
+    但代码混乱，各种无意义的头文件包含
+*/
 class Game{
     GameInof mInfo;
     // VulkanDevice mDevice;
@@ -93,8 +105,11 @@ public:
     inline uint32_t GetPlayer()const{
         return mPlayer;
     }
-    inline auto GetChess()const{
-        return mChessboard.GetChess();
+    // inline auto GetChess()const{
+    //     return mChessboard.GetChess();
+    // }
+    inline auto GetChessBoard(){
+        return &mChessboard;
     }
     inline uint32_t GetChessCount(uint32_t country)const{
         return mChessboard.GetChessCount(country);

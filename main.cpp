@@ -15,6 +15,7 @@
 #include "Game.h"
 #include "OnLine.h"
 #include "Pipeline.hpp"
+#include "VulkanChess.h"
 #include "VulkanWindow.h"
 
 #include "VulkanImgui.h"
@@ -27,7 +28,8 @@ VulkanWindow g_VulkanWindow;
 VulkanSynchronize g_VulkanSynchronize;
 VkDebugUtilsMessengerEXT g_VulkanMessenger;
 
-uint32_t g_WindowWidth = CHESSBOARD_BIG_RECT_SIZE * 2 + 10 * CHESSBOARD_RECT_SIZE + 11 * CHESSBOARD_LINE_WIDTH, g_WindowHeight = g_WindowWidth;
+const uint32_t boundarySize = 2 * CHESSBOARD_RECT_SIZE, boundaryChessCount = CHE_CHESS_COUNT + MA_CHESS_COUNT + XIANG_CHESS_COUNT + SHI_CHESS_COUNT + JIANG_CHESS_COUNT;
+uint32_t g_WindowWidth = boundarySize + (CHESSBOARD_BING_GRID_DENSITY * CHESSBOARD_BIG_GRID_COUNT / 2 + boundaryChessCount) * CHESSBOARD_RECT_SIZE + (CHESSBOARD_ROW + 1) * CHESSBOARD_LINE_WIDTH, g_WindowHeight = g_WindowWidth;
 
 VkCommandBuffer g_CommandBuffers;
 
@@ -57,92 +59,19 @@ std::vector<Player>g_Players(MAX_COUNTRY_INDEX);
 // void createSurface(VkInstance instance, VkSurfaceKHR&surface, void* userData){
 //     glfwCreateWindowSurface(instance, (GLFWwindow *)userData, nullptr, &surface);
 // }
-VkBool32 VKAPI_PTR debugUtilsMessenger(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageTypes, const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData, void* pUserData){
-    const char* strMessageSeverity = nullptr;//, *strMessageTypes = nullptr;
-    if (messageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT) {
-            strMessageSeverity = "VERBOSE";
-    }
-    else if (messageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT) {
-            strMessageSeverity = "INFO";
-    }
-    else if (messageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT) {
-            strMessageSeverity = "WARNING";
-    }
-    else if (messageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT) {
-            strMessageSeverity = "ERROR";
-    }
-    else if (messageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_FLAG_BITS_MAX_ENUM_EXT) {
-            strMessageSeverity = "FLAG";
-    }
-    printf("[VULKAN VALIDATION LAYER]\nSEVERITY:%s\nMESSAGE:%s\n", strMessageSeverity, pCallbackData->pMessage);
-    return VK_FALSE;
-}
-bool GetPhysicalDevices(VkPhysicalDevice physicalDevice){
-    VkPhysicalDeviceProperties physicalDeviceProperties;
-    vkGetPhysicalDeviceProperties(physicalDevice, &physicalDeviceProperties);
-    return physicalDeviceProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU;
-}
-void SetupVulkan(GLFWwindow *window){
-    uint32_t count;
-    const char** instanceExtension = glfwGetRequiredInstanceExtensions(&count);
-    std::vector<const char*> extensions(instanceExtension, instanceExtension + count);
-    VK_CHECK(g_VulkanDevice.CreateInstance(extensions));
-    g_VulkanDevice.GetPhysicalDevices(GetPhysicalDevices);
-    VK_CHECK(g_VulkanDevice.CreateDebugUtilsMessenger(debugUtilsMessenger));
-    glfwCreateWindowSurface(g_VulkanDevice.instance, window, nullptr, &g_VulkanWindow.surface);
-    VK_CHECK(g_VulkanDevice.CreateDevice(g_VulkanWindow.surface));
-    g_VulkanQueue.CreateQueue(g_VulkanDevice, g_VulkanWindow.surface);
-    g_VulkanWindow.swapchain.CreateSwapchain(g_VulkanDevice, g_VulkanWindow.surface);
-
-    g_VulkanWindow.CreateRenderPass(g_VulkanDevice.device);
-    g_VulkanWindow.CreateFrameBuffer(g_VulkanDevice);
-
-    g_VulkanPool.CreatePool(g_VulkanDevice, 8);
-
-    g_VulkanSynchronize.CreateSynchronize(g_VulkanDevice.device, g_VulkanWindow.swapchain.images.size());
-    //显示设备信息
-    const char *deviceType;
-    auto&physicalDeviceProperties = g_VulkanDevice.GetPhysicalDeviceProperties();
-    switch (physicalDeviceProperties.deviceType){
-    case VK_PHYSICAL_DEVICE_TYPE_CPU:
-        deviceType = "CPU";
-        break;
-    case VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU:
-        deviceType = "DISCRETE GPU";
-        break;
-    case VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU:
-        deviceType = "INTEGRATED GPU";
-        break;
-    case VK_PHYSICAL_DEVICE_TYPE_VIRTUAL_GPU:
-        deviceType = "VIRTUAL GPU";
-        break;
-    default:
-        deviceType = "OTHER";
-        break;
-    }
-	printf("gpu name:%s, gpu type:%s\n", physicalDeviceProperties.deviceName, deviceType);
-}
-void CleanupVulkan(){
-    g_VulkanSynchronize.Cleanup(g_VulkanDevice.device);
-
-    g_VulkanPool.Cleanup(g_VulkanDevice.device);
-
-    g_VulkanWindow.Cleanup(g_VulkanDevice);
-
-    g_VulkanDevice.Cleanup();
-}
 void UpdateChessUniform(VkDevice device){
-    auto pChess = g_Game.GetChess();
+    Chessboard *pChessboard = g_Game.GetChessBoard();
+    auto pChess = pChessboard->GetChess();
     for (uint32_t uiCoutry = 0; uiCoutry < MAX_COUNTRY_INDEX; ++uiCoutry){
         for(uint32_t uiChess = 0; uiChess < DRAW_COUNTRY_CHESS_COUNT; ++uiChess){
-            const Chess *pc = pChess[ROW_COLUMN_CHESS_TO_INDEX(uiCoutry, uiChess)];
+            const Chess *pc = pChess[uiCoutry][uiChess];
             const uint32_t dynamicOffsets = uiCoutry * DRAW_COUNTRY_CHESS_COUNT + uiChess;
             if(pc){
-                g_Chess.UpdateUniform(device, pc->GetFontIndex(), glm::vec3(pc->GetPos(), 0), dynamicOffsets);
+                g_Chess.UpdateUniform(device, pc->GetFontIndex(), pc->GetPos(), CHESS_WIDTH, CHESS_HEIGHT, dynamicOffsets);
             }
             else{
                 const glm::vec3 pos = glm::vec3(COLUMN_TO_X(CHESSBOARD_ROW + 10), ROW_TO_Y(CHESSBOARD_COLUMN + 10), 0);
-                g_Chess.UpdateUniform(device, FONT_INDEX_HAN, pos, dynamicOffsets);
+                g_Chess.UpdateUniform(device, FONT_INDEX_HAN, pos, CHESS_WIDTH, CHESS_HEIGHT, dynamicOffsets);
             }
         }
     }
@@ -158,7 +87,7 @@ glm::vec2 lerp(const glm::vec2&p0, const glm::vec2&p1, float t){
 void MoveChess(const glm::vec2&start, const glm::vec2&end, uint32_t fontIndex, uint32_t dynamicOffsets){
     for (float t = 0; t < 1; t += .01){
         const glm::vec2 pos = lerp(start, end, t);
-        g_Chess.UpdateUniform(g_VulkanDevice.device, fontIndex, glm::vec3(pos, 0), dynamicOffsets);
+        g_Chess.UpdateUniform(g_VulkanDevice.device, fontIndex, pos, CHESS_WIDTH, CHESS_HEIGHT, dynamicOffsets);
 #ifdef WIN32
         Sleep(1);
 #else
@@ -460,13 +389,14 @@ void *process_server(void *userData){
 }
 #endif
 void InitJiangPos(){
-    const Chess *pChess = g_Game.GetChess()[ROW_COLUMN_CHESS_TO_INDEX(WEI_COUNTRY_INDEX, JIANG_CHESS_INDEX)];
+    const Chessboard *pBoard = g_Game.GetChessBoard();
+    const Chess *pChess = pBoard->GetChess()[WEI_COUNTRY_INDEX][JIANG_CHESS_INDEX];
     g_JiangPos[WEI_COUNTRY_INDEX] = glm::vec2(pChess->GetColumn(), pChess->GetRow());
-    pChess = g_Game.GetChess()[ROW_COLUMN_CHESS_TO_INDEX(SHU_COUNTRY_INDEX, JIANG_CHESS_INDEX)];
+    pChess = pBoard->GetChess()[SHU_COUNTRY_INDEX][JIANG_CHESS_INDEX];
     g_JiangPos[SHU_COUNTRY_INDEX] = glm::vec2(pChess->GetColumn(), pChess->GetRow());
-    pChess = g_Game.GetChess()[ROW_COLUMN_CHESS_TO_INDEX(WU_COUNTRY_INDEX, JIANG_CHESS_INDEX)];
+    pChess = pBoard->GetChess()[WU_COUNTRY_INDEX][JIANG_CHESS_INDEX];
     g_JiangPos[WU_COUNTRY_INDEX] = glm::vec2(pChess->GetColumn(), pChess->GetRow());
-    pChess = g_Game.GetChess()[ROW_COLUMN_CHESS_TO_INDEX(HAN_COUNTRY_INDEX, JIANG_CHESS_INDEX)];
+    pChess = pBoard->GetChess()[HAN_COUNTRY_INDEX][JIANG_CHESS_INDEX];
     g_JiangPos[HAN_COUNTRY_INDEX] = glm::vec2(pChess->GetColumn(), pChess->GetRow());
 }
 void Invert(uint32_t row, uint32_t column, uint32_t&newRow, uint32_t&newColumn){
@@ -580,14 +510,14 @@ void *process_client(void *userData){
             strcpy(g_Players[message.clientIndex].country, message.player.country);
         }
         else if(message.event == PLAY_CHESS_GAME_EVENT){
-            auto pChess = g_Game.GetChess();
+            auto pChess = g_Game.GetChessBoard()->GetChess();
             uint32_t dstRow = message.target.GetRow(), dstColumn = message.target.GetColumn();
-            Chess *pStart = pChess[ROW_COLUMN_CHESS_TO_INDEX(message.select.GetCountry(), message.select.GetChess())], *pTarget = nullptr;
+            Chess *pStart = pChess[message.select.GetCountry()][message.select.GetChess()], *pTarget = nullptr;
             if(message.target.GetCountry() >= MAX_COUNTRY_INDEX){
                 RotateChess(g_Game.GetCurrentCountry(), dstRow, dstColumn,dstRow, dstColumn);
             }
             else{
-                pTarget = pChess[ROW_COLUMN_CHESS_TO_INDEX(message.target.GetCountry(), message.target.GetChess())];
+                pTarget = pChess[message.target.GetCountry()][message.target.GetChess()];
                 dstRow = pTarget->GetRow();
                 dstColumn = pTarget->GetColumn();
             }
@@ -633,11 +563,6 @@ void CreateServer(const char *name){
         CreateClient(g_OnLine.GetLocalIp().c_str());
     }
 }
-/*
-    需求:
-        输入用户名
-        一开始必须有创建房间和连接服务端的按钮;这时候还不能确定该程序是客户端还是服务端
-*/
 void catspace(char *dst, uint32_t count){
     for (size_t i = 0; i < count; ++i){
         strcat(dst, " ");
@@ -904,19 +829,19 @@ void RecordCommand(VkCommandBuffer command, VkFramebuffer frame){
     vkCmdEndRenderPass(command);
     vkEndCommandBuffer(command);
 }
-void UpdateSelectChessUniform(VkDevice device, std::vector<Chess>&canplays){
+void UpdateSelectChessUniform(VkDevice device, std::vector<glm::vec2>&canplays){
     //本来, 为了点击棋子之后有效果...是会改变棋子大小的..但如今发现..或许不需要了
     std::vector<glm::mat4>model(CHESSBOARD_ROW * 2);
     const glm::mat4 scale = glm::scale(glm::mat4(1), glm::vec3(CHESSBOARD_RECT_SIZE, CHESSBOARD_RECT_SIZE, 1));
     for (size_t i = 0; i < canplays.size(); ++i){
-        model[i] = glm::translate(glm::mat4(1), glm::vec3(COLUMN_TO_X(canplays[i].GetColumn()) - CHESSBOARD_RECT_SIZE * .5, ROW_TO_Y(canplays[i].GetRow()) - CHESSBOARD_RECT_SIZE * .5, 0)) * scale;
+        model[i] = glm::translate(glm::mat4(1), glm::vec3(COLUMN_TO_X(canplays[i].x) - CHESSBOARD_RECT_SIZE * .5, ROW_TO_Y(canplays[i].y) - CHESSBOARD_RECT_SIZE * .5, 0)) * scale;
     }
     g_SelectChess.UpdateUniform(device, model);
 }
 //以下2个函数只处理显示的线框
 void SelectChess(VkDevice device, const Chess *pChess){
-    std::vector<Chess>canplays;
-    pChess->Selected(g_Game.GetChess(), canplays);
+    std::vector<glm::vec2>canplays;
+    pChess->Select(g_Game.GetChessBoard(), canplays);
     UpdateSelectChessUniform(device, canplays);
 }
 struct PPC{
@@ -943,11 +868,11 @@ void *PlayChessFun(void *userData){
     g_Ai.EnableNextCountry();
     return nullptr;
 }
-int32_t GetCanPlay(const glm::vec2&mousePos, const std::vector<Chess>&canplays){
+int32_t GetCanPlay(const glm::vec2&mousePos, const std::vector<glm::vec2>&canplays){
     int32_t index = -1;
     for (size_t i = 0; i < canplays.size(); ++i){
-        const uint32_t chessY = ROW_TO_Y(canplays[i].GetRow()) - CHESSBOARD_RECT_SIZE * .5;
-        const uint32_t chessX = COLUMN_TO_X(canplays[i].GetColumn()) - CHESSBOARD_RECT_SIZE * .5;
+        const uint32_t chessY = ROW_TO_Y(canplays[i].y) - CHESSBOARD_RECT_SIZE * .5;
+        const uint32_t chessX = COLUMN_TO_X(canplays[i].x) - CHESSBOARD_RECT_SIZE * .5;
         if(mousePos.x > chessX && mousePos.y > chessY && mousePos.x < chessX + CHESSBOARD_RECT_SIZE && mousePos.y < chessY + CHESSBOARD_RECT_SIZE){
             index = i;
             break;
@@ -992,8 +917,8 @@ const Chess *SelectChess(uint32_t country, const glm::vec2&mousePos){
 void PreparePlayChess(const Chess *pSelect, const glm::vec2&mousePos){
     static PPC ppc;
     const uint32_t clientIndex = g_OnLine.GetClientIndex();
-    std::vector<Chess>canplays;
-    pSelect->Selected(g_Game.GetChess(), canplays);
+    std::vector<glm::vec2>canplays;
+    pSelect->Select(g_Game.GetChessBoard(), canplays);
     int32_t index = GetCanPlay(mousePos, canplays);
 
     UnSelectChess();
@@ -1022,14 +947,14 @@ void PreparePlayChess(const Chess *pSelect, const glm::vec2&mousePos){
                 //单机和局域网联机差不多。无非就是要接收和发送消息
                 Chess target;
                 target.SetCountry(MAX_COUNTRY_INDEX);
-                target.SetPos(canplays[index].GetRow(), canplays[index].GetColumn());
+                target.SetPos(canplays[index].y, canplays[index].x);
                 g_OnLine.SendPlayChessMessage(g_Players[clientIndex], pSelect, &target);
             }
             else{
                 ppc.srcRow = pSelect->GetRow();
                 ppc.srcColumn = pSelect->GetColumn();
-                ppc.dstRow = canplays[index].GetRow();
-                ppc.dstColumn = canplays[index].GetColumn();
+                ppc.dstRow = canplays[index].y;
+                ppc.dstColumn = canplays[index].x;
                 ppc.srcCountry = pSelect->GetCountry();
                 CreateThread(PlayChessFun, &ppc);
             }
@@ -1179,7 +1104,7 @@ void Setup(GLFWwindow *window){
     CreatePipelineLayout(g_VulkanDevice.device, g_SetLayout);
     CreateGraphicsPipeline(g_VulkanDevice.device, g_PipelineLayout);
 
-    g_Chess.Setup(g_VulkanDevice, g_SetLayout, g_VulkanQueue.graphics, g_VulkanPool);
+    g_Chess.Setup(g_VulkanDevice, MAX_COUNTRY_INDEX, DRAW_COUNTRY_CHESS_COUNT, g_SetLayout, g_VulkanQueue.graphics, g_VulkanPool);
     g_VulkanChessboard.Setup(g_VulkanDevice, g_SetLayout, g_VulkanQueue.graphics, g_VulkanPool);
     g_VulkanChessboard.UpdateUniform(g_VulkanDevice.device, g_WindowWidth);
     g_SelectChess.Setup(g_VulkanDevice, CHESSBOARD_ROW + CHESSBOARD_COLUMN, g_SetLayout, g_VulkanQueue.graphics, g_VulkanPool);
@@ -1257,6 +1182,80 @@ void display(GLFWwindow* window){
     else{
         currentFrame = (currentFrame + 1) % g_VulkanWindow.framebuffers.size();
     }
+}
+VkBool32 VKAPI_PTR debugUtilsMessenger(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageTypes, const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData, void* pUserData){
+    const char* strMessageSeverity = nullptr;//, *strMessageTypes = nullptr;
+    if (messageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT) {
+            strMessageSeverity = "VERBOSE";
+    }
+    else if (messageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT) {
+            strMessageSeverity = "INFO";
+    }
+    else if (messageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT) {
+            strMessageSeverity = "WARNING";
+    }
+    else if (messageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT) {
+            strMessageSeverity = "ERROR";
+    }
+    else if (messageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_FLAG_BITS_MAX_ENUM_EXT) {
+            strMessageSeverity = "FLAG";
+    }
+    printf("[VULKAN VALIDATION LAYER]\nSEVERITY:%s\nMESSAGE:%s\n", strMessageSeverity, pCallbackData->pMessage);
+    return VK_FALSE;
+}
+bool GetPhysicalDevices(VkPhysicalDevice physicalDevice){
+    VkPhysicalDeviceProperties physicalDeviceProperties;
+    vkGetPhysicalDeviceProperties(physicalDevice, &physicalDeviceProperties);
+    return physicalDeviceProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU;
+}
+void SetupVulkan(GLFWwindow *window){
+    uint32_t count;
+    const char** instanceExtension = glfwGetRequiredInstanceExtensions(&count);
+    std::vector<const char*> extensions(instanceExtension, instanceExtension + count);
+    VK_CHECK(g_VulkanDevice.CreateInstance(extensions));
+    g_VulkanDevice.GetPhysicalDevices(GetPhysicalDevices);
+    VK_CHECK(g_VulkanDevice.CreateDebugUtilsMessenger(debugUtilsMessenger));
+    glfwCreateWindowSurface(g_VulkanDevice.instance, window, nullptr, &g_VulkanWindow.surface);
+    VK_CHECK(g_VulkanDevice.CreateDevice(g_VulkanWindow.surface));
+    g_VulkanQueue.CreateQueue(g_VulkanDevice, g_VulkanWindow.surface);
+    g_VulkanWindow.swapchain.CreateSwapchain(g_VulkanDevice, g_VulkanWindow.surface);
+
+    g_VulkanWindow.CreateRenderPass(g_VulkanDevice.device);
+    g_VulkanWindow.CreateFrameBuffer(g_VulkanDevice);
+
+    g_VulkanPool.CreatePool(g_VulkanDevice, 8);
+
+    g_VulkanSynchronize.CreateSynchronize(g_VulkanDevice.device, g_VulkanWindow.swapchain.images.size());
+    //显示设备信息
+    const char *deviceType;
+    auto&physicalDeviceProperties = g_VulkanDevice.GetPhysicalDeviceProperties();
+    switch (physicalDeviceProperties.deviceType){
+    case VK_PHYSICAL_DEVICE_TYPE_CPU:
+        deviceType = "CPU";
+        break;
+    case VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU:
+        deviceType = "DISCRETE GPU";
+        break;
+    case VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU:
+        deviceType = "INTEGRATED GPU";
+        break;
+    case VK_PHYSICAL_DEVICE_TYPE_VIRTUAL_GPU:
+        deviceType = "VIRTUAL GPU";
+        break;
+    default:
+        deviceType = "OTHER";
+        break;
+    }
+	printf("gpu name:%s, gpu type:%s\n", physicalDeviceProperties.deviceName, deviceType);
+}
+void CleanupVulkan(){
+    g_VulkanSynchronize.Cleanup(g_VulkanDevice.device);
+
+    g_VulkanPool.Cleanup(g_VulkanDevice.device);
+
+    g_VulkanWindow.Cleanup(g_VulkanDevice);
+
+    g_VulkanDevice.Cleanup();
 }
 int main(){
     if (GLFW_FALSE == glfwInit()) {

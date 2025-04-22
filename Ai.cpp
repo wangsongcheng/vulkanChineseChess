@@ -390,7 +390,7 @@ void uciCommunication() {
 //         return;
 //     }
 //     // g_Chessboard.SetSelected(*pDangerous);
-//     // g_Chessboard.Selected(VK_NULL_HANDLE);
+//     // g_Chessboard.Select(VK_NULL_HANDLE);
 //     //找一个解围的棋子
 //     const ChessInfo *pChess = GetRival((*pRival)->country, (*pDangerous)->country, (*pRival)->chess);
 //     if(pChess){
@@ -414,10 +414,10 @@ void uciCommunication() {
 //     }   
 //     // g_Chessboard.ClearCanPlay(VK_NULL_HANDLE);
 // }
-int32_t Ai::CanPlay(uint32_t country, const std::vector<Chess>&canplays)const{
+int32_t Ai::CanPlay(uint32_t country, const std::vector<glm::vec2>&canplays)const{
     int32_t index = -1;
     for (size_t i = 0; i < canplays.size(); ++i){
-        const Chess *pInfo = mGame->GetChess(canplays[i].GetRow(), canplays[i].GetColumn());
+        const Chess *pInfo = mGame->GetChess(canplays[i].y, canplays[i].x);
         if(!pInfo || pInfo->GetCountry() != country){
             index = i;
             break;
@@ -492,7 +492,7 @@ void Ai::CreatePthread(Game *pGame, OnLine *pOnline){
 #endif
 }
 void Ai::GetPlayChess(uint32_t country, Chess **pSelect, Chess **pTarget, uint32_t *row, uint32_t *column) const{
-    std::vector<Chess>canplays;
+    std::vector<glm::vec2>canplays;
     // 继续用if 写ai吧。先考虑防守，将优先级最高，必须立即解，依次是车马，炮相士兵
     // 进攻的话，看看棋谱吧，特别是有可能和残局差不多的布局
     // const ChessInfo *pSelect = nullptr, *pRival = nullptr;
@@ -517,26 +517,26 @@ void Ai::GetPlayChess(uint32_t country, Chess **pSelect, Chess **pTarget, uint32
     //         }
     //     }
     // }
-    auto pChess = mGame->GetChess();
+    auto pChess = mGame->GetChessBoard()->GetChess();
     if(!*pSelect){
         do{
-            *pSelect = pChess[ROW_COLUMN_CHESS_TO_INDEX(country, rand() % DRAW_COUNTRY_CHESS_COUNT)];
+            *pSelect = pChess[country][rand() % DRAW_COUNTRY_CHESS_COUNT];
             if(*pSelect){
                 canplays.clear();
-                pChess[ROW_COLUMN_CHESS_TO_INDEX(country, (*pSelect)->GetChess())]->Selected(mGame->GetChess(), canplays);
+                pChess[country][(*pSelect)->GetChess()]->Select(mGame->GetChessBoard(), canplays);
             }
         }while(!*pSelect || -1 == CanPlay(country, canplays));//不用担心判断*player后死循环,因为"将"肯定会存在,否则就输了
     }
     if(!*pTarget){
         //这个分支也有吃子的可能
         canplays.clear();
-        pChess[ROW_COLUMN_CHESS_TO_INDEX(country, (*pSelect)->GetChess())]->Selected(mGame->GetChess(), canplays);
+        pChess[country][(*pSelect)->GetChess()]->Select(mGame->GetChessBoard(), canplays);
         uint32_t index = 0;
         do{
             index = rand() % canplays.size();
-            *pTarget = mGame->GetChess(canplays[index].GetRow(), canplays[index].GetColumn());
+            *pTarget = mGame->GetChess(canplays[index].y, canplays[index].x);
         } while (*pTarget && (*pTarget)->GetCountry() == country);
-        *row = canplays[index].GetRow();
-        *column = canplays[index].GetColumn();
+        *row = canplays[index].y;
+        *column = canplays[index].x;
     }
 }

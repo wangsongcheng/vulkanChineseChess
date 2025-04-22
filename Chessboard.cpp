@@ -1,6 +1,7 @@
 #include "Chessboard.h"
-void Chessboard::InitWuChessRowAndColumn(Chess *pChess[DRAW_COUNTRY_CHESS_COUNT]){
-    pChess[JIANG_CHESS_INDEX]->SetPos(8, 16);
+#include "VulkanChess.h"
+void Chessboard::InitWuChessRowAndColumn(std::array<Chess *, DRAW_COUNTRY_CHESS_COUNT>&pChess){
+    pChess[JIANG_CHESS_INDEX]->SetPos(CHESSBOARD_ROW / 2, CHESSBOARD_COLUMN);
 
     if(pChess[MA_CHESS_INDEX])pChess[MA_CHESS_INDEX]->SetPos(pChess[JIANG_CHESS_INDEX]->GetRow() + 3, pChess[JIANG_CHESS_INDEX]->GetColumn());
     if(pChess[MA_CHESS_INDEX + 1])pChess[MA_CHESS_INDEX + 1]->SetPos(pChess[JIANG_CHESS_INDEX]->GetRow() - 3, pChess[JIANG_CHESS_INDEX]->GetColumn());
@@ -22,8 +23,8 @@ void Chessboard::InitWuChessRowAndColumn(Chess *pChess[DRAW_COUNTRY_CHESS_COUNT]
         if(pChess[i + BING_CHESS_INDEX])pChess[i + BING_CHESS_INDEX]->SetPos(pChess[i + BING_CHESS_INDEX - 1]->GetRow() - 2, pChess[BING_CHESS_INDEX]->GetColumn());
     }
 }
-void Chessboard::InitShuChessRowAndColumn(Chess *pChess[DRAW_COUNTRY_CHESS_COUNT]){
-    pChess[JIANG_CHESS_INDEX]->SetPos(16, 8);
+void Chessboard::InitShuChessRowAndColumn(std::array<Chess *, DRAW_COUNTRY_CHESS_COUNT>&pChess){
+    pChess[JIANG_CHESS_INDEX]->SetPos(CHESSBOARD_ROW, CHESSBOARD_COLUMN / 2);
     
     if(pChess[MA_CHESS_INDEX])pChess[MA_CHESS_INDEX]->SetPos(pChess[JIANG_CHESS_INDEX]->GetRow(), 5);
     if(pChess[MA_CHESS_INDEX + 1])pChess[MA_CHESS_INDEX + 1]->SetPos(pChess[JIANG_CHESS_INDEX]->GetRow(), pChess[JIANG_CHESS_INDEX]->GetColumn() + 3);
@@ -34,19 +35,19 @@ void Chessboard::InitShuChessRowAndColumn(Chess *pChess[DRAW_COUNTRY_CHESS_COUNT
     if(pChess[CHE_CHESS_INDEX])pChess[CHE_CHESS_INDEX]->SetPos(pChess[JIANG_CHESS_INDEX]->GetRow(), 4);
     if(pChess[CHE_CHESS_INDEX + 1])pChess[CHE_CHESS_INDEX + 1]->SetPos(pChess[JIANG_CHESS_INDEX]->GetRow(), pChess[JIANG_CHESS_INDEX]->GetColumn() + 4);
     
-    if(pChess[PAO_CHESS_INDEX])pChess[PAO_CHESS_INDEX]->SetPos(14, pChess[MA_CHESS_INDEX]->GetColumn());
+    if(pChess[PAO_CHESS_INDEX])pChess[PAO_CHESS_INDEX]->SetPos(CHESSBOARD_ROW - 2, pChess[MA_CHESS_INDEX]->GetColumn());
     if(pChess[PAO_CHESS_INDEX + 1])pChess[PAO_CHESS_INDEX + 1]->SetPos(pChess[PAO_CHESS_INDEX]->GetRow(), pChess[MA_CHESS_INDEX + 1]->GetColumn());
 
     if(pChess[XIANG_CHESS_INDEX])pChess[XIANG_CHESS_INDEX]->SetPos(pChess[JIANG_CHESS_INDEX]->GetRow(), pChess[MA_CHESS_INDEX]->GetColumn() + 1);
     if(pChess[XIANG_CHESS_INDEX + 1])pChess[XIANG_CHESS_INDEX + 1]->SetPos(pChess[JIANG_CHESS_INDEX]->GetRow(), pChess[JIANG_CHESS_INDEX]->GetColumn() + 2);
 
-    if(pChess[BING_CHESS_INDEX])pChess[BING_CHESS_INDEX]->SetPos(13, 4);
+    if(pChess[BING_CHESS_INDEX])pChess[BING_CHESS_INDEX]->SetPos(CHESSBOARD_ROW - 3, 4);
     for (size_t i = 1; i < BING_CHESS_COUNT; ++i){
         if(pChess[i + BING_CHESS_INDEX])pChess[i + BING_CHESS_INDEX]->SetPos(pChess[BING_CHESS_INDEX]->GetRow(), pChess[i + BING_CHESS_INDEX - 1]->GetColumn() + 2);
     }
 }
-void Chessboard::InitWeiChessRowAndColumn(Chess *pChess[DRAW_COUNTRY_CHESS_COUNT]){
-    pChess[JIANG_CHESS_INDEX]->SetPos(0, 8);
+void Chessboard::InitWeiChessRowAndColumn(std::array<Chess *, DRAW_COUNTRY_CHESS_COUNT>&pChess){
+    pChess[JIANG_CHESS_INDEX]->SetPos(0, CHESSBOARD_COLUMN / 2);
 
     pChess[MA_CHESS_INDEX]->SetPos(pChess[JIANG_CHESS_INDEX]->GetRow(), pChess[JIANG_CHESS_INDEX]->GetColumn() + 3);
     pChess[MA_CHESS_INDEX + 1]->SetPos(pChess[JIANG_CHESS_INDEX]->GetRow(), 5);
@@ -68,8 +69,8 @@ void Chessboard::InitWeiChessRowAndColumn(Chess *pChess[DRAW_COUNTRY_CHESS_COUNT
         pChess[i + BING_CHESS_INDEX]->SetPos(pChess[BING_CHESS_INDEX]->GetRow(), pChess[i + BING_CHESS_INDEX - 1]->GetColumn() - 2);
     }
 }
-void Chessboard::InitHanChessRowAndColumn(Chess *pChess[DRAW_COUNTRY_CHESS_COUNT]){
-    pChess[JIANG_CHESS_INDEX]->SetPos(8, 0);
+void Chessboard::InitHanChessRowAndColumn(std::array<Chess *, DRAW_COUNTRY_CHESS_COUNT>&pChess){
+    pChess[JIANG_CHESS_INDEX]->SetPos(CHESSBOARD_ROW / 2, 0);
 
     pChess[MA_CHESS_INDEX]->SetPos(pChess[JIANG_CHESS_INDEX]->GetRow() - 3, pChess[JIANG_CHESS_INDEX]->GetColumn());
     pChess[MA_CHESS_INDEX + 1]->SetPos(pChess[JIANG_CHESS_INDEX]->GetRow() + 3, pChess[JIANG_CHESS_INDEX]->GetColumn());
@@ -91,7 +92,7 @@ void Chessboard::InitHanChessRowAndColumn(Chess *pChess[DRAW_COUNTRY_CHESS_COUNT
         pChess[i + BING_CHESS_INDEX]->SetPos(pChess[i + BING_CHESS_INDEX - 1]->GetRow() + 2, pChess[BING_CHESS_INDEX]->GetColumn());
     }
 }
-void Chessboard::InitHanChessRowAndColumn(uint32_t country, Chess *pChess[DRAW_COUNTRY_CHESS_COUNT]){
+void Chessboard::InitHanChessRowAndColumn(uint32_t country, std::array<Chess *, DRAW_COUNTRY_CHESS_COUNT>&pChess){
     if(country == WU_COUNTRY_INDEX){
         pChess[JIANG_CHESS_INDEX]->SetPos(0, 8);
 
@@ -111,7 +112,7 @@ void Chessboard::InitHanChessRowAndColumn(uint32_t country, Chess *pChess[DRAW_C
         pChess[HAN_PAO_CHESS_INDEX]->SetPos(pChess[JIANG_CHESS_INDEX]->GetRow(), pChess[HAN_CHE_CHESS_INDEX]->GetColumn() + 1);
     }
     else if(country == HAN_COUNTRY_INDEX){
-        pChess[JIANG_CHESS_INDEX]->SetPos(16, 8);
+        pChess[JIANG_CHESS_INDEX]->SetPos(CHESSBOARD_ROW, 8);
 
         pChess[HAN_CHE_CHESS_INDEX]->SetPos(13, 6);
         pChess[HAN_CHE_CHESS_INDEX + 1]->SetPos(pChess[HAN_CHE_CHESS_INDEX]->GetRow(), pChess[JIANG_CHESS_INDEX]->GetColumn());
@@ -130,7 +131,7 @@ void Chessboard::InitHanChessRowAndColumn(uint32_t country, Chess *pChess[DRAW_C
         pChess[HAN_PAO_CHESS_INDEX]->SetPos(pChess[JIANG_CHESS_INDEX]->GetRow(), pChess[HAN_CHE_CHESS_INDEX + 1]->GetColumn() - 1) ;
     }
 }
-void Chessboard::InitHanChessinfo(Chess *pChess[DRAW_COUNTRY_CHESS_COUNT]){
+void Chessboard::InitHanChessinfo(std::array<Chess *, DRAW_COUNTRY_CHESS_COUNT>&pChess){
     pChess[JIANG_CHESS_INDEX]->SetChess(JIANG_CHESS_INDEX);
     pChess[JIANG_CHESS_INDEX]->SetFontIndex(FONT_INDEX_HAN);
     pChess[JIANG_CHESS_INDEX]->SetCountry(HAN_COUNTRY_INDEX);
@@ -145,7 +146,7 @@ void Chessboard::InitHanChessinfo(Chess *pChess[DRAW_COUNTRY_CHESS_COUNT]){
         pChess[HAN_PAO_CHESS_INDEX + i]->SetCountry(HAN_COUNTRY_INDEX);
     }
 }
-void Chessboard::InitChessInfo(uint32_t country, Chess *pChess[DRAW_COUNTRY_CHESS_COUNT]){
+void Chessboard::InitChessInfo(uint32_t country, std::array<Chess *, DRAW_COUNTRY_CHESS_COUNT>&pChess){
     uint32_t fontIndex[4];
     fontIndex[WU_COUNTRY_INDEX] = FONT_INDEX_WU;
     fontIndex[WEI_COUNTRY_INDEX] = FONT_INDEX_WEI;
@@ -186,11 +187,13 @@ void Chessboard::InitChessInfo(uint32_t country, Chess *pChess[DRAW_COUNTRY_CHES
     }
 }
 Chessboard::Chessboard(/* args */){
+   mPalacesCenter = { glm::vec2(CHESSBOARD_ROW / 2, CHESSBOARD_ROW - 1), glm::vec2(CHESSBOARD_COLUMN - 1, CHESSBOARD_COLUMN / 2), glm::vec2(CHESSBOARD_ROW / 2, 1), glm::vec2(1, CHESSBOARD_COLUMN / 2) };
 }
 
 Chessboard::~Chessboard(){
 }
-void Chessboard::InitializeChess(uint32_t playerCountry, bool bHanCanPlay){
+void Chessboard::InitializeChess(uint32_t playerCountry, bool bHanCanPlay, uint32_t countryCount){
+    mCountryCount = countryCount;
     for (uint32_t uiCountry = 0; uiCountry < MAX_COUNTRY_INDEX; ++uiCountry){
         DestroyCountry(uiCountry);
     }
@@ -295,6 +298,28 @@ void Chessboard::InitializeChess(uint32_t playerCountry, bool bHanCanPlay){
         }
     }
 }
+uint32_t Chessboard::IsPalaceCenter(uint32_t row, uint32_t column)const{
+    uint32_t country = INVALID_COUNTRY_INDEX;
+    for (size_t i = 0; i < MAX_COUNTRY_INDEX; ++i){
+        if(row == mPalacesCenter[i].y && column == mPalacesCenter[i].x){
+            // printf("%d国,%d行%d列的棋子:%d, 在中心为%d行%d列的九宫格内\n", mInfo.country, row, column, mInfo.chess, center[i].GetRow(), center[i].GetColumn());
+            country = i;
+            break;
+        }   
+    }
+    return country;
+}
+uint32_t Chessboard::IsInPalace(uint32_t row, uint32_t column)const{
+    uint32_t country = IsPalaceCenter(row, column);
+    if(country != -1)return true;
+    for (size_t i = 0; i < MAX_COUNTRY_INDEX; ++i){
+        if(abs((float)row - mPalacesCenter[i].y) < 2 && abs((float)column - mPalacesCenter[i].x) < 2){
+            country = i;
+            break;
+        }
+    }
+    return country;
+}
 void Chessboard::CaptureChess(const Chess *play, const Chess *target){
     if(target){
         const uint32_t dstCountry = target->GetCountry(), dstChess = target->GetChess();
@@ -383,11 +408,11 @@ void Chessboard::GetCountryChess(uint32_t srcCountry, uint32_t dstCountry){
 const Chess *Chessboard::Check(uint32_t srcCountry, uint32_t dstCountry, uint32_t chess)const{
     if(srcCountry == dstCountry)return nullptr;
     for (size_t uiChess = 0; uiChess < DRAW_COUNTRY_CHESS_COUNT; ++uiChess){
-        std::vector<Chess>canplays;
+        std::vector<glm::vec2>canplays;
         if(mChess[srcCountry][uiChess]){
-            mChess[srcCountry][uiChess]->Selected((Chess **)mChess, canplays);
+            mChess[srcCountry][uiChess]->Select(this, canplays);
             for(auto it:canplays){
-                const Chess *pChess = GetChess(it.GetRow(), it.GetColumn());
+                const Chess *pChess = GetChess(it.y, it.x);
                 if(pChess && pChess->GetChess() == chess && pChess->GetCountry() == dstCountry){
                     return mChess[srcCountry][uiChess];
                 }
@@ -424,7 +449,7 @@ Chess *Chessboard::GetChess(uint32_t country, const glm::vec2&mousePos)const{
 
 Chess *Chessboard::GetChess(uint32_t country, uint32_t row, uint32_t column)const{
     Chess *pChess = nullptr;
-    if(country != MAX_COUNTRY_INDEX){
+    if(country != INVALID_COUNTRY_INDEX){
         for (uint32_t uiChess = 0; uiChess < DRAW_COUNTRY_CHESS_COUNT; ++uiChess){
             if(mChess[country][uiChess] && mChess[country][uiChess]->GetRow() == row && mChess[country][uiChess]->GetColumn() == column){
                 pChess = mChess[country][uiChess];
@@ -434,6 +459,21 @@ Chess *Chessboard::GetChess(uint32_t country, uint32_t row, uint32_t column)cons
     }
     return pChess;
 }
+// void Chessboard::Select(const Chess *pChess, std::vector<glm::vec2> &canplays){
+//     pChess->Select(this, canplays);
+//     for (auto it = canplays.begin(); it != canplays.end(); ++it){
+//         const Chess *pChess = GetChess(it->y, it->x);
+//         if(pChess && pChess->GetCountry() == pChess->GetCountry()){
+//             it = canplays.erase(it);
+//         }
+//     }
+//     //炮是必须获得棋盘的情况
+//     // 可能需要判断位置是否合法
+//     //而且，如果不是判断是否越界或者位置是否是队友的话，就非常麻烦
+// }
+// void Chessboard::Select(uint32_t country, uint32_t chess, std::vector<glm::vec2> &canplays){
+//     Select(mChess[country][chess], canplays);
+// }
 void Chessboard::DestroyCountry(uint32_t country){
     for (size_t uiChess = 0; uiChess < DRAW_COUNTRY_CHESS_COUNT; ++uiChess){
         if(mChess[country][uiChess]){
