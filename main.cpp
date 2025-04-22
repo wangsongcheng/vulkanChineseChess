@@ -28,8 +28,8 @@ VulkanWindow g_VulkanWindow;
 VulkanSynchronize g_VulkanSynchronize;
 VkDebugUtilsMessengerEXT g_VulkanMessenger;
 
-const uint32_t boundarySize = 2 * CHESSBOARD_RECT_SIZE, boundaryChessCount = CHE_CHESS_COUNT + MA_CHESS_COUNT + XIANG_CHESS_COUNT + SHI_CHESS_COUNT + JIANG_CHESS_COUNT;
-uint32_t g_WindowWidth = boundarySize + (CHESSBOARD_BING_GRID_DENSITY * CHESSBOARD_BIG_GRID_COUNT / 2 + boundaryChessCount) * CHESSBOARD_RECT_SIZE + (CHESSBOARD_ROW + 1) * CHESSBOARD_LINE_WIDTH, g_WindowHeight = g_WindowWidth;
+const uint32_t boundarySize = 2 * CHESSBOARD_RECT_SIZE;
+uint32_t g_WindowWidth = boundarySize + (CHESSBOARD_BING_GRID_DENSITY * CHESSBOARD_BIG_GRID_COUNT / 2 + CHESSBOARD_BOUNDARY_CHESS_COUNT - 1) * CHESSBOARD_RECT_SIZE + (CHESSBOARD_ROW + 1) * CHESSBOARD_LINE_WIDTH, g_WindowHeight = g_WindowWidth;
 
 VkCommandBuffer g_CommandBuffers;
 

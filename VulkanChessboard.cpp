@@ -27,7 +27,7 @@ void VulkanChessboard::UpdateBigGridUniform(VkDevice device){
     const glm::mat4 scale = glm::scale(glm::mat4(1), glm::vec3(CHESSBOARD_BIG_RECT_SIZE, CHESSBOARD_BIG_RECT_SIZE, 1));
     const glm::vec3 bigGridPos[] = {
         glm::vec3(CHESSBOARD_LINE_WIDTH + CHESSBOARD_RECT_SIZE, CHESSBOARD_LINE_WIDTH + CHESSBOARD_RECT_SIZE, 0),
-        glm::vec3(9 * CHESSBOARD_RECT_SIZE + 10 * CHESSBOARD_LINE_WIDTH + CHESSBOARD_BIG_RECT_SIZE, bigGridPos[0].y, 0),
+        glm::vec3((CHESSBOARD_BOUNDARY_CHESS_COUNT + CHESSBOARD_BING_GRID_DENSITY) * CHESSBOARD_RECT_SIZE +  (CHESSBOARD_BOUNDARY_CHESS_COUNT + CHESSBOARD_BING_GRID_DENSITY) * CHESSBOARD_LINE_WIDTH, bigGridPos[0].y, 0),
         glm::vec3(bigGridPos[0].x, bigGridPos[1].x, 0),
         glm::vec3(bigGridPos[1].x, bigGridPos[2].y, 0)
     };

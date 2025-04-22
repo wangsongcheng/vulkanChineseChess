@@ -91,11 +91,13 @@ bool IsBoundary(uint32_t row, uint32_t column){
 
 void Chess::RemoveInvalidChess(const void *pBoard, std::vector<glm::vec2> &canplays) const{
     const Chessboard *board = (const Chessboard *)pBoard;
-    for (auto it = canplays.begin(); it != canplays.end(); ++it){
+    for (auto it = canplays.begin(); it != canplays.end();){
         const Chess *pChess = board->GetChess(it->y, it->x);
         if(pChess && pChess->GetCountry() == mCountry){
             it = canplays.erase(it);
         }
+        else
+            ++it;
     }
 }
 
