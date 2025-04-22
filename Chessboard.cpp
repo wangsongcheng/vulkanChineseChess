@@ -208,13 +208,24 @@ void Chessboard::InitChessInfo(uint32_t country, std::array<Chess *, DRAW_COUNTR
     }
 }
 Chessboard::Chessboard(/* args */){
-   mPalacesCenter = { glm::vec2(CHESSBOARD_COLUMN - 1, CHESSBOARD_ROW / 2), glm::vec2(CHESSBOARD_COLUMN / 2, CHESSBOARD_ROW - 1), glm::vec2(CHESSBOARD_COLUMN / 2, CHESSBOARD_ROW / 2), glm::vec2(1, CHESSBOARD_ROW / 2) };
 }
 
 Chessboard::~Chessboard(){
 }
 void Chessboard::InitializeChess(uint32_t playerCountry, bool bHanCanPlay, uint32_t countryCount){
     mCountryCount = countryCount;
+    if(playerCountry == WU_COUNTRY_INDEX){
+        mPalacesCenter = { glm::vec2(CHESSBOARD_COLUMN / 2, CHESSBOARD_ROW - 1), glm::vec2(CHESSBOARD_COLUMN - 1, CHESSBOARD_ROW / 2), glm::vec2(1, CHESSBOARD_ROW / 2), glm::vec2(CHESSBOARD_COLUMN / 2, 1) };
+    }
+    else if(playerCountry == WEI_COUNTRY_INDEX){
+        mPalacesCenter = { glm::vec2(1, CHESSBOARD_ROW / 2), glm::vec2(CHESSBOARD_COLUMN / 2, CHESSBOARD_ROW - 1), glm::vec2(CHESSBOARD_COLUMN / 2, 1), glm::vec2(CHESSBOARD_COLUMN - 1, CHESSBOARD_ROW / 2) };
+    }
+    else if(playerCountry == SHU_COUNTRY_INDEX){
+        mPalacesCenter = { glm::vec2(CHESSBOARD_COLUMN - 1, CHESSBOARD_ROW / 2), glm::vec2(CHESSBOARD_COLUMN / 2, 1), glm::vec2(CHESSBOARD_COLUMN / 2, CHESSBOARD_ROW - 1), glm::vec2(1, CHESSBOARD_ROW / 2) };
+    }
+    else if(playerCountry == HAN_CHE_CHESS_INDEX){
+        mPalacesCenter = { glm::vec2(CHESSBOARD_COLUMN / 2, 1), glm::vec2(1, CHESSBOARD_ROW / 2), glm::vec2(CHESSBOARD_COLUMN - 1, CHESSBOARD_ROW / 2), glm::vec2(CHESSBOARD_COLUMN / 2, CHESSBOARD_ROW - 1) };
+    }
     for (uint32_t uiCountry = 0; uiCountry < MAX_COUNTRY_INDEX; ++uiCountry){
         DestroyCountry(uiCountry);
     }

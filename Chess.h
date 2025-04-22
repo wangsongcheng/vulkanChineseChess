@@ -71,8 +71,8 @@ class Wei:public Chess{
 public:
     Wei();
     Wei(uint32_t row, uint32_t column);
-    Wei(uint32_t chess, uint32_t country, uint32_t row, uint32_t column);
-    Wei(uint32_t chess, uint32_t country, uint32_t fontIndex, uint32_t row, uint32_t column);
+    Wei(uint32_t country, uint32_t row, uint32_t column);
+    Wei(uint32_t country, uint32_t fontIndex, uint32_t row, uint32_t column);
     ~Wei();
     virtual void Select(const void *pBoard, std::vector<glm::vec2>&canplays)const;
 };
@@ -81,8 +81,8 @@ class Shu:public Chess{
 public:
     Shu();
     Shu(uint32_t row, uint32_t column);
-    Shu(uint32_t chess, uint32_t country, uint32_t row, uint32_t column);
-    Shu(uint32_t chess, uint32_t country, uint32_t fontIndex, uint32_t row, uint32_t column);
+    Shu(uint32_t country, uint32_t row, uint32_t column);
+    Shu(uint32_t country, uint32_t fontIndex, uint32_t row, uint32_t column);
     ~Shu();
     virtual void Select(const void *pBoard, std::vector<glm::vec2>&canplays)const;
 };
@@ -91,8 +91,8 @@ class Wu:public Chess{
 public:
     Wu();
     Wu(uint32_t row, uint32_t column);
-    Wu(uint32_t chess, uint32_t country, uint32_t row, uint32_t column);
-    Wu(uint32_t chess, uint32_t country, uint32_t fontIndex, uint32_t row, uint32_t column);
+    Wu(uint32_t country, uint32_t row, uint32_t column);
+    Wu(uint32_t country, uint32_t fontIndex, uint32_t row, uint32_t column);
     ~Wu();
     virtual void Select(const void *pBoard, std::vector<glm::vec2>&canplays)const;
 };
@@ -101,8 +101,8 @@ class Han:public Chess{
 public:
     Han();
     Han(uint32_t row, uint32_t column);
-    Han(uint32_t chess, uint32_t country, uint32_t row, uint32_t column);
-    Han(uint32_t chess, uint32_t country, uint32_t fontIndex, uint32_t row, uint32_t column);
+    Han(uint32_t country, uint32_t row, uint32_t column);
+    Han(uint32_t country, uint32_t fontIndex, uint32_t row, uint32_t column);
     ~Han();
     virtual void Select(const void *pBoard, std::vector<glm::vec2>&canplays)const;
 };
@@ -112,8 +112,8 @@ class Bing:public Chess{
 public:
     Bing();
     Bing(uint32_t row, uint32_t column);
-    Bing(uint32_t chess, uint32_t country, uint32_t row, uint32_t column);
-    Bing(uint32_t chess, uint32_t country, uint32_t fontIndex, uint32_t row, uint32_t column);
+    Bing(uint32_t country, uint32_t row, uint32_t column);
+    Bing(uint32_t country, uint32_t fontIndex, uint32_t row, uint32_t column);
     ~Bing();
     virtual void Select(const void *pBoard, std::vector<glm::vec2>&canplays)const;
 };
@@ -121,8 +121,8 @@ class Pao:public Chess{
 public:
     Pao();
     Pao(uint32_t row, uint32_t column);
-    Pao(uint32_t chess, uint32_t country, uint32_t row, uint32_t column);
-    Pao(uint32_t chess, uint32_t country, uint32_t fontIndex, uint32_t row, uint32_t column);
+    Pao(uint32_t country, uint32_t row, uint32_t column);
+    Pao(uint32_t country, uint32_t fontIndex, uint32_t row, uint32_t column);
     ~Pao();
     virtual void Select(const void *pBoard, std::vector<glm::vec2>&canplays)const;
 };
@@ -136,8 +136,8 @@ class Che:public Chess{
 public:
     Che();
     Che(uint32_t row, uint32_t column);
-    Che(uint32_t chess, uint32_t country, uint32_t row, uint32_t column);
-    Che(uint32_t chess, uint32_t country, uint32_t fontIndex, uint32_t row, uint32_t column);
+    Che(uint32_t country, uint32_t row, uint32_t column);
+    Che(uint32_t country, uint32_t fontIndex, uint32_t row, uint32_t column);
     ~Che();
     virtual void Select(const void *pBoard, std::vector<glm::vec2>&canplays)const;
 };
@@ -145,8 +145,8 @@ class Ma:public Chess{
 public:
     Ma();
     Ma(uint32_t row, uint32_t column);
-    Ma(uint32_t chess, uint32_t country, uint32_t row, uint32_t column);
-    Ma(uint32_t chess, uint32_t country, uint32_t fontIndex, uint32_t row, uint32_t column);
+    Ma(uint32_t country, uint32_t row, uint32_t column);
+    Ma(uint32_t country, uint32_t fontIndex, uint32_t row, uint32_t column);
     ~Ma();
     virtual void Select(const void *pBoard, std::vector<glm::vec2>&canplays)const;
 };
@@ -155,8 +155,8 @@ class Xiang:public Chess{
 public:
     Xiang();
     Xiang(uint32_t row, uint32_t column);
-    Xiang(uint32_t chess, uint32_t country, uint32_t row, uint32_t column);
-    Xiang(uint32_t chess, uint32_t country, uint32_t fontIndex, uint32_t row, uint32_t column);
+    Xiang(uint32_t country, uint32_t row, uint32_t column);
+    Xiang(uint32_t country, uint32_t fontIndex, uint32_t row, uint32_t column);
     ~Xiang();
     virtual void Select(const void *pBoard, std::vector<glm::vec2>&canplays)const;
 };
@@ -164,8 +164,8 @@ class Shi:public Chess{
 public:
     Shi();
     Shi(uint32_t row, uint32_t column);
-    Shi(uint32_t chess, uint32_t country, uint32_t row, uint32_t column);
-    Shi(uint32_t chess, uint32_t country, uint32_t fontIndex, uint32_t row, uint32_t column);
+    Shi(uint32_t country, uint32_t row, uint32_t column);
+    Shi(uint32_t country, uint32_t fontIndex, uint32_t row, uint32_t column);
     ~Shi();
     virtual void Select(const void *pBoard, std::vector<glm::vec2>&canplays)const;
 };

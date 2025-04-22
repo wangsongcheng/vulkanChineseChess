@@ -159,10 +159,10 @@ Wei::Wei(uint32_t row, uint32_t column):Chess(row, column){
 Wei::Wei(){
 }
 
-Wei::Wei(uint32_t chess, uint32_t country, uint32_t row, uint32_t column):Chess(chess, country, row, column){
+Wei::Wei(uint32_t country, uint32_t row, uint32_t column):Chess(JIANG_CHESS_INDEX, country, row, column){
 }
 
-Wei::Wei(uint32_t chess, uint32_t country, uint32_t fontIndex, uint32_t row, uint32_t column):Chess(chess, country, fontIndex, row, column){
+Wei::Wei(uint32_t country, uint32_t fontIndex, uint32_t row, uint32_t column):Chess(JIANG_CHESS_INDEX, country, fontIndex, row, column){
 }
 
 Wei::~Wei(){
@@ -187,10 +187,10 @@ Shu::Shu(){
 Shu::Shu(uint32_t row, uint32_t column):Chess(row, column){
 }
 
-Shu::Shu(uint32_t chess, uint32_t country, uint32_t row, uint32_t column):Chess(chess, country, row, column){
+Shu::Shu(uint32_t country, uint32_t row, uint32_t column):Chess(JIANG_CHESS_INDEX, country, row, column){
 }
 
-Shu::Shu(uint32_t chess, uint32_t country, uint32_t fontIndex, uint32_t row, uint32_t column):Chess(chess, country, fontIndex, row, column){
+Shu::Shu(uint32_t country, uint32_t fontIndex, uint32_t row, uint32_t column):Chess(JIANG_CHESS_INDEX, country, fontIndex, row, column){
 }
 
 Shu::~Shu(){
@@ -215,10 +215,10 @@ Wu::Wu(){
 Wu::Wu(uint32_t row, uint32_t column):Chess(row, column){
 }
 
-Wu::Wu(uint32_t chess, uint32_t country, uint32_t row, uint32_t column):Chess(chess, country, row, column){
+Wu::Wu(uint32_t country, uint32_t row, uint32_t column):Chess(JIANG_CHESS_INDEX, country, row, column){
 }
 
-Wu::Wu(uint32_t chess, uint32_t country, uint32_t fontIndex, uint32_t row, uint32_t column):Chess(chess, country, fontIndex, row, column){
+Wu::Wu(uint32_t country, uint32_t fontIndex, uint32_t row, uint32_t column):Chess(JIANG_CHESS_INDEX, country, fontIndex, row, column){
 }
 
 Wu::~Wu(){
@@ -243,10 +243,10 @@ Han::Han(){
 Han::Han(uint32_t row, uint32_t column):Chess(row, column){
 }
 
-Han::Han(uint32_t chess, uint32_t country, uint32_t row, uint32_t column):Chess(chess, country, row, column){
+Han::Han(uint32_t country, uint32_t row, uint32_t column):Chess(JIANG_CHESS_INDEX, country, row, column){
 }
 
-Han::Han(uint32_t chess, uint32_t country, uint32_t fontIndex, uint32_t row, uint32_t column):Chess(chess, country, fontIndex, row, column){
+Han::Han(uint32_t country, uint32_t fontIndex, uint32_t row, uint32_t column):Chess(JIANG_CHESS_INDEX, country, fontIndex, row, column){
 }
 
 Han::~Han(){
@@ -293,11 +293,11 @@ Bing::Bing(uint32_t row, uint32_t column):Chess(row, column){
     mTerriory = GetTerritoryIndex(row, column);
 }
 
-Bing::Bing(uint32_t chess, uint32_t country, uint32_t row, uint32_t column):Chess(chess, country, row, column){
+Bing::Bing(uint32_t country, uint32_t row, uint32_t column):Chess(BING_CHESS_INDEX, country, row, column){
     mTerriory = GetTerritoryIndex(row, column);
 }
 
-Bing::Bing(uint32_t chess, uint32_t country, uint32_t fontIndex, uint32_t row, uint32_t column):Chess(chess, country, fontIndex, row, column){
+Bing::Bing(uint32_t country, uint32_t fontIndex, uint32_t row, uint32_t column):Chess(BING_CHESS_INDEX, country, fontIndex, row, column){
     mTerriory = GetTerritoryIndex(row, column);
 }
 
@@ -328,10 +328,10 @@ Pao::Pao(){
 Pao::Pao(uint32_t row, uint32_t column):Chess(row, column){
 }
 
-Pao::Pao(uint32_t chess, uint32_t country, uint32_t row, uint32_t column):Chess(chess, country, row, column){
+Pao::Pao(uint32_t country, uint32_t row, uint32_t column):Chess(PAO_CHESS_INDEX, country, row, column){
 }
 
-Pao::Pao(uint32_t chess, uint32_t country, uint32_t fontIndex, uint32_t row, uint32_t column):Chess(chess, country, fontIndex, row, column){
+Pao::Pao(uint32_t country, uint32_t fontIndex, uint32_t row, uint32_t column):Chess(PAO_CHESS_INDEX, country, fontIndex, row, column){
 }
 
 Pao::~Pao(){
@@ -425,10 +425,10 @@ Che::Che(){
 Che::Che(uint32_t row, uint32_t column):Chess(row, column){
 }
 
-Che::Che(uint32_t chess, uint32_t country, uint32_t row, uint32_t column):Chess(chess, country, row, column){
+Che::Che(uint32_t country, uint32_t row, uint32_t column):Chess(CHE_CHESS_INDEX, country, row, column){
 }
 
-Che::Che(uint32_t chess, uint32_t country, uint32_t fontIndex, uint32_t row, uint32_t column):Chess(chess, country, fontIndex, row, column){
+Che::Che(uint32_t country, uint32_t fontIndex, uint32_t row, uint32_t column):Chess(CHE_CHESS_INDEX, country, fontIndex, row, column){
 }
 
 Che::~Che(){
@@ -465,10 +465,10 @@ Ma::Ma(){
 Ma::Ma(uint32_t row, uint32_t column):Chess(row, column){
 }
 
-Ma::Ma(uint32_t chess, uint32_t country, uint32_t row, uint32_t column):Chess(chess, country, row, column){
+Ma::Ma(uint32_t country, uint32_t row, uint32_t column):Chess(MA_CHESS_INDEX, country, row, column){
 }
 
-Ma::Ma(uint32_t chess, uint32_t country, uint32_t fontIndex, uint32_t row, uint32_t column):Chess(chess, country, fontIndex, row, column){
+Ma::Ma(uint32_t country, uint32_t fontIndex, uint32_t row, uint32_t column):Chess(MA_CHESS_INDEX, country, fontIndex, row, column){
 }
 
 Ma::~Ma(){
@@ -500,11 +500,11 @@ Xiang::Xiang(uint32_t row, uint32_t column) : Chess(row, column){
     mTerriory = GetTerritoryIndex(row, column);
 }
 
-Xiang::Xiang(uint32_t chess, uint32_t country, uint32_t row, uint32_t column):Chess(chess, country, row, column){
+Xiang::Xiang(uint32_t country, uint32_t row, uint32_t column):Chess(XIANG_CHESS_INDEX, country, row, column){
     mTerriory = GetTerritoryIndex(row, column);
 }
 
-Xiang::Xiang(uint32_t chess, uint32_t country, uint32_t fontIndex, uint32_t row, uint32_t column):Chess(chess, country, fontIndex, row, column){
+Xiang::Xiang(uint32_t country, uint32_t fontIndex, uint32_t row, uint32_t column):Chess(XIANG_CHESS_INDEX, country, fontIndex, row, column){
     mTerriory = GetTerritoryIndex(row, column);
 }
 
@@ -529,10 +529,10 @@ Shi::Shi(){
 Shi::Shi(uint32_t row, uint32_t column):Chess(row, column){
 }
 
-Shi::Shi(uint32_t chess, uint32_t country, uint32_t row, uint32_t column):Chess(chess, country, row, column){
+Shi::Shi(uint32_t country, uint32_t row, uint32_t column):Chess(SHI_CHESS_INDEX, country, row, column){
 }
 
-Shi::Shi(uint32_t chess, uint32_t country, uint32_t fontIndex, uint32_t row, uint32_t column):Chess(chess, country, fontIndex, row, column){
+Shi::Shi(uint32_t country, uint32_t fontIndex, uint32_t row, uint32_t column):Chess(SHI_CHESS_INDEX, country, fontIndex, row, column){
 }
 
 Shi::~Shi(){

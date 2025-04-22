@@ -16,7 +16,7 @@ bool Game::GameOver(){
 }
 void Game::InitinalizeGame(int32_t player, int32_t currentCountry){
     StartGame();
-    if(HanCanPslay()){
+    if(IsHanCanPslay()){
         mCountryCount = MAX_COUNTRY_INDEX;
     }
     else{

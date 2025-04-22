@@ -211,7 +211,7 @@ void ShowPlayerCountryCombo(){
 }
 void ResetCountryItem(std::vector<std::string>&countryItems){
     std::vector<std::string>country = { "?", "魏", "蜀", "吴" };
-    if(g_Game.HanCanPslay()){
+    if(g_Game.IsHanCanPslay()){
         country.push_back("汉");
     }
     if(countryItems.empty())countryItems.resize(country.size());
@@ -322,7 +322,7 @@ void *server_start(void *userData){
             if(message.event != AI_JOIN_GAME_GAME_EVENT)CreateThread(process_server, &socketIndex[i]);
         }
     }
-    if(g_Game.HanCanPslay()){
+    if(g_Game.IsHanCanPslay()){
         message.event = ENABLE_HANG_GAME_EVENT;
         g_OnLine.SendToAllClient(&message, sizeof(GameMessage));
     }
@@ -435,7 +435,7 @@ void RotateChess(uint32_t country, uint32_t row, uint32_t column, uint32_t&newRo
 void DeleteCountryItem(const char *country, std::vector<std::string>&countryItems){
     const std::string newCountry[] = { "?", "魏", "蜀", "吴", "汉" };
     uint32_t count = IM_ARRAYSIZE(newCountry) - 1;
-    if(g_Game.HanCanPslay()){
+    if(g_Game.IsHanCanPslay()){
         ++count;
     }
     for (size_t i = 0; i < count; ++i){
@@ -842,6 +842,17 @@ void UpdateSelectChessUniform(VkDevice device, std::vector<glm::vec2>&canplays){
 void SelectChess(VkDevice device, const Chess *pChess){
     std::vector<glm::vec2>canplays;
     pChess->Select(g_Game.GetChessBoard(), canplays);
+    if(!g_Game.IsHanCanPslay()){
+        for (auto it = canplays.begin(); it != canplays.end(); ++it){
+            const Chess *pc = g_Game.GetChess(it->y, it->x);
+            if(pc && pc->GetChess() == JIANG_CHESS_INDEX && pc->GetCountry() == HAN_CHE_CHESS_COUNT){
+                if(pChess->GetChess() != MA_CHESS_INDEX){
+                    canplays.erase(it);
+                    break;
+                }
+            }
+        }    
+    }
     UpdateSelectChessUniform(device, canplays);
 }
 struct PPC{

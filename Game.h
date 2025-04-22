@@ -9,7 +9,7 @@
 #ifndef MAX_BYTE
 #define MAX_BYTE 0xff
 #endif
-//不应该修改以下四个宏的值
+//不应该修改以下四个宏的值,修改一次，程序肯定乱套
 #define WU_COUNTRY_INDEX 0
 #define WEI_COUNTRY_INDEX 1
 #define SHU_COUNTRY_INDEX 2
@@ -85,7 +85,7 @@ public:
     inline bool IsGameStart()const{
         return mInfo.bGameStart;
     }
-    inline bool HanCanPslay()const{
+    inline bool IsHanCanPslay()const{
         return mHanCanPlay;
     }
     inline void EnableHan(){
