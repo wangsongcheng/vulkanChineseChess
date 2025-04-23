@@ -2,25 +2,28 @@
 #include <string.h>
 #include <iostream>
 #include "Chessboard.h"
-uint32_t GetTerritoryIndex(uint32_t row, uint32_t column){
+uint32_t Chess::GetTerritoryIndex()const{
+    return GetTerritoryIndex(mRow, mColumn);
+}
+uint32_t Chess::GetTerritoryIndex(uint32_t row, uint32_t column)const{
     //4是一个国家占的行数
-    if(row <= CHESSBOARD_ROW - 4 && row > 3){
-        if(column >= CHESSBOARD_COLUMN - 4){
+    if(row <= CHESSBOARD_ROW - CHESSBOARD_BING_GRID_DENSITY && row > CHESSBOARD_BING_GRID_DENSITY - 1){
+        if(column >= CHESSBOARD_COLUMN - CHESSBOARD_BING_GRID_DENSITY){
             return WU_TERRITORY_INDEX;
         }
-        else if(column < 5){
+        else if(column < CHESSBOARD_BING_GRID_DENSITY + 1){
             return HAN_TERRITORY_INDEX;
         }
         else{
             return CENTER_TERRITORY_INDEX;
         }
     }
-    else if(column > 3 && column <= CHESSBOARD_COLUMN - 4){
+    else if(column > CHESSBOARD_BING_GRID_DENSITY - 1 && column <= CHESSBOARD_COLUMN - CHESSBOARD_BING_GRID_DENSITY){
         //魏或蜀
-        if(row > CHESSBOARD_COLUMN - 4){
+        if(row > CHESSBOARD_ROW - CHESSBOARD_BING_GRID_DENSITY){
             return SHU_TERRITORY_INDEX;
         }
-        else if(row < 5){
+        else if(row < CHESSBOARD_BING_GRID_DENSITY + 1){
             return WEI_TERRITORY_INDEX;
         }
         else{
@@ -29,12 +32,13 @@ uint32_t GetTerritoryIndex(uint32_t row, uint32_t column){
     }
     return INVALID_TERRITORY_INDEX;
 }
-bool IsBoundary(uint32_t row, uint32_t column){
+bool IsBoundary(int32_t row, int32_t column){
+    if(row < 0 || column < 0)return true;
     if(row > CHESSBOARD_ROW || column > CHESSBOARD_COLUMN){
         // printf("到达边界, row:%u, column:%u\n", row, column);
         return true;
     }
-    else if ((row < 4 || row > 12) && (row < 0 || column < 4 || column > 12)){
+    else if ((row < CHESSBOARD_BING_GRID_DENSITY || row > CHESSBOARD_BOUNDARY_CHESS_COUNT - 1 + CHESSBOARD_BING_GRID_DENSITY) && (row < 0 || column < CHESSBOARD_BING_GRID_DENSITY || column > CHESSBOARD_BOUNDARY_CHESS_COUNT - 1 + CHESSBOARD_BING_GRID_DENSITY)){
         // printf("到达边界, row:%u, column:%u\n", row, column);
         return true;
     }
@@ -110,7 +114,7 @@ void Chess::InPalaceMove(const glm::vec2 &palacesCenter, std::vector<glm::vec2> 
             glm::vec2(palacesCenter.x + 1, palacesCenter.y + 1)
         };
         //除馬、相外, 其他棋子在中心点时，能走的肯定就是斜线边的点
-        for (size_t i = 0; i < sizeof(pos) / sizeof(Chess); ++i){
+        for (size_t i = 0; i < sizeof(pos) / sizeof(glm::vec2); ++i){
             canplays.push_back(pos[i]);
         }
     }
@@ -146,7 +150,7 @@ void Chess::SetPos(uint32_t row, uint32_t column){
     mColumn = column;
     mPos.y = ROW_TO_Y(mRow);
     mPos.x = COLUMN_TO_X(mColumn);
-    if(INVALID_TERRITORY_INDEX == mTerriory)mTerriory = GetTerritoryIndex(row, column);
+    if(INVALID_TERRITORY_INDEX == mTerritory)mTerritory = GetTerritoryIndex(row, column);
 }
 
 void Chess::Select(const void *pBoard, std::vector<glm::vec2>&canplays) const{
@@ -172,14 +176,14 @@ void Wei::Select(const void *pBoard, std::vector<glm::vec2>&canplays)const{
     const Chessboard *board = (const Chessboard *)pBoard;
     const glm::vec2 cInfo[] = { glm::vec2(mColumn + 1, mRow), glm::vec2(mColumn - 1, mRow), glm::vec2(mColumn, mRow + 1), glm::vec2(mColumn, mRow - 1) };
     for(uint32_t i = 0; i < sizeof(cInfo) / sizeof(glm::vec2); ++i){
-        if(!IsBoundary(cInfo[i].y, cInfo[i].x) && 4 !=  board->IsInPalace(cInfo[i].y, cInfo[i].x)){//将不能出九宫格
+        if(!IsBoundary(cInfo[i].y, cInfo[i].x) && mTerritory ==  board->IsInPalace(cInfo[i].y, cInfo[i].x)){//将不能出九宫格
             canplays.push_back(glm::vec2(cInfo[i].x, cInfo[i].y));
         }
     }
-    const glm::vec2&center = board->GetPalacesCenter(mCountry);
+    int32_t territory = GetTerritoryIndex();
+    const glm::vec2&center = board->GetPalacesCenter(territory);
     InPalaceMove(center, canplays);
-    RemoveInvalidChess(pBoard, canplays);
-}
+    RemoveInvalidChess(pBoard, canplays);}
 
 Shu::Shu(){
 }
@@ -200,11 +204,12 @@ void Shu::Select(const void *pBoard, std::vector<glm::vec2>&canplays) const{
     const Chessboard *board = (const Chessboard *)pBoard;
     const glm::vec2 cInfo[] = { glm::vec2(mColumn + 1, mRow), glm::vec2(mColumn - 1, mRow), glm::vec2(mColumn, mRow + 1), glm::vec2(mColumn, mRow - 1) };
     for(uint32_t i = 0; i < sizeof(cInfo) / sizeof(glm::vec2); ++i){
-        if(!IsBoundary(cInfo[i].y, cInfo[i].x) && 4 !=  board->IsInPalace(cInfo[i].y, cInfo[i].x)){//将不能出九宫格
+        if(!IsBoundary(cInfo[i].y, cInfo[i].x) && mTerritory ==  board->IsInPalace(cInfo[i].y, cInfo[i].x)){//将不能出九宫格
             canplays.push_back(glm::vec2(cInfo[i].x, cInfo[i].y));
         }
     }
-    const glm::vec2&center = board->GetPalacesCenter(mCountry);
+    int32_t territory = GetTerritoryIndex();
+    const glm::vec2&center = board->GetPalacesCenter(territory);
     InPalaceMove(center, canplays);
     RemoveInvalidChess(pBoard, canplays);
 }
@@ -228,11 +233,12 @@ void Wu::Select(const void *pBoard, std::vector<glm::vec2>&canplays) const{
     const Chessboard *board = (const Chessboard *)pBoard;
     const glm::vec2 cInfo[] = { glm::vec2(mColumn + 1, mRow), glm::vec2(mColumn - 1, mRow), glm::vec2(mColumn, mRow + 1), glm::vec2(mColumn, mRow - 1) };
     for(uint32_t i = 0; i < sizeof(cInfo) / sizeof(glm::vec2); ++i){
-        if(!IsBoundary(cInfo[i].y, cInfo[i].x) && 4 !=  board->IsInPalace(cInfo[i].y, cInfo[i].x)){//将不能出九宫格
+        if(!IsBoundary(cInfo[i].y, cInfo[i].x) && mTerritory ==  board->IsInPalace(cInfo[i].y, cInfo[i].x)){//将不能出九宫格
             canplays.push_back(glm::vec2(cInfo[i].x, cInfo[i].y));
         }
     }
-    const glm::vec2&center = board->GetPalacesCenter(mCountry);
+    int32_t territory = GetTerritoryIndex();
+    const glm::vec2&center = board->GetPalacesCenter(territory);
     InPalaceMove(center, canplays);
     RemoveInvalidChess(pBoard, canplays);
 }
@@ -256,49 +262,50 @@ void Han::Select(const void *pBoard, std::vector<glm::vec2>&canplays) const{
     const Chessboard *board = (const Chessboard *)pBoard;
     const glm::vec2 cInfo[] = { glm::vec2(mColumn + 1, mRow), glm::vec2(mColumn - 1, mRow), glm::vec2(mColumn, mRow + 1), glm::vec2(mColumn, mRow - 1) };
     for(uint32_t i = 0; i < sizeof(cInfo) / sizeof(glm::vec2); ++i){
-        if(!IsBoundary(cInfo[i].y, cInfo[i].x) && 4 !=  board->IsInPalace(cInfo[i].y, cInfo[i].x)){//将不能出九宫格
+        if(!IsBoundary(cInfo[i].y, cInfo[i].x) && mTerritory ==  board->IsInPalace(cInfo[i].y, cInfo[i].x)){//将不能出九宫格
             canplays.push_back(glm::vec2(cInfo[i].x, cInfo[i].y));
         }
     }
-    const glm::vec2&center = board->GetPalacesCenter(mCountry);
+    int32_t territory = GetTerritoryIndex();
+    const glm::vec2&center = board->GetPalacesCenter(territory);
     InPalaceMove(center, canplays);
     RemoveInvalidChess(pBoard, canplays);
 }
 
 glm::vec2 Bing::GetBingBack() const{
     glm::vec2 back = glm::vec2(0);
-    if(mTerriory == WU_TERRITORY_INDEX){
+    if(mTerritory == WU_TERRITORY_INDEX){
         back.x = 1;
     }
-    else if(mTerriory == WEI_TERRITORY_INDEX){
+    else if(mTerritory == WEI_TERRITORY_INDEX){
         back.y = -1;
     }
-    else if(mTerriory == SHU_TERRITORY_INDEX){
+    else if(mTerritory == SHU_TERRITORY_INDEX){
         back.y = 1;
     }
-    else if(mTerriory == HAN_TERRITORY_INDEX){
+    else if(mTerritory == HAN_TERRITORY_INDEX){
         back.x = -1;
     }
     return back;
 }
 
 bool Bing::IsAbroad(uint32_t row, uint32_t column) const{
-    return mTerriory != GetTerritoryIndex(row, column);
+    return mTerritory != GetTerritoryIndex(row, column);
 }
 
 Bing::Bing(){
 }
 
 Bing::Bing(uint32_t row, uint32_t column):Chess(row, column){
-    mTerriory = GetTerritoryIndex(row, column);
+    mTerritory = GetTerritoryIndex(row, column);
 }
 
 Bing::Bing(uint32_t country, uint32_t row, uint32_t column):Chess(BING_CHESS_INDEX, country, row, column){
-    mTerriory = GetTerritoryIndex(row, column);
+    mTerritory = GetTerritoryIndex(row, column);
 }
 
 Bing::Bing(uint32_t country, uint32_t fontIndex, uint32_t row, uint32_t column):Chess(BING_CHESS_INDEX, country, fontIndex, row, column){
-    mTerriory = GetTerritoryIndex(row, column);
+    mTerritory = GetTerritoryIndex(row, column);
 }
 
 Bing::~Bing(){
@@ -317,8 +324,8 @@ void Bing::Select(const void *pBoard, std::vector<glm::vec2>&canplays) const{
         }
     }
     const Chessboard *board = (const Chessboard *)pBoard;
-    const uint32_t inPalaceCountry = board->IsInPalace(mRow, mColumn);
-    if(inPalaceCountry != -1)InPalaceMove(board->GetPalacesCenter(inPalaceCountry), canplays);
+    const int32_t territory = board->IsInPalace(mRow, mColumn);
+    if(territory != -1)InPalaceMove(board->GetPalacesCenter(territory), canplays);
     RemoveInvalidChess(pBoard, canplays);
 }
 
@@ -344,13 +351,13 @@ void Pao::Select(const void *pBoard, std::vector<glm::vec2>&canplays) const{
         const glm::vec2 currentPos = glm::vec2(mColumn, mRow);
         glm::vec2 pos = currentPos + direction[i];
         while(!IsBoundary(pos.y, pos.x)){
-            const Chess *pChessInfo = board->GetChess(pos.y, pos.x);
-            if(pChessInfo){
+            const Chess *pChess = board->GetChess(pos.y, pos.x);
+            if(pChess){
                 pos += direction[i];
                 while(!IsBoundary(pos.y, pos.x)){
-                    pChessInfo = board->GetChess(pos.y, pos.x);
-                    if(pChessInfo && pChessInfo->GetCountry() != mCountry){
-                        canplays.push_back(pos);
+                    const Chess *pTarget = board->GetChess(pos.y, pos.x);
+                    if(pTarget){
+                        if(pTarget->GetCountry() != mCountry)canplays.push_back(pos);
                         break;
                     }
                     pos += direction[i];
@@ -363,8 +370,8 @@ void Pao::Select(const void *pBoard, std::vector<glm::vec2>&canplays) const{
             pos += direction[i];
         }
     }
-    const uint32_t inPalaceCountry = board->IsInPalace(mRow, mColumn);
-    if(inPalaceCountry != -1)InPalaceMove(board->GetPalacesCenter(inPalaceCountry), canplays);
+    const int32_t territory = board->IsInPalace(mRow, mColumn);
+    if(territory != INVALID_COUNTRY_INDEX)InPalaceMove(board->GetPalacesCenter(territory), canplays);
     RemoveInvalidChess(pBoard, canplays);
 }
 
@@ -454,8 +461,8 @@ void Che::Select(const void *pBoard, std::vector<glm::vec2>&canplays) const{
             pos += direction[i];
         }
     }
-    const uint32_t inPalaceCountry = board->IsInPalace(mRow, mColumn);
-    if(inPalaceCountry != -1)InPalaceMove(board->GetPalacesCenter(inPalaceCountry), canplays);
+    const int32_t territory = board->IsInPalace(mRow, mColumn);
+    if(territory != -1)InPalaceMove(board->GetPalacesCenter(territory), canplays);
     RemoveInvalidChess(pBoard, canplays);
 }
 
@@ -493,19 +500,19 @@ Xiang::Xiang(){
 }
 
 bool Xiang::IsAbroad(uint32_t row, uint32_t column) const{
-    return mTerriory != GetTerritoryIndex(row, column);
+    return mTerritory != GetTerritoryIndex(row, column);
 }
 
 Xiang::Xiang(uint32_t row, uint32_t column) : Chess(row, column){
-    mTerriory = GetTerritoryIndex(row, column);
+    mTerritory = GetTerritoryIndex(row, column);
 }
 
 Xiang::Xiang(uint32_t country, uint32_t row, uint32_t column):Chess(XIANG_CHESS_INDEX, country, row, column){
-    mTerriory = GetTerritoryIndex(row, column);
+    mTerritory = GetTerritoryIndex(row, column);
 }
 
 Xiang::Xiang(uint32_t country, uint32_t fontIndex, uint32_t row, uint32_t column):Chess(XIANG_CHESS_INDEX, country, fontIndex, row, column){
-    mTerriory = GetTerritoryIndex(row, column);
+    mTerritory = GetTerritoryIndex(row, column);
 }
 
 Xiang::~Xiang(){
@@ -513,12 +520,13 @@ Xiang::~Xiang(){
 
 void Xiang::Select(const void *pBoard, std::vector<glm::vec2>&canplays) const{
     const Chessboard *board = (const Chessboard *)pBoard;
-    const glm::vec2 cInfo[] = { glm::vec2(mColumn + 2, mRow+ 2), glm::vec2(mColumn - 2, mRow - 2), glm::vec2(mColumn + 2, mRow - 2), glm::vec2(mColumn - 2,mRow + 2) };
+    const glm::vec2 cInfo[] = { glm::vec2(mColumn + 2, mRow + 2), glm::vec2(mColumn - 2, mRow - 2), glm::vec2(mColumn + 2, mRow - 2), glm::vec2(mColumn - 2,mRow + 2) };
     for(uint32_t i = 0; i < sizeof(cInfo) / sizeof(glm::vec2); ++i){
         if(!IsBoundary(cInfo[i].y, cInfo[i].x) && !IsAbroad(cInfo[i].y, cInfo[i].x)){
             const Chess *pc = board->GetChess(cInfo[i].y, cInfo[i].x);
-            if(!pc || pc->GetColumn() != GetCountry())
+            if(!pc || pc->GetCountry() != mCountry){
                 canplays.push_back(cInfo[i]);
+            }
         }
     }
 }
@@ -540,6 +548,7 @@ Shi::~Shi(){
 
 void Shi::Select(const void *pBoard, std::vector<glm::vec2>&canplays) const{
     const Chessboard *board = (const Chessboard *)pBoard;
-    InPalaceMove(board->GetPalacesCenter(mCountry), canplays);
+    uint32_t territoryIndex = GetTerritoryIndex(mRow, mColumn);
+    InPalaceMove(board->GetPalacesCenter(territoryIndex), canplays);
     RemoveInvalidChess(pBoard, canplays);
 }

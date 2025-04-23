@@ -22,7 +22,9 @@ protected:
     uint32_t mColumn;
     uint32_t mFontIndex;
     uint32_t mCountry;
-    uint32_t mTerriory = INVALID_TERRITORY_INDEX;
+    uint32_t mTerritory = INVALID_TERRITORY_INDEX;
+    uint32_t GetTerritoryIndex()const;
+    uint32_t GetTerritoryIndex(uint32_t row, uint32_t column)const;
     void RemoveInvalidChess(const void *pBoard, std::vector<glm::vec2>&canplays)const;
     //调用该函数前，需要先确保棋子已经在九宫格内
     void InPalaceMove(const glm::vec2&palacesCenter, std::vector<glm::vec2>&canplays)const;

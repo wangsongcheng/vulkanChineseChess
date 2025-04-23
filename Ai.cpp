@@ -46,7 +46,8 @@ void *AiPlayChess(void *userData){
         if(!pAi->IsOnline()){
             pAi->NextCountry();
             // printf("current country:%d\n", pAi->GetCurrentCountry());
-            pAi->EnableNextCountry();
+            pAi->EnableNextCountry(false);
+            // pAi->EnableNextCountry(true);
         }
     }
     printf("function %s end\n", __FUNCTION__);
@@ -458,7 +459,7 @@ void Ai::Enable(){
     SetEvent(mAiSemaphore);
 #endif // WIN32
 }
-void Ai::EnableNextCountry(){
+void Ai::EnableNextCountry(bool autoPlay){
     if(mGame && mOnline){
         const uint32_t currentCountry = GetCurrentCountry();
         if(IsOnline() && IsServer()){
@@ -470,7 +471,7 @@ void Ai::EnableNextCountry(){
             }
         }
         else{
-            if(!IsEnd() && currentCountry != GetPlayer()){
+            if(autoPlay || (!IsEnd() && currentCountry != GetPlayer())){
                 Enable();
             }
         }
@@ -490,6 +491,14 @@ void Ai::CreatePthread(Game *pGame, OnLine *pOnline){
     pthread_t pthreadId;
     pthread_create(&pthreadId, nullptr, AiPlayChess, this);
 #endif
+}
+Chess *Ai::GetTarget(const Chess *pSelect, const std::vector<glm::vec2>&canplays)const{
+    Chess *pTarget = nullptr;
+    for (const auto&it:canplays){
+        pTarget = mGame->GetChess(it.y, it.x);
+        if(pTarget && pTarget->GetCountry() != pSelect->GetCountry())break;
+    }
+    return pTarget;
 }
 void Ai::GetPlayChess(uint32_t country, Chess **pSelect, Chess **pTarget, uint32_t *row, uint32_t *column) const{
     std::vector<glm::vec2>canplays;
@@ -517,21 +526,41 @@ void Ai::GetPlayChess(uint32_t country, Chess **pSelect, Chess **pTarget, uint32
     //         }
     //     }
     // }
-    auto pChess = mGame->GetChessBoard()->GetChess();
+    auto pAllChess = mGame->GetChessBoard()->GetChess();
     if(!*pSelect){
         do{
-            *pSelect = pChess[country][rand() % DRAW_COUNTRY_CHESS_COUNT];
+            *pSelect = pAllChess[country][rand() % DRAW_COUNTRY_CHESS_COUNT];
             if(*pSelect){
                 canplays.clear();
-                pChess[country][(*pSelect)->GetChess()]->Select(mGame->GetChessBoard(), canplays);
+                const Chess *pChess = pAllChess[country][(*pSelect)->GetChess()];
+                pChess->Select(mGame->GetChessBoard(), canplays);
+                mGame->RemoveInvalidTarget(pChess, canplays);
             }
         }while(!*pSelect || -1 == CanPlay(country, canplays));//不用担心判断*player后死循环,因为"将"肯定会存在,否则就输了
+    }
+    int32_t deathCountry = INVALID_COUNTRY_INDEX;
+    for (size_t i = 0; i < MAX_COUNTRY_INDEX; ++i){
+        if((mGame->IsHanCanPslay() || i != HAN_COUNTRY_INDEX) && mGame->IsDeath(i)){
+            deathCountry = i;
+            break;
+        }
+    }
+    if(deathCountry != INVALID_COUNTRY_INDEX && mGame->GetChessCount((*pSelect)->GetCountry()) < CHE_CHESS_COUNT + MA_CHESS_COUNT + PAO_CHESS_COUNT + BING_CHESS_COUNT){
+        const Chess *pChess = pAllChess[country][(*pSelect)->GetChess()];
+        canplays.clear();
+        pChess->Select(mGame->GetChessBoard(), canplays);
+        mGame->RemoveInvalidTarget(pChess, canplays);
+        *pTarget = GetTarget(*pSelect, canplays);
+        if(*pTarget){
+            *row = (*pTarget)->GetRow();
+            *column = (*pTarget)->GetColumn();    
+        }
     }
     if(!*pTarget){
         //这个分支也有吃子的可能
         canplays.clear();
-        pChess[country][(*pSelect)->GetChess()]->Select(mGame->GetChessBoard(), canplays);
-        uint32_t index = 0;
+        pAllChess[country][(*pSelect)->GetChess()]->Select(mGame->GetChessBoard(), canplays);
+        int32_t index = 0;
         do{
             index = rand() % canplays.size();
             *pTarget = mGame->GetChess(canplays[index].y, canplays[index].x);

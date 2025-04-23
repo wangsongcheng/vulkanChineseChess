@@ -18,6 +18,8 @@
 #define INVALID_COUNTRY_INDEX -1
 //最好不要修改该宏的值
 #define MAX_COUNTRY_INDEX 4
+#define GET_NOT_ALLIANCE_COUNTRY(COUNTRY, ALLIANCE_COUNTRY) (MAX_COUNTRY_INDEX - 1 - COUNTRY - ALLIANCE_COUNTRY)
+#define GET_ALLIANCE_COUNTRY(COUNTRY, NOT_ALLIANCE_COUNTRY) GET_NOT_ALLIANCE_COUNTRY(COUNTRY, NOT_ALLIANCE_COUNTRY)
 struct GameInof{
     bool bOnline;
     bool bGameStart;
@@ -34,7 +36,7 @@ class Game{
     uint32_t mCurrentCountry;
     //如果该值非无效，说明另外两方联盟了
     uint32_t notAllianceCountry = INVALID_COUNTRY_INDEX;
-    uint32_t mPlayer = INVALID_COUNTRY_INDEX, mBackupPlayer = INVALID_COUNTRY_INDEX;
+    uint32_t mPlayer = INVALID_COUNTRY_INDEX;//, mBackupPlayer = INVALID_COUNTRY_INDEX;
 public:
     Game(/* args */);
     ~Game();
@@ -50,6 +52,8 @@ public:
     uint32_t GetNextCountry(uint32_t country)const;
 
     void ExtraTurn(uint32_t country);
+
+    void RemoveInvalidTarget(const Chess *pChess, std::vector<glm::vec2>&canplays);
 
     // void UnSelectChess();
     // void PlayChess(Chess *pChess, uint32_t dstRow, uint32_t dstColumn);

@@ -157,7 +157,7 @@ void Chessboard::InitHanChessRowAndColumn(uint32_t country, std::array<Chess *, 
 
         pChess[HAN_CHE_CHESS_INDEX]->SetPos(pChess[JIANG_CHESS_INDEX]->GetRow() + 3, pChess[JIANG_CHESS_INDEX]->GetColumn());
         pChess[HAN_CHE_CHESS_INDEX + 1]->SetPos(pChess[HAN_CHE_CHESS_INDEX]->GetRow(), pChess[JIANG_CHESS_INDEX]->GetColumn() + 2);
-        pChess[HAN_CHE_CHESS_INDEX + 2]->SetPos(pChess[HAN_CHE_CHESS_INDEX]->GetRow(), pChess[HAN_CHE_CHESS_INDEX + 1]->GetColumn() - 2);
+        pChess[HAN_CHE_CHESS_INDEX + 2]->SetPos(pChess[HAN_CHE_CHESS_INDEX]->GetRow(), pChess[JIANG_CHESS_INDEX]->GetColumn() - 2);
 
         pChess[HAN_PAO_CHESS_INDEX]->SetPos(pChess[HAN_CHE_CHESS_INDEX]->GetRow() - 1, pChess[JIANG_CHESS_INDEX]->GetColumn());
     }
@@ -183,9 +183,9 @@ void Chessboard::InitHanChessRowAndColumn(uint32_t country, std::array<Chess *, 
         //那就是蜀了
         pChess[JIANG_CHESS_INDEX]->SetPos(CHESSBOARD_ROW / 2, 0);
 
-        pChess[HAN_CHE_CHESS_INDEX]->SetPos(6, 3);
-        pChess[HAN_CHE_CHESS_INDEX + 1]->SetPos(pChess[JIANG_CHESS_INDEX]->GetRow(), pChess[HAN_CHE_CHESS_INDEX]->GetColumn());
-        pChess[HAN_CHE_CHESS_INDEX + 2]->SetPos(pChess[HAN_CHE_CHESS_INDEX + 1]->GetRow() + 2, pChess[HAN_CHE_CHESS_INDEX + 1]->GetColumn());
+        pChess[HAN_CHE_CHESS_INDEX]->SetPos(pChess[JIANG_CHESS_INDEX]->GetRow(), 3);
+        pChess[HAN_CHE_CHESS_INDEX + 1]->SetPos(pChess[JIANG_CHESS_INDEX]->GetRow() - 2, pChess[HAN_CHE_CHESS_INDEX]->GetColumn());
+        pChess[HAN_CHE_CHESS_INDEX + 2]->SetPos(pChess[JIANG_CHESS_INDEX]->GetRow() + 2, pChess[HAN_CHE_CHESS_INDEX + 1]->GetColumn());
 
         pChess[HAN_PAO_CHESS_INDEX]->SetPos(pChess[JIANG_CHESS_INDEX]->GetRow(), pChess[HAN_CHE_CHESS_INDEX + 1]->GetColumn() - 1) ;
     }
@@ -252,18 +252,19 @@ Chessboard::~Chessboard(){
 }
 void Chessboard::InitializeChess(uint32_t playerCountry, bool bHanCanPlay, uint32_t countryCount){
     mCountryCount = countryCount;
-    if(playerCountry == WU_COUNTRY_INDEX){
-        mPalacesCenter = { glm::vec2(CHESSBOARD_COLUMN / 2, CHESSBOARD_ROW - 1), glm::vec2(CHESSBOARD_COLUMN - 1, CHESSBOARD_ROW / 2), glm::vec2(1, CHESSBOARD_ROW / 2), glm::vec2(CHESSBOARD_COLUMN / 2, 1) };
-    }
-    else if(playerCountry == WEI_COUNTRY_INDEX){
-        mPalacesCenter = { glm::vec2(1, CHESSBOARD_ROW / 2), glm::vec2(CHESSBOARD_COLUMN / 2, CHESSBOARD_ROW - 1), glm::vec2(CHESSBOARD_COLUMN / 2, 1), glm::vec2(CHESSBOARD_COLUMN - 1, CHESSBOARD_ROW / 2) };
-    }
-    else if(playerCountry == SHU_COUNTRY_INDEX){
-        mPalacesCenter = { glm::vec2(CHESSBOARD_COLUMN - 1, CHESSBOARD_ROW / 2), glm::vec2(CHESSBOARD_COLUMN / 2, 1), glm::vec2(CHESSBOARD_COLUMN / 2, CHESSBOARD_ROW - 1), glm::vec2(1, CHESSBOARD_ROW / 2) };
-    }
-    else if(playerCountry == HAN_CHE_CHESS_INDEX){
-        mPalacesCenter = { glm::vec2(CHESSBOARD_COLUMN / 2, 1), glm::vec2(1, CHESSBOARD_ROW / 2), glm::vec2(CHESSBOARD_COLUMN - 1, CHESSBOARD_ROW / 2), glm::vec2(CHESSBOARD_COLUMN / 2, CHESSBOARD_ROW - 1) };
-    }
+    mPalacesCenter = { glm::vec2(CHESSBOARD_COLUMN - 1, CHESSBOARD_ROW / 2), glm::vec2(CHESSBOARD_COLUMN / 2, 1), glm::vec2(CHESSBOARD_COLUMN / 2, CHESSBOARD_ROW - 1), glm::vec2(1, CHESSBOARD_ROW / 2) };
+    // if(playerCountry == WU_COUNTRY_INDEX){
+    //     mPalacesCenter = { glm::vec2(CHESSBOARD_COLUMN / 2, CHESSBOARD_ROW - 1), glm::vec2(CHESSBOARD_COLUMN - 1, CHESSBOARD_ROW / 2), glm::vec2(1, CHESSBOARD_ROW / 2), glm::vec2(CHESSBOARD_COLUMN / 2, 1) };
+    // }
+    // else if(playerCountry == WEI_COUNTRY_INDEX){
+    //     mPalacesCenter = { glm::vec2(1, CHESSBOARD_ROW / 2), glm::vec2(CHESSBOARD_COLUMN / 2, CHESSBOARD_ROW - 1), glm::vec2(CHESSBOARD_COLUMN / 2, 1), glm::vec2(CHESSBOARD_COLUMN - 1, CHESSBOARD_ROW / 2) };
+    // }
+    // else if(playerCountry == SHU_COUNTRY_INDEX){
+    //     mPalacesCenter = { glm::vec2(CHESSBOARD_COLUMN - 1, CHESSBOARD_ROW / 2), glm::vec2(CHESSBOARD_COLUMN / 2, 1), glm::vec2(CHESSBOARD_COLUMN / 2, CHESSBOARD_ROW - 1), glm::vec2(1, CHESSBOARD_ROW / 2) };
+    // }
+    // else if(playerCountry == HAN_CHE_CHESS_INDEX){
+    //     mPalacesCenter = { glm::vec2(CHESSBOARD_COLUMN / 2, 1), glm::vec2(1, CHESSBOARD_ROW / 2), glm::vec2(CHESSBOARD_COLUMN - 1, CHESSBOARD_ROW / 2), glm::vec2(CHESSBOARD_COLUMN / 2, CHESSBOARD_ROW - 1) };
+    // }
     for (uint32_t uiCountry = 0; uiCountry < MAX_COUNTRY_INDEX; ++uiCountry){
         DestroyCountry(uiCountry);
     }
@@ -372,7 +373,7 @@ void Chessboard::InitializeChess(uint32_t playerCountry, bool bHanCanPlay, uint3
         }
     }
 }
-uint32_t Chessboard::IsPalaceCenter(uint32_t row, uint32_t column)const{
+int32_t Chessboard::IsPalaceCenter(uint32_t row, uint32_t column)const{
     uint32_t country = INVALID_COUNTRY_INDEX;
     for (size_t i = 0; i < MAX_COUNTRY_INDEX; ++i){
         if(row == mPalacesCenter[i].y && column == mPalacesCenter[i].x){
@@ -383,9 +384,9 @@ uint32_t Chessboard::IsPalaceCenter(uint32_t row, uint32_t column)const{
     }
     return country;
 }
-uint32_t Chessboard::IsInPalace(uint32_t row, uint32_t column)const{
-    uint32_t country = IsPalaceCenter(row, column);
-    if(country != -1)return true;
+int32_t Chessboard::IsInPalace(uint32_t row, uint32_t column)const{
+    int32_t country = IsPalaceCenter(row, column);
+    if(country != INVALID_COUNTRY_INDEX)return country;
     for (size_t i = 0; i < MAX_COUNTRY_INDEX; ++i){
         if(abs((float)row - mPalacesCenter[i].y) < 2 && abs((float)column - mPalacesCenter[i].x) < 2){
             country = i;
@@ -467,7 +468,7 @@ void Chessboard::GetCountryChess(uint32_t srcCountry, uint32_t dstCountry){
                 mChess[srcCountry][uiChess + COUNTRY_CHESS_COUNT * 2]->SetChess(uiChess + COUNTRY_CHESS_COUNT);
                 mChess[srcCountry][uiChess + COUNTRY_CHESS_COUNT * 2]->SetPos(pChess->GetRow(), pChess->GetColumn());
             }
-            else{
+            else if(mChess[srcCountry][uiChess + COUNTRY_CHESS_COUNT]){
                 mChess[srcCountry][uiChess + COUNTRY_CHESS_COUNT]->SetCountry(srcCountry);
                 mChess[srcCountry][uiChess + COUNTRY_CHESS_COUNT]->SetFontIndex(fontIndex);
                 mChess[srcCountry][uiChess + COUNTRY_CHESS_COUNT]->SetChess(uiChess + COUNTRY_CHESS_COUNT);

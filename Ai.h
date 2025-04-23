@@ -25,12 +25,13 @@ class Ai{
     Game *mGame;
     OnLine *mOnline;
     int32_t CanPlay(uint32_t country, const std::vector<glm::vec2>&canplays)const;
+    Chess *GetTarget(const Chess *pSelect, const std::vector<glm::vec2>&canplays)const;
 public:
     Ai(/* args */);
     ~Ai();
     void Wait();
     void Enable();
-    void EnableNextCountry();
+    void EnableNextCountry(bool autoPlay);
     void CreatePthread(Game *pGame, OnLine *pOnline);
     void GetPlayChess(uint32_t country, Chess **pSelect, Chess **target, uint32_t *row, uint32_t *column)const;
 

@@ -45,8 +45,8 @@ public:
 
     void InitializeChess(uint32_t playerCountry, bool bHanCanPlay = false, uint32_t countryCount = 4);
 
-    uint32_t IsInPalace(uint32_t row, uint32_t column)const;
-    uint32_t IsPalaceCenter(uint32_t row, uint32_t column)const;
+    int32_t IsInPalace(uint32_t row, uint32_t column)const;
+    int32_t IsPalaceCenter(uint32_t row, uint32_t column)const;
 
     // void Select(const Chess *pChess, std::vector<glm::vec2>&canplays);
     // void Select(uint32_t country, uint32_t chess, std::vector<glm::vec2>&canplays);
@@ -54,8 +54,8 @@ public:
     inline auto GetChess()const{
         return mChess;
     }
-    inline auto&GetPalacesCenter(uint32_t country)const{
-        return mPalacesCenter[country];
+    inline auto&GetPalacesCenter(uint32_t territory)const{
+        return mPalacesCenter[territory];
     }
     inline bool IsDeath(uint32_t country)const{
         return !mChess[country][JIANG_CHESS_INDEX];

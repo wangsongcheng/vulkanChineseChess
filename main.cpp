@@ -20,7 +20,12 @@
 
 #include "VulkanImgui.h"
 #include "imgui_impl_glfw.h"
+// #define DEBUG
 #define MAX_UNDO_STEP 100
+struct ImGuiInput{
+    bool enableHan;
+    bool enableAutoPlay;
+};
 VulkanPool g_VulkanPool;
 VulkanQueue g_VulkanQueue;
 VulkanDevice g_VulkanDevice;
@@ -56,6 +61,8 @@ std::mutex g_PlayChessMutex;
 OnLine g_OnLine;
 glm::vec2 g_JiangPos[MAX_COUNTRY_INDEX];//目前只用于RotateChess
 std::vector<Player>g_Players(MAX_COUNTRY_INDEX);
+
+ImGuiInput g_ImGuiInput;
 // void createSurface(VkInstance instance, VkSurfaceKHR&surface, void* userData){
 //     glfwCreateWindowSurface(instance, (GLFWwindow *)userData, nullptr, &surface);
 // }
@@ -535,7 +542,7 @@ void *process_client(void *userData){
             else{
                 g_Game.NextCountry();
             }
-            if(g_OnLine.IsServer())g_Ai.EnableNextCountry();
+            if(g_OnLine.IsServer())g_Ai.EnableNextCountry(g_ImGuiInput.enableAutoPlay);
         }
         else if(message.event == GAME_OVER_GAME_EVENT){
             printf("in function %s:game over\n", __FUNCTION__);
@@ -736,15 +743,24 @@ bool ShowSinglePlayerModeMainInterface(bool *mainInterface){
         if(currentCountry != INVALID_COUNTRY_INDEX && player != INVALID_COUNTRY_INDEX){
             ImGui::Text("你是%s, 该%s下棋\n", countryName[player], player == currentCountry?"你":countryName[currentCountry]);
         }
-        static bool enableHan;
-        if(ImGui::Checkbox("启用汉势力", &enableHan)){
-            if(enableHan){
-                g_Game.EnableHan();
+        if(ImGui::BeginTable("检查框列表", 1)){
+            // ImGui::TableNextColumn();
+            // if(ImGui::Checkbox("托管", &g_ImGuiInput.enableAutoPlay)){
+            //     if(g_ImGuiInput.enableAutoPlay && g_Game.GetCurrentCountry() == g_Game.GetPlayer()){
+            //         g_Ai.Enable();
+            //     }
+            // }
+            ImGui::TableNextColumn();
+            if(ImGui::Checkbox("启用汉势力", &g_ImGuiInput.enableHan)){
+                if(g_ImGuiInput.enableHan){
+                    g_Game.EnableHan();
+                }
+                else{
+                    g_Game.DiscardHan();
+                }
+                NewGame();
             }
-            else{
-                g_Game.DiscardHan();
-            }
-            NewGame();
+            ImGui::EndTable();
         }
         if(ImGui::BeginTable("单人模式-按钮表格", 2)){
             ImGui::TableNextColumn();
@@ -753,11 +769,13 @@ bool ShowSinglePlayerModeMainInterface(bool *mainInterface){
             }
             ImGui::TableNextColumn();
             if(ImGui::Button(g_Ai.IsEnd()?"开始":"暂停")){
-                if(g_Ai.IsEnd()){
-                    g_Ai.CreatePthread(&g_Game, &g_OnLine);
-                }
-                else{
-                    g_Ai.End();
+                if(g_Game.IsGameStart()){
+                    if(g_Ai.IsEnd()){
+                        g_Ai.CreatePthread(&g_Game, &g_OnLine);
+                    }
+                    else{
+                        g_Ai.End();
+                    }    
                 }
             }
             ImGui::EndTable();
@@ -848,30 +866,7 @@ void UpdateSelectChessUniform(VkDevice device, std::vector<glm::vec2>&canplays){
 void SelectChess(VkDevice device, const Chess *pChess){
     std::vector<glm::vec2>canplays;
     pChess->Select(g_Game.GetChessBoard(), canplays);
-    if(!g_Game.IsHanCanPslay()){
-        for (auto it = canplays.begin(); it != canplays.end();){
-            const Chess *pc = g_Game.GetChess(it->y, it->x);
-            if(pc && pc->GetChess() == JIANG_CHESS_INDEX && pc->GetCountry() == HAN_CHE_CHESS_COUNT && pChess->GetChess() != MA_CHESS_INDEX){
-                it = canplays.erase(it);
-            }
-            else{
-                ++it;
-            }
-        }
-        const uint32_t notAllianceCountry = g_Game.GetNotAllianceCountry();
-        if(notAllianceCountry != INVALID_COUNTRY_INDEX){
-            const uint32_t allianceCountry = MAX_COUNTRY_INDEX - 1 - g_Game.GetCurrentCountry() - notAllianceCountry;
-            for (auto it = canplays.begin(); it != canplays.end();){
-                const Chess *pc = g_Game.GetChess(it->y, it->x);
-                if(pc &&  pc->GetCountry() == allianceCountry){
-                    it = canplays.erase(it);
-                }
-                else{
-                    ++it;
-                }
-            }    
-        }
-    }
+    g_Game.RemoveInvalidTarget(pChess, canplays);
     UpdateSelectChessUniform(device, canplays);
 }
 struct PPC{
@@ -895,7 +890,7 @@ void *PlayChessFun(void *userData){
         g_Game.NextCountry();
     }
     //下完棋要调用下面的函数
-    g_Ai.EnableNextCountry();
+    g_Ai.EnableNextCountry(g_ImGuiInput.enableAutoPlay);
     return nullptr;
 }
 int32_t GetCanPlay(const glm::vec2&mousePos, const std::vector<glm::vec2>&canplays){
@@ -934,11 +929,6 @@ const Chess *SelectChess(uint32_t country, const glm::vec2&mousePos){
             pSelected = nullptr;
         }
     }
-    // else{
-    //     if(country != g_Game.GetPlayer()){
-    //         pSelected = nullptr;
-    //     }
-    // }
     if(pSelected){
         SelectChess(g_VulkanDevice.device, pSelected);
     }
@@ -1006,9 +996,6 @@ void mousebutton(GLFWwindow *window,int button,int action,int mods){
         }
     }
 }
-// #ifdef JOIN_AI
-// uint32_t g_BackupPlayer;
-// #endif
 void keybutton(GLFWwindow *window,int key, int scancode, int action, int mods){
 }
 VkVertexInputBindingDescription inputBindingDescription(uint32_t binding) {
@@ -1288,6 +1275,7 @@ void CleanupVulkan(){
     g_VulkanDevice.Cleanup();
 }
 int main(){
+    // srandom(time(nullptr));
     if (GLFW_FALSE == glfwInit()) {
         printf("initialize glfw error");
         return 1;
