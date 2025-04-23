@@ -849,7 +849,7 @@ void SelectChess(VkDevice device, const Chess *pChess){
     std::vector<glm::vec2>canplays;
     pChess->Select(g_Game.GetChessBoard(), canplays);
     if(!g_Game.IsHanCanPslay()){
-        for (auto it = canplays.begin(); it != canplays.end(); ++it){
+        for (auto it = canplays.begin(); it != canplays.end();){
             const Chess *pc = g_Game.GetChess(it->y, it->x);
             if(pc && pc->GetChess() == JIANG_CHESS_INDEX && pc->GetCountry() == HAN_CHE_CHESS_COUNT && pChess->GetChess() != MA_CHESS_INDEX){
                 it = canplays.erase(it);
@@ -861,7 +861,7 @@ void SelectChess(VkDevice device, const Chess *pChess){
         const uint32_t notAllianceCountry = g_Game.GetNotAllianceCountry();
         if(notAllianceCountry != INVALID_COUNTRY_INDEX){
             const uint32_t allianceCountry = MAX_COUNTRY_INDEX - 1 - g_Game.GetCurrentCountry() - notAllianceCountry;
-            for (auto it = canplays.begin(); it != canplays.end(); ++it){
+            for (auto it = canplays.begin(); it != canplays.end();){
                 const Chess *pc = g_Game.GetChess(it->y, it->x);
                 if(pc &&  pc->GetCountry() == allianceCountry){
                     it = canplays.erase(it);
