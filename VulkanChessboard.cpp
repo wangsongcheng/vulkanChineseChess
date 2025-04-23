@@ -208,10 +208,13 @@ VulkanChessboard::~VulkanChessboard(){
 
 void VulkanChessboard::Cleanup(VkDevice device){
     mRect.Destroy(device);
+    mCircle.Destroy(device);
     uniforms.grid.Destroy(device);
     uniforms.bigGrid.Destroy(device);
+    uniforms.alliance.Destroy(device);
     uniforms.background.Destroy(device);
     uniforms.wireframe.jiugongge.Destroy(device);
+    fonts.font.Destroy(device);
     fonts.image.Destroy(device);
     fonts.image.Destroy(device);
     fonts.uniforms.alliance.Destroy(device);
