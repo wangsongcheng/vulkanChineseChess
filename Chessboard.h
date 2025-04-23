@@ -3,10 +3,6 @@
 #include <array>
 #include "Chess.h"
 #include "VulkanChessboard.h"
-// #ifndef ROW_COLUMN_CHESS_TO_INDEX
-// #define ROW_COLUMN_CHESS_TO_INDEX(ROW_INDEX, COLUMN_INDEX)ROW_COLUMN_TO_INDEX(ROW_INDEX, COLUMN_INDEX, DRAW_COUNTRY_CHESS_COUNT)
-// #endif
-
 #define JIANG_CHESS_INDEX 0
 #define MA_CHESS_INDEX (JIANG_CHESS_INDEX + JIANG_CHESS_COUNT)
 #define PAO_CHESS_INDEX (MA_CHESS_INDEX + MA_CHESS_COUNT)
@@ -18,17 +14,6 @@
 #define HAN_PAO_CHESS_INDEX 1
 #define HAN_CHE_CHESS_INDEX (HAN_PAO_CHESS_INDEX + HAN_PAO_CHESS_COUNT)
 
-#define INVALID_CHESS_INDEX -1
-#ifndef WU_COUNTRY_INDEX
-#define WU_COUNTRY_INDEX 0
-#define WEI_COUNTRY_INDEX 1
-#define SHU_COUNTRY_INDEX 2
-#define HAN_COUNTRY_INDEX 3
-
-#define INVALID_COUNTRY_INDEX -1
-//最好不要修改该宏的值
-#define MAX_COUNTRY_INDEX 4
-#endif
 class Chessboard{
     uint32_t mCountryCount;
     std::array<glm::vec2, MAX_COUNTRY_INDEX>mPalacesCenter;
@@ -43,7 +28,7 @@ class Chessboard{
 public:
     Chessboard(/* args */);
     ~Chessboard();
-    void CaptureChess(const Chess *play, const Chess *target);
+    void CaptureChess(uint32_t srcCountry, uint32_t dstCountry, uint32_t dstChess);
     //返回的棋子属于srcCountry, 该棋子下一步能吃掉dstCountry的chess
     const Chess *Check(uint32_t srcCountry, uint32_t dstCountry, uint32_t chess)const;
 
@@ -69,7 +54,7 @@ public:
     inline auto GetChess()const{
         return mChess;
     }
-    inline auto GetPalacesCenter(uint32_t country)const{
+    inline auto&GetPalacesCenter(uint32_t country)const{
         return mPalacesCenter[country];
     }
     inline bool IsDeath(uint32_t country)const{

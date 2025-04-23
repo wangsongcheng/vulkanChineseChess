@@ -68,8 +68,8 @@ class VulkanChess{
         uint32_t chessCount;
         uint32_t countryCount;
     }game;
-    Rect mFont;
-    Circle mChess;
+    VulkanRect mFont;
+    VulkanCircle mChess;
     void UpdateDescriptorSet(VkDevice device);
     void GetCircularVertex(const glm::vec3&color, std::vector<Vertex>&vertices);
     void CreateFontResource(VulkanDevice device, VulkanPool pool, VkQueue graphics);

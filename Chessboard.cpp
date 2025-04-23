@@ -304,7 +304,11 @@ void Chessboard::InitializeChess(uint32_t playerCountry, bool bHanCanPlay, uint3
             }
         }
     }
-    //以蜀为参照//把函数名中的国家坐标复制给chessInfo[playerCountry]
+    /*
+        以蜀为参照
+        上魏下蜀，左汉右吴
+    */
+    //把函数名中的国家坐标复制给chessInfo[playerCountry]
     InitShuChessRowAndColumn(mChess[playerCountry]);
     if(!bHanCanPlay)InitHanChessRowAndColumn(playerCountry, mChess[HAN_COUNTRY_INDEX]);
     if(WU_COUNTRY_INDEX == playerCountry){
@@ -352,16 +356,13 @@ uint32_t Chessboard::IsInPalace(uint32_t row, uint32_t column)const{
     }
     return country;
 }
-void Chessboard::CaptureChess(const Chess *play, const Chess *target){
-    if(target){
-        const uint32_t dstCountry = target->GetCountry(), dstChess = target->GetChess();
-        if(dstChess == JIANG_CHESS_INDEX){
-            GetCountryChess(play->GetCountry(), dstCountry);
-            DestroyCountry(dstCountry);
-        }
-        delete mChess[dstCountry][dstChess];
-        mChess[dstCountry][dstChess] = nullptr;
+void Chessboard::CaptureChess(uint32_t srcCountry, uint32_t dstCountry, uint32_t dstChess){
+    if(dstChess == JIANG_CHESS_INDEX){
+        GetCountryChess(srcCountry, dstCountry);
+        DestroyCountry(dstCountry);
     }
+    delete mChess[dstCountry][dstChess];
+    mChess[dstCountry][dstChess] = nullptr;
 }
 void Chessboard::GetCountryChess(uint32_t srcCountry, uint32_t dstCountry){
     uint32_t fontIndex;

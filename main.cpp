@@ -140,6 +140,10 @@ void PlayChess(Chess *pChess, uint32_t dstRow, uint32_t dstColumn){
         const glm::vec2 start = glm::vec2(COLUMN_TO_X(pChess->GetColumn()), ROW_TO_Y(pChess->GetRow())), end = glm::vec2(COLUMN_TO_X(dstColumn), ROW_TO_Y(dstRow));
         MoveChess(start, end, pChess->GetFontIndex(), dynamicOffsets);
     }
+    if(!g_Game.IsHanCanPslay() && pChess->GetChess() == MA_CHESS_INDEX){
+        //不用提示了。因为结盟后，汉的棋子会归另一方
+        g_Game.SetNotAllianceCountry(pChess->GetCountry(), pChess->GetRow(), pChess->GetColumn());
+    }
     pChess->SetPos(dstRow, dstColumn);
     UpdateChessUniform(g_VulkanDevice.device);
     g_PlayChessMutex.unlock();
@@ -163,6 +167,7 @@ void NewGame(int32_t player = -1, int32_t currentCountry = -1){
     g_PlayChessMutex.lock();
     g_Game.InitinalizeGame(player, currentCountry);
     UpdateChessUniform(g_VulkanDevice.device);
+    g_VulkanChessboard.UpdateFontUniform(g_VulkanDevice.device, g_Game.GetPlayer());
     // if(!g_Game.IsOnline())g_Ai.Start();
     g_PlayChessMutex.unlock();
     if(g_Ai.IsEnd()){
@@ -823,6 +828,7 @@ void RecordCommand(VkCommandBuffer command, VkFramebuffer frame){
     g_Chess.DrawChess(command, g_PipelineLayout, g_Game.GetCurrentCountry());
     vkCmdBindPipeline(command, VK_PIPELINE_BIND_POINT_GRAPHICS, g_Font);
     g_Chess.DrawFont(command, g_PipelineLayout);
+    g_VulkanChessboard.DrawAllianceFont(command, g_PipelineLayout);
 
     UpdateImgui(command);
 
@@ -845,13 +851,26 @@ void SelectChess(VkDevice device, const Chess *pChess){
     if(!g_Game.IsHanCanPslay()){
         for (auto it = canplays.begin(); it != canplays.end(); ++it){
             const Chess *pc = g_Game.GetChess(it->y, it->x);
-            if(pc && pc->GetChess() == JIANG_CHESS_INDEX && pc->GetCountry() == HAN_CHE_CHESS_COUNT){
-                if(pChess->GetChess() != MA_CHESS_INDEX){
-                    canplays.erase(it);
-                    break;
-                }
+            if(pc && pc->GetChess() == JIANG_CHESS_INDEX && pc->GetCountry() == HAN_CHE_CHESS_COUNT && pChess->GetChess() != MA_CHESS_INDEX){
+                it = canplays.erase(it);
             }
-        }    
+            else{
+                ++it;
+            }
+        }
+        const uint32_t notAllianceCountry = g_Game.GetNotAllianceCountry();
+        if(notAllianceCountry != INVALID_COUNTRY_INDEX){
+            const uint32_t allianceCountry = MAX_COUNTRY_INDEX - 1 - g_Game.GetCurrentCountry() - notAllianceCountry;
+            for (auto it = canplays.begin(); it != canplays.end(); ++it){
+                const Chess *pc = g_Game.GetChess(it->y, it->x);
+                if(pc &&  pc->GetCountry() == allianceCountry){
+                    it = canplays.erase(it);
+                }
+                else{
+                    ++it;
+                }
+            }    
+        }
     }
     UpdateSelectChessUniform(device, canplays);
 }
@@ -1234,7 +1253,7 @@ void SetupVulkan(GLFWwindow *window){
     g_VulkanWindow.CreateRenderPass(g_VulkanDevice.device);
     g_VulkanWindow.CreateFrameBuffer(g_VulkanDevice);
 
-    g_VulkanPool.CreatePool(g_VulkanDevice, 8);
+    g_VulkanPool.CreatePool(g_VulkanDevice, 10);
 
     g_VulkanSynchronize.CreateSynchronize(g_VulkanDevice.device, g_VulkanWindow.swapchain.images.size());
     //显示设备信息

@@ -9,7 +9,7 @@
 #ifndef MAX_BYTE
 #define MAX_BYTE 0xff
 #endif
-//不应该修改以下四个宏的值,修改一次，程序肯定乱套
+//不应该修改以下四个宏的值,否则，程序肯定乱套
 #define WU_COUNTRY_INDEX 0
 #define WEI_COUNTRY_INDEX 1
 #define SHU_COUNTRY_INDEX 2
@@ -28,11 +28,12 @@ struct GameInof{
 */
 class Game{
     GameInof mInfo;
-    // VulkanDevice mDevice;
     bool mHanCanPlay = false;
     uint32_t mCountryCount;
     Chessboard mChessboard;
     uint32_t mCurrentCountry;
+    //如果该值非无效，说明另外两方联盟了
+    uint32_t notAllianceCountry = INVALID_COUNTRY_INDEX;
     uint32_t mPlayer = INVALID_COUNTRY_INDEX, mBackupPlayer = INVALID_COUNTRY_INDEX;
 public:
     Game(/* args */);
@@ -67,8 +68,16 @@ public:
     // void UpdateChessUniform(VkDevice device);
     // void UpdateSelectChessUniform(VkDevice device, std::vector<Chess>&canplays);
     uint32_t Check()const;
+    void SetNotAllianceCountry(uint32_t country, uint32_t row, uint32_t column);
+
     inline const Chess *Check(uint32_t srcCountry, uint32_t dstCountry, uint32_t chess) const{
         return mChessboard.Check(srcCountry, dstCountry, chess);
+    }
+    inline auto GetPalacesCenter(uint32_t country)const{
+        return mChessboard.GetPalacesCenter(country);
+    }
+    inline uint32_t GetNotAllianceCountry()const{
+        return notAllianceCountry;
     }
     inline uint32_t GetCountryCount()const{
         return mCountryCount;

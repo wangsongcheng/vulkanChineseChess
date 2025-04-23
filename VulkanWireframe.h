@@ -9,8 +9,8 @@
 #define ALIGN(val, alignment)((val + alignment - 1) & ~(alignment - 1))
 #endif
 class VulkanWireframe{
-    Rect mRect;
     uint32_t mCount;
+    VulkanRect mRect;
     VkDescriptorSet mSet;
     VulkanBuffer mUniform;
 public:

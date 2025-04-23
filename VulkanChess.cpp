@@ -1,36 +1,6 @@
+#include "font.h"
 #include <string.h>
-#include <iostream>
 #include "VulkanChess.h"
-#define STB_TRUETYPE_IMPLEMENTATION
-#include "stb_truetype.h"
-uint32_t GetFileSize(FILE *fp){
-    uint32_t size = 0;
-    if(fp){
-        fseek(fp, 0, SEEK_END);
-        size = ftell(fp);
-        fseek(fp, 0, SEEK_SET);
-    }
-    return size;
-}
-void GetFontImageData(const unsigned char *fontData, int bitmap_w, int bitmap_h, wchar_t word, unsigned char *out){
-	stbtt_fontinfo info;
-    const float pixels = bitmap_w;
-	if(!stbtt_InitFont(&info, fontData, 0)){
-		printf("in function:%s, stbtt_InitFont error\n", __FUNCTION__);
-        return;
-	}
-	float scale = stbtt_ScaleForPixelHeight(&info, pixels);
-	int ascent = 0, descent = 0, lineGap = 0;
-	stbtt_GetFontVMetrics(&info, &ascent, &descent, &lineGap);
-	ascent = roundf(ascent * scale);
-	descent = roundf(descent * scale);
-    int advanceWidth = 0, leftSideBearing = 0, c_x1, c_y1, c_x2, c_y2;
-    stbtt_GetCodepointHMetrics(&info, word, &advanceWidth, &leftSideBearing);
-    stbtt_GetCodepointBitmapBox(&info, word, scale, scale, &c_x1, &c_y1, &c_x2, &c_y2);
-    int y = ascent +c_y1;
-    int byteOffset = roundf(leftSideBearing * scale) + (y * bitmap_w);
-    stbtt_MakeCodepointBitmap(&info, out + byteOffset, c_x2 - c_x1, c_y2 - c_y1, bitmap_w, scale, scale, word);
-}
 void VulkanChess::GetCircularVertex(const glm::vec3 &color, std::vector<Vertex> &vertices){
     Vertex v;
     v.color = color;
@@ -55,7 +25,7 @@ void VulkanChess::CreateFontResource(VulkanDevice device, VulkanPool pool, VkQue
 	unsigned char *fontBuffer = NULL;
 	FILE *fontFile = fopen("fonts/SourceHanSerifCN-Bold.otf", "rb");
 	if(fontFile){
-		size = GetFileSize(fontFile);
+		size = font::GetFileSize(fontFile);
 		fontBuffer = (unsigned char *)malloc(size);
 		fread(fontBuffer, size, 1, fontFile);
 	}
@@ -64,9 +34,7 @@ void VulkanChess::CreateFontResource(VulkanDevice device, VulkanPool pool, VkQue
 		printf("file name is fonts/SourceHanSerifCN-Bold.otf\n");
         return;
 	}
-    const uint32_t fontImageCount = 10;
     const uint32_t imageSize = FONT_WIDTH * FONT_HEIGHT;
-    std::vector<unsigned char *>datas(fontImageCount);
     wchar_t word[10];
     word[FONT_INDEX_MA] = L'馬';
     word[FONT_INDEX_WU] = L'吴';
@@ -78,10 +46,12 @@ void VulkanChess::CreateFontResource(VulkanDevice device, VulkanPool pool, VkQue
     word[FONT_INDEX_SHI] = L'士';
     word[FONT_INDEX_BING] = L'兵';
     word[FONT_INDEX_XIANG] = L'相';
+    const uint32_t fontImageCount = sizeof(word) / sizeof(wchar_t);
+    std::vector<unsigned char *>datas(fontImageCount);
     for (size_t i = 0; i < fontImageCount; ++i){
         datas[i] = new unsigned char[imageSize];
         memset(datas[i], 0, imageSize);
-        GetFontImageData(fontBuffer, FONT_WIDTH, FONT_HEIGHT, word[i], datas[i]);
+        font::GetFontImageData(fontBuffer, FONT_WIDTH, FONT_HEIGHT, word[i], datas[i]);
     }
     fonts.image.CreateImageArray(device, (void *const *)datas.data(), fontImageCount, FONT_WIDTH, FONT_HEIGHT, 1, graphics, pool);
     for (auto&it:datas){

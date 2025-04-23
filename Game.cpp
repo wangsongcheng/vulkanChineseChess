@@ -30,6 +30,7 @@ void Game::InitinalizeGame(int32_t player, int32_t currentCountry){
         mPlayer = player;
     else
         mPlayer = rand()%mCountryCount;
+    notAllianceCountry = INVALID_COUNTRY_INDEX;
     mChessboard.InitializeChess(mPlayer, mHanCanPlay);
 }
 void Game::NextCountry(){
@@ -57,7 +58,7 @@ void Game::ExtraTurn(uint32_t country){
 }
 
 void Game::CaptureChess(const Chess *play, const Chess *target){
-    mChessboard.CaptureChess(play, target);
+    mChessboard.CaptureChess(play->GetCountry(), target->GetCountry(), target->GetChess());
 }
 
 uint32_t Game::Check()const{
@@ -71,4 +72,40 @@ uint32_t Game::Check()const{
         currentCountry = GetNextCountry(currentCountry);
     } while (currentCountry != mCurrentCountry);
     return country;
+}
+
+void Game::SetNotAllianceCountry(uint32_t country, uint32_t row, uint32_t column){
+    glm::vec2 vPos[3];
+    glm::vec2 center = mChessboard.GetPalacesCenter(HAN_COUNTRY_INDEX);
+    //吴永远在中心点
+    vPos[WU_COUNTRY_INDEX] = center;
+    if(center.x == 1){
+        //汉在汉的位置上
+        vPos[WEI_COUNTRY_INDEX] = glm::vec2(COLUMN_TO_X(center.x - 1), ROW_TO_Y(center.y + 1));
+        vPos[SHU_COUNTRY_INDEX] = glm::vec2(COLUMN_TO_X(center.x - 1), ROW_TO_Y(center.y - 1));
+    }
+    else if(center.y == 1){
+        //汉在魏的位置上
+        vPos[WEI_COUNTRY_INDEX] = glm::vec2(COLUMN_TO_X(center.x - 1), ROW_TO_Y(center.y - 1));
+        vPos[SHU_COUNTRY_INDEX] = glm::vec2(COLUMN_TO_X(center.x + 1), ROW_TO_Y(center.y - 1));
+    }
+    else if(center.y == CHESSBOARD_ROW - 1){
+        //汉在蜀的位置上....理论上不可能，但算了，还是写上吧
+        vPos[WEI_COUNTRY_INDEX] = glm::vec2(COLUMN_TO_X(center.x + 1), ROW_TO_Y(center.y - 1));
+        vPos[SHU_COUNTRY_INDEX] = glm::vec2(COLUMN_TO_X(center.x - 1), ROW_TO_Y(center.y - 1));
+    }
+    else if(center.x == CHESSBOARD_COLUMN - 1){
+        //汉在吴的位置
+        vPos[WEI_COUNTRY_INDEX] = glm::vec2(COLUMN_TO_X(center.x + 1), ROW_TO_Y(center.y - 1));
+        vPos[SHU_COUNTRY_INDEX] = glm::vec2(COLUMN_TO_X(center.x + 1), ROW_TO_Y(center.y + 1));
+    }
+    uint32_t allianceCountry = INVALID_COUNTRY_INDEX;
+    for (size_t i = 0; i < MAX_COUNTRY_INDEX; ++i){
+        if(vPos[i].x == column && vPos[i].y == row && country != i){
+            allianceCountry = i;
+            break;
+        }
+    }
+    notAllianceCountry = MAX_COUNTRY_INDEX - 1 - country - allianceCountry;
+    mChessboard.CaptureChess(notAllianceCountry, HAN_COUNTRY_INDEX, JIANG_CHESS_INDEX);
 }
