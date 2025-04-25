@@ -23,12 +23,13 @@
 
 #define GET_TERRITORY_INDEX(COUNTRY, PLAYERCOUNTRY)((COUNTRY - PLAYERCOUNTRY) % 4)
 class Chess{
+    glm::vec3 mPos;
+    uint32_t mFontIndex;
+    bool mHasExitPermission;
 protected:
     uint32_t mRow;
-    glm::vec3 mPos;
     uint32_t mChess;
     uint32_t mColumn;
-    uint32_t mFontIndex;
     uint32_t mCountry;
     uint32_t mTerritory = INVALID_TERRITORY_INDEX;
     uint32_t GetTerritoryIndex()const;
@@ -38,9 +39,9 @@ protected:
     void InPalaceMove(const glm::vec2&palacesCenter, std::vector<glm::vec2>&canplays)const;
 public:
     Chess(/* args */);
-    Chess(uint32_t row, uint32_t column);
-    Chess(uint32_t chess, uint32_t country, uint32_t row, uint32_t column);
-    Chess(uint32_t chess, uint32_t country, uint32_t fontIndex, uint32_t row, uint32_t column);
+    Chess(uint32_t row, uint32_t column, bool hasExitPermission);
+    Chess(uint32_t chess, uint32_t country, uint32_t row, uint32_t column, bool hasExitPermission);
+    Chess(uint32_t chess, uint32_t country, uint32_t fontIndex, uint32_t row, uint32_t column, bool hasExitPermission);
     ~Chess();
     inline uint32_t GetRow()const{
         return mRow;
@@ -68,6 +69,9 @@ public:
     }
     inline void SetFontIndex(uint32_t fontIndex){
         mFontIndex = fontIndex;        
+    }
+    inline bool GetHasExitPermission()const{
+        return mHasExitPermission;
     }
     void SetPos(uint32_t row, uint32_t column);
 

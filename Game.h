@@ -41,6 +41,9 @@ class Game{
 public:
     Game(/* args */);
     ~Game();
+    void areKingsFacing();
+    bool areKingsFacing(uint32_t srcCountry, uint32_t dstCountry);
+
     bool GameOver();
 
     void InitinalizeGame(int32_t player = -1, int32_t currentCountry = -1);

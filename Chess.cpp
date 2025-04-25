@@ -2,6 +2,11 @@
 #include <string.h>
 #include <iostream>
 #include "Chessboard.h"
+// uint32_t GetDeathCount(const Chessboard *pBoard){
+//     for (size_t i = 0; i < MAX_COUNTRY_INDEX; ++i){
+        
+//     }
+// }
 uint32_t Chess::GetTerritoryIndex()const{
     return GetTerritoryIndex(mRow, mColumn);
 }
@@ -44,60 +49,11 @@ bool IsBoundary(int32_t row, int32_t column){
     }
     return false;
 }
-// //返回所在九宫格的势力
-// uint32_t IsPalaceCenter(uint32_t row, uint32_t column){
-//     uint32_t country = MAX_COUNTRY_INDEX;
-//     for (size_t i = 0; i < MAX_COUNTRY_INDEX; ++i){
-//         if(row == g_Center[i].GetRow() && column == g_Center[i].GetColumn()){
-//             // printf("%d国,%d行%d列的棋子:%d, 在中心为%d行%d列的九宫格内\n", mInfo.country, row, column, mInfo.chess, g_Center[i].GetRow(), g_Center[i].GetColumn());
-//             country = i;
-//             break;
-//         }   
-//     }
-//     return country;
-// }
-// uint32_t IsInPalace(uint32_t row, uint32_t column){
-//     uint32_t country = IsPalaceCenter(row, column);
-//     if(country != MAX_COUNTRY_INDEX)return country;
-//     for (size_t i = 0; i < MAX_COUNTRY_INDEX; ++i){
-//         if(abs((float)row - g_Center[i].GetRow()) < 2 && abs((float)column - g_Center[i].GetColumn()) < 2){
-//             country = i;
-//             break;
-//         }
-//     }
-//     return country;
-// }
-// void SelectChessInPalace(uint32_t currentCountry, uint32_t row, uint32_t column, const void *pBoard, std::vector<glm::vec2>&canplays){
-//     //只需要管斜线，其他位置归棋子子类管
-//     const Chess *pc = nullptr;
-//     uint32_t country = IsPalaceCenter(row, column);
-//     if(country != MAX_COUNTRY_INDEX){
-//         const Chess pos[] = {
-//             Chess(g_Center[country].GetRow() - 1, g_Center[country].GetColumn() - 1),
-//             Chess(g_Center[country].GetRow() - 1, g_Center[country].GetColumn() + 1),
-//             Chess(g_Center[country].GetRow() + 1, g_Center[country].GetColumn() - 1),
-//             Chess(g_Center[country].GetRow() + 1, g_Center[country].GetColumn() + 1)
-//         };
-//         //除馬、相外, 其他棋子在中心点时，能走的肯定就是斜线边的点
-//         for (size_t i = 0; i < sizeof(pos) / sizeof(Chess); ++i){
-//             pc = GetChess(pos[i].GetRow(), pos[i].GetColumn(), pChess);
-//             if(!pc || pc->GetCountry() != currentCountry){
-//                 canplays.push_back(pos[i]);
-//             }
-//         }
-//     }
-//     else if((country = IsInPalace(row, column)) != MAX_COUNTRY_INDEX){
-//         //在斜线边的点上时, 能走的只有中心点
-//         pc = GetChess(g_Center[country].GetRow(), g_Center[country].GetColumn(), pChess);
-//         if(!pc || pc->GetCountry() != currentCountry)canplays.push_back(g_Center[country]);
-//     }
-// }
-
 void Chess::RemoveInvalidChess(const void *pBoard, std::vector<glm::vec2> &canplays) const{
     const Chessboard *board = (const Chessboard *)pBoard;
     for (auto it = canplays.begin(); it != canplays.end();){
         const Chess *pChess = board->GetChess(it->y, it->x);
-        if(pChess && (pChess->GetCountry() == mCountry || (pChess->GetChess() == JIANG_CHESS_INDEX) && pChess->GetCountry() == HAN_COUNTRY_INDEX && mChess != MA_CHESS_INDEX)){
+        if(pChess && pChess->GetCountry() == mCountry){
             it = canplays.erase(it);
         }
         else
@@ -126,21 +82,24 @@ void Chess::InPalaceMove(const glm::vec2 &palacesCenter, std::vector<glm::vec2> 
 Chess::Chess(/* args */){
 }
 
-Chess::Chess(uint32_t row, uint32_t column){
+Chess::Chess(uint32_t row, uint32_t column, bool hasExitPermission){
     SetPos(row, column);
+    mHasExitPermission = hasExitPermission;
 }
 
-Chess::Chess(uint32_t chess, uint32_t country, uint32_t row, uint32_t column){
+Chess::Chess(uint32_t chess, uint32_t country, uint32_t row, uint32_t column, bool hasExitPermission){
     SetChess(chess);
     SetPos(row, column);
     SetCountry(country);
+    mHasExitPermission = hasExitPermission;
 }
 
-Chess::Chess(uint32_t chess, uint32_t country, uint32_t fontIndex, uint32_t row, uint32_t column){
+Chess::Chess(uint32_t chess, uint32_t country, uint32_t fontIndex, uint32_t row, uint32_t column, bool hasExitPermission){
     SetChess(chess);
     SetPos(row, column);
     SetCountry(country);
     SetFontIndex(fontIndex);
+    mHasExitPermission = hasExitPermission;
 }
 Chess::~Chess(){
 }
@@ -157,16 +116,16 @@ void Chess::Select(const void *pBoard, std::vector<glm::vec2>&canplays) const{
     printf("in function %s\n", __FUNCTION__);
 }
 
-Wei::Wei(uint32_t row, uint32_t column):Chess(row, column){
+Wei::Wei(uint32_t row, uint32_t column):Chess(row, column, false){
 }
 
 Wei::Wei(){
 }
 
-Wei::Wei(uint32_t country, uint32_t row, uint32_t column):Chess(JIANG_CHESS_INDEX, country, row, column){
+Wei::Wei(uint32_t country, uint32_t row, uint32_t column):Chess(JIANG_CHESS_INDEX, country, row, column, false){
 }
 
-Wei::Wei(uint32_t country, uint32_t fontIndex, uint32_t row, uint32_t column):Chess(JIANG_CHESS_INDEX, country, fontIndex, row, column){
+Wei::Wei(uint32_t country, uint32_t fontIndex, uint32_t row, uint32_t column):Chess(JIANG_CHESS_INDEX, country, fontIndex, row, column, false){
 }
 
 Wei::~Wei(){
@@ -180,6 +139,7 @@ void Wei::Select(const void *pBoard, std::vector<glm::vec2>&canplays)const{
             canplays.push_back(glm::vec2(cInfo[i].x, cInfo[i].y));
         }
     }
+    //如果只剩2势力，将见面可直接吃
     int32_t territory = GetTerritoryIndex();
     const glm::vec2&center = board->GetPalacesCenter(territory);
     InPalaceMove(center, canplays);
@@ -188,13 +148,13 @@ void Wei::Select(const void *pBoard, std::vector<glm::vec2>&canplays)const{
 Shu::Shu(){
 }
 
-Shu::Shu(uint32_t row, uint32_t column):Chess(row, column){
+Shu::Shu(uint32_t row, uint32_t column):Chess(row, column, false){
 }
 
-Shu::Shu(uint32_t country, uint32_t row, uint32_t column):Chess(JIANG_CHESS_INDEX, country, row, column){
+Shu::Shu(uint32_t country, uint32_t row, uint32_t column):Chess(JIANG_CHESS_INDEX, country, row, column, false){
 }
 
-Shu::Shu(uint32_t country, uint32_t fontIndex, uint32_t row, uint32_t column):Chess(JIANG_CHESS_INDEX, country, fontIndex, row, column){
+Shu::Shu(uint32_t country, uint32_t fontIndex, uint32_t row, uint32_t column):Chess(JIANG_CHESS_INDEX, country, fontIndex, row, column, false){
 }
 
 Shu::~Shu(){
@@ -217,13 +177,13 @@ void Shu::Select(const void *pBoard, std::vector<glm::vec2>&canplays) const{
 Wu::Wu(){
 }
 
-Wu::Wu(uint32_t row, uint32_t column):Chess(row, column){
+Wu::Wu(uint32_t row, uint32_t column):Chess(row, column, false){
 }
 
-Wu::Wu(uint32_t country, uint32_t row, uint32_t column):Chess(JIANG_CHESS_INDEX, country, row, column){
+Wu::Wu(uint32_t country, uint32_t row, uint32_t column):Chess(JIANG_CHESS_INDEX, country, row, column, false){
 }
 
-Wu::Wu(uint32_t country, uint32_t fontIndex, uint32_t row, uint32_t column):Chess(JIANG_CHESS_INDEX, country, fontIndex, row, column){
+Wu::Wu(uint32_t country, uint32_t fontIndex, uint32_t row, uint32_t column):Chess(JIANG_CHESS_INDEX, country, fontIndex, row, column, false){
 }
 
 Wu::~Wu(){
@@ -246,13 +206,13 @@ void Wu::Select(const void *pBoard, std::vector<glm::vec2>&canplays) const{
 Han::Han(){
 }
 
-Han::Han(uint32_t row, uint32_t column):Chess(row, column){
+Han::Han(uint32_t row, uint32_t column):Chess(row, column, false){
 }
 
-Han::Han(uint32_t country, uint32_t row, uint32_t column):Chess(JIANG_CHESS_INDEX, country, row, column){
+Han::Han(uint32_t country, uint32_t row, uint32_t column):Chess(JIANG_CHESS_INDEX, country, row, column, false){
 }
 
-Han::Han(uint32_t country, uint32_t fontIndex, uint32_t row, uint32_t column):Chess(JIANG_CHESS_INDEX, country, fontIndex, row, column){
+Han::Han(uint32_t country, uint32_t fontIndex, uint32_t row, uint32_t column):Chess(JIANG_CHESS_INDEX, country, fontIndex, row, column, false){
 }
 
 Han::~Han(){
@@ -296,15 +256,15 @@ bool Bing::IsAbroad(uint32_t row, uint32_t column) const{
 Bing::Bing(){
 }
 
-Bing::Bing(uint32_t row, uint32_t column):Chess(row, column){
+Bing::Bing(uint32_t row, uint32_t column):Chess(row, column, true){
     mTerritory = GetTerritoryIndex(row, column);
 }
 
-Bing::Bing(uint32_t country, uint32_t row, uint32_t column):Chess(BING_CHESS_INDEX, country, row, column){
+Bing::Bing(uint32_t country, uint32_t row, uint32_t column):Chess(BING_CHESS_INDEX, country, row, column, true){
     mTerritory = GetTerritoryIndex(row, column);
 }
 
-Bing::Bing(uint32_t country, uint32_t fontIndex, uint32_t row, uint32_t column):Chess(BING_CHESS_INDEX, country, fontIndex, row, column){
+Bing::Bing(uint32_t country, uint32_t fontIndex, uint32_t row, uint32_t column):Chess(BING_CHESS_INDEX, country, fontIndex, row, column, true){
     mTerritory = GetTerritoryIndex(row, column);
 }
 
@@ -332,13 +292,13 @@ void Bing::Select(const void *pBoard, std::vector<glm::vec2>&canplays) const{
 Pao::Pao(){
 }
 
-Pao::Pao(uint32_t row, uint32_t column):Chess(row, column){
+Pao::Pao(uint32_t row, uint32_t column):Chess(row, column, true){
 }
 
-Pao::Pao(uint32_t country, uint32_t row, uint32_t column):Chess(PAO_CHESS_INDEX, country, row, column){
+Pao::Pao(uint32_t country, uint32_t row, uint32_t column):Chess(PAO_CHESS_INDEX, country, row, column, true){
 }
 
-Pao::Pao(uint32_t country, uint32_t fontIndex, uint32_t row, uint32_t column):Chess(PAO_CHESS_INDEX, country, fontIndex, row, column){
+Pao::Pao(uint32_t country, uint32_t fontIndex, uint32_t row, uint32_t column):Chess(PAO_CHESS_INDEX, country, fontIndex, row, column, true){
 }
 
 Pao::~Pao(){
@@ -429,13 +389,13 @@ void Pao::Select(const void *pBoard, std::vector<glm::vec2>&canplays) const{
 Che::Che(){
 }
 
-Che::Che(uint32_t row, uint32_t column):Chess(row, column){
+Che::Che(uint32_t row, uint32_t column):Chess(row, column, true){
 }
 
-Che::Che(uint32_t country, uint32_t row, uint32_t column):Chess(CHE_CHESS_INDEX, country, row, column){
+Che::Che(uint32_t country, uint32_t row, uint32_t column):Chess(CHE_CHESS_INDEX, country, row, column, true){
 }
 
-Che::Che(uint32_t country, uint32_t fontIndex, uint32_t row, uint32_t column):Chess(CHE_CHESS_INDEX, country, fontIndex, row, column){
+Che::Che(uint32_t country, uint32_t fontIndex, uint32_t row, uint32_t column):Chess(CHE_CHESS_INDEX, country, fontIndex, row, column, true){
 }
 
 Che::~Che(){
@@ -469,13 +429,13 @@ void Che::Select(const void *pBoard, std::vector<glm::vec2>&canplays) const{
 Ma::Ma(){
 }
 
-Ma::Ma(uint32_t row, uint32_t column):Chess(row, column){
+Ma::Ma(uint32_t row, uint32_t column):Chess(row, column, true){
 }
 
-Ma::Ma(uint32_t country, uint32_t row, uint32_t column):Chess(MA_CHESS_INDEX, country, row, column){
+Ma::Ma(uint32_t country, uint32_t row, uint32_t column):Chess(MA_CHESS_INDEX, country, row, column, true){
 }
 
-Ma::Ma(uint32_t country, uint32_t fontIndex, uint32_t row, uint32_t column):Chess(MA_CHESS_INDEX, country, fontIndex, row, column){
+Ma::Ma(uint32_t country, uint32_t fontIndex, uint32_t row, uint32_t column):Chess(MA_CHESS_INDEX, country, fontIndex, row, column, true){
 }
 
 Ma::~Ma(){
@@ -503,15 +463,15 @@ bool Xiang::IsAbroad(uint32_t row, uint32_t column) const{
     return mTerritory != GetTerritoryIndex(row, column);
 }
 
-Xiang::Xiang(uint32_t row, uint32_t column) : Chess(row, column){
+Xiang::Xiang(uint32_t row, uint32_t column) : Chess(row, column, false){
     mTerritory = GetTerritoryIndex(row, column);
 }
 
-Xiang::Xiang(uint32_t country, uint32_t row, uint32_t column):Chess(XIANG_CHESS_INDEX, country, row, column){
+Xiang::Xiang(uint32_t country, uint32_t row, uint32_t column):Chess(XIANG_CHESS_INDEX, country, row, column, false){
     mTerritory = GetTerritoryIndex(row, column);
 }
 
-Xiang::Xiang(uint32_t country, uint32_t fontIndex, uint32_t row, uint32_t column):Chess(XIANG_CHESS_INDEX, country, fontIndex, row, column){
+Xiang::Xiang(uint32_t country, uint32_t fontIndex, uint32_t row, uint32_t column):Chess(XIANG_CHESS_INDEX, country, fontIndex, row, column, false){
     mTerritory = GetTerritoryIndex(row, column);
 }
 
@@ -534,13 +494,13 @@ void Xiang::Select(const void *pBoard, std::vector<glm::vec2>&canplays) const{
 Shi::Shi(){
 }
 
-Shi::Shi(uint32_t row, uint32_t column):Chess(row, column){
+Shi::Shi(uint32_t row, uint32_t column):Chess(row, column, false){
 }
 
-Shi::Shi(uint32_t country, uint32_t row, uint32_t column):Chess(SHI_CHESS_INDEX, country, row, column){
+Shi::Shi(uint32_t country, uint32_t row, uint32_t column):Chess(SHI_CHESS_INDEX, country, row, column, false){
 }
 
-Shi::Shi(uint32_t country, uint32_t fontIndex, uint32_t row, uint32_t column):Chess(SHI_CHESS_INDEX, country, fontIndex, row, column){
+Shi::Shi(uint32_t country, uint32_t fontIndex, uint32_t row, uint32_t column):Chess(SHI_CHESS_INDEX, country, fontIndex, row, column, false){
 }
 
 Shi::~Shi(){

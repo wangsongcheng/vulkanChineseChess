@@ -20,7 +20,7 @@
 
 #include "VulkanImgui.h"
 #include "imgui_impl_glfw.h"
-// #define DEBUG
+#define DEBUG
 #define MAX_UNDO_STEP 100
 struct ImGuiInput{
     bool enableHan;
@@ -136,7 +136,7 @@ void PlayChess(Chess *pChess, uint32_t dstRow, uint32_t dstColumn){
         MoveChess(pChess, pTarget);
         uint32_t targetCountry = pTarget->GetCountry();
         g_Game.CaptureChess(pChess, pTarget);
-        const char county[][MAX_BYTE] = { "蜀", "吴", "魏", "汉" };
+        const char county[][MAX_BYTE] = { "吴", "魏", "蜀", "汉" };
         if(g_Game.IsDeath(targetCountry)){
             printf("%s国被%s国消灭\n", county[targetCountry], county[pChess->GetCountry()]);
             g_Game.DestroyCountry(targetCountry);
@@ -147,13 +147,14 @@ void PlayChess(Chess *pChess, uint32_t dstRow, uint32_t dstColumn){
         const glm::vec2 start = glm::vec2(COLUMN_TO_X(pChess->GetColumn()), ROW_TO_Y(pChess->GetRow())), end = glm::vec2(COLUMN_TO_X(dstColumn), ROW_TO_Y(dstRow));
         MoveChess(start, end, pChess->GetFontIndex(), dynamicOffsets);
     }
+    pChess->SetPos(dstRow, dstColumn);
+    g_Game.areKingsFacing();
+    UpdateChessUniform(g_VulkanDevice.device);
+    g_PlayChessMutex.unlock();
     if(!g_Game.IsHanCanPslay() && pChess->GetChess() == MA_CHESS_INDEX){
         //不用提示了。因为结盟后，汉的棋子会归另一方
         g_Game.SetNotAllianceCountry(pChess->GetCountry(), pChess->GetRow(), pChess->GetColumn());
     }
-    pChess->SetPos(dstRow, dstColumn);
-    UpdateChessUniform(g_VulkanDevice.device);
-    g_PlayChessMutex.unlock();
     if(g_Game.GameOver()){
         g_Ai.End();
     }
@@ -869,8 +870,8 @@ void RecordCommand(VkCommandBuffer command, VkFramebuffer frame){
     vkCmdBindPipeline(command, VK_PIPELINE_BIND_POINT_GRAPHICS, g_Fill);
     g_Chess.DrawChess(command, g_PipelineLayout, g_Game.GetCurrentCountry());
     vkCmdBindPipeline(command, VK_PIPELINE_BIND_POINT_GRAPHICS, g_Font);
-    g_Chess.DrawFont(command, g_PipelineLayout);
     g_VulkanChessboard.DrawAllianceFont(command, g_PipelineLayout);
+    g_Chess.DrawFont(command, g_PipelineLayout);
 
     UpdateImgui(command);
 
@@ -1039,24 +1040,6 @@ void DestroyGraphicsPipeline(VkDevice device){
     vkDestroyPipeline(g_VulkanDevice.device, g_Wireframe, VK_NULL_HANDLE);
 }
 void CreateGraphicsPipeline(VkDevice device, VkPipelineLayout layout){
-    // state.mColorBlend.blendEnable = VK_TRUE;
-    // state.mColorBlend.alphaBlendOp = VK_BLEND_OP_ADD;
-    // state.mColorBlend.colorBlendOp = VK_BLEND_OP_ADD;
-    // //该混合方式, 不依赖着色器输出的颜色决定透明度, 但必须需要2个片段以上才看得出来
-    // state.mColorBlend.srcAlphaBlendFactor = VK_BLEND_FACTOR_SRC_COLOR;
-    // state.mColorBlend.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_COLOR;
-    // state.mColorBlend.dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_COLOR;
-    // state.mColorBlend.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_COLOR;
-    // //该混合方式, 依赖着色器输出颜色中的a(w)值决定透明度, 1个片段也能看出来
-    // // state.mColorBlend.srcAlphaBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
-    // // state.mColorBlend.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
-    // // state.mColorBlend.dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
-    // // state.mColorBlend.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
-    //imgui绘制字体时的混合方式
-    // state.mColorBlend.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
-    // state.mColorBlend.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
-    // state.mColorBlend.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
-    // state.mColorBlend.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;//VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
     VkPipelineVertexInputStateCreateInfo inputState{};
     std::array<VkPipelineShaderStageCreateInfo,2> shaderStages;
     VkVertexInputBindingDescription bindingDescriptions = inputBindingDescription(0);

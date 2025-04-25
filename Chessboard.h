@@ -43,7 +43,7 @@ public:
 
     // void Select(const Chess *pChess, std::vector<glm::vec2>&canplays);
     // void Select(uint32_t country, uint32_t chess, std::vector<glm::vec2>&canplays);
-
+    bool IsHasExitPermission(uint32_t country);
     // inline auto GetChess()const{
     //     return mChess;
     // }

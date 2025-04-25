@@ -5,14 +5,62 @@ Game::Game(/* args */){
 
 Game::~Game(){
 }
+void Game::areKingsFacing(){
+    for (uint32_t srcCountry = 0; srcCountry < mCountryCount; srcCountry++){
+        for (uint32_t dstountry = 0; dstountry < mCountryCount; dstountry++){
+            if(srcCountry != dstountry){
+                if(areKingsFacing(srcCountry, dstountry)){
+                    DestroyCountry(srcCountry);
+                    DestroyCountry(dstountry);
+                    srcCountry = mCountryCount;
+                    break;
+                }
+            }
+        }
+    }
+}
+bool Game::areKingsFacing(uint32_t srcCountry, uint32_t dstCountry){
+    bool are = true;
+    const Chess *pSrc = mChessboard.GetChess(srcCountry)[JIANG_CHESS_INDEX], *pDst = mChessboard.GetChess(dstCountry)[JIANG_CHESS_INDEX];
+    if(!pSrc || !pDst)return false;
+    if(pSrc->GetRow() == pDst->GetRow()){
+        const uint32_t row = pSrc->GetRow();
+        for (size_t i = std::min(pDst->GetColumn(), pSrc->GetColumn()) + 1; i < std::max(pDst->GetColumn(), pSrc->GetColumn()); i++){
+            if(mChessboard.GetChess(row, i)){
+                are = false;
+                break;
+            }
+        }
+    }
+    else if(pSrc->GetColumn() == pDst->GetColumn()){
+        const uint32_t column = pSrc->GetColumn();
+        for (size_t i = std::min(pDst->GetRow(), pSrc->GetRow()) + 1; i < std::max(pDst->GetRow(), pSrc->GetRow()); i++){
+            if(mChessboard.GetChess(i, column)){
+                are = false;
+                break;
+            }
+        }
+    }
+    else{
+        are = false;
+    }
+    return are;
+}
 bool Game::GameOver(){
     uint32_t deathCount = 0;
-    for (size_t i = 0; i < MAX_COUNTRY_INDEX; ++i){
-        if((mHanCanPlay || i != HAN_COUNTRY_INDEX) && mChessboard.IsDeath(i)){
+    for (size_t i = 0; i < mCountryCount; ++i){
+        if(mChessboard.IsDeath(i)){
             ++deathCount;
         }
     }
-    return deathCount > 1;
+    bool hasEcxit = false;
+    for (size_t i = 0; i < mCountryCount; i++){
+        if(mChessboard.IsHasExitPermission(i)){
+            hasEcxit = true;
+            break;
+        }       
+    }
+    return deathCount > mCountryCount / 2 || !hasEcxit;
 }
 void Game::InitinalizeGame(int32_t player, int32_t currentCountry){
     StartGame();
@@ -86,8 +134,15 @@ void Game::RemoveInvalidTarget(const Chess *pChess, std::vector<glm::vec2>&canpl
 
 void Game::CaptureChess(const Chess *play, const Chess *target){
     mChessboard.CaptureChess(play->GetCountry(), target->GetCountry(), target->GetChess());
-    if(!mHanCanPlay && target->GetCountry() == HAN_COUNTRY_INDEX && target->GetChess() == JIANG_CHESS_INDEX){
-        SetNotAllianceCountry(play->GetCountry(), play->GetRow(), play->GetColumn());
+    if(!mHanCanPlay){
+        if(target->GetChess() == JIANG_CHESS_INDEX){
+            if(target->GetCountry() == HAN_COUNTRY_INDEX){
+                SetNotAllianceCountry(play->GetCountry(), play->GetRow(), play->GetColumn());
+            }
+            else{
+                notAllianceCountry = INVALID_COUNTRY_INDEX;
+            }
+        }
     }
 }
 

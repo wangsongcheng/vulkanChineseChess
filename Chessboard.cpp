@@ -384,7 +384,17 @@ int32_t Chessboard::IsPalaceCenter(uint32_t row, uint32_t column)const{
     }
     return country;
 }
-int32_t Chessboard::IsInPalace(uint32_t row, uint32_t column)const{
+bool Chessboard::IsHasExitPermission(uint32_t country){
+    bool has = false;
+    for (uint32_t uiChess = 0; uiChess < DRAW_COUNTRY_CHESS_COUNT; ++uiChess){
+        if(mChess[country][uiChess] && mChess[country][uiChess]->GetHasExitPermission()){
+            has = true;
+            break;
+        }
+    }
+    return has;
+}
+int32_t Chessboard::IsInPalace(uint32_t row, uint32_t column) const{
     int32_t country = IsPalaceCenter(row, column);
     if(country != INVALID_COUNTRY_INDEX)return country;
     for (size_t i = 0; i < MAX_COUNTRY_INDEX; ++i){
@@ -407,7 +417,7 @@ void Chessboard::GetCountryChess(uint32_t srcCountry, uint32_t dstCountry){
     uint32_t fontIndex;
     for (uint32_t uiChess = JIANG_CHESS_INDEX + 1; uiChess < DRAW_COUNTRY_CHESS_COUNT; ++uiChess){
         Chess *pChess = mChess[dstCountry][uiChess];
-        if(pChess){
+        if(pChess && uiChess + COUNTRY_CHESS_COUNT * 2 < DRAW_COUNTRY_CHESS_COUNT){
             if(uiChess >= MA_CHESS_INDEX && uiChess < MA_CHESS_INDEX + MA_CHESS_COUNT){
                 fontIndex = FONT_INDEX_MA;
                 if(mChess[srcCountry][uiChess + COUNTRY_CHESS_COUNT]){

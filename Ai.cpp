@@ -6,7 +6,7 @@ void aiPlay(const Ai *pAi){
     Chess *pSelect = pAi->GetSelect(pAi->GetCurrentCountry());
     const Chess *pTarget = pAi->GetTarget(pSelect, &dstRow, &dstColumn);
     
-    Chess target(dstRow, dstColumn);
+    Chess target(dstRow, dstColumn, true);
     // SelectChess(g_VulkanDevice.device, pSelect);
     if(pAi->IsOnline()){
         if(pTarget){
@@ -37,7 +37,7 @@ void *AiPlayChess(void *userData){
     }
 #endif
     printf("function %s start\n", __FUNCTION__);
-    while(!pAi->GameOver() || !pAi->IsEnd()){
+    while(!pAi->GameOver() && !pAi->IsEnd()){
         pAi->Wait();
         // if(pAi->IsPause()){
         //     printf("function %s pause\n", __FUNCTION__);
