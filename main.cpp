@@ -67,11 +67,11 @@ ImGuiInput g_ImGuiInput;
 //     glfwCreateWindowSurface(instance, (GLFWwindow *)userData, nullptr, &surface);
 // }
 void UpdateChessUniform(VkDevice device){
-    Chessboard *pChessboard = g_Game.GetChessBoard();
-    auto pChess = pChessboard->GetChess();
+    auto pChessboard = g_Game.GetChessBoard();
     for (uint32_t uiCoutry = 0; uiCoutry < MAX_COUNTRY_INDEX; ++uiCoutry){
+        auto pChess = pChessboard->GetChess(uiCoutry);
         for(uint32_t uiChess = 0; uiChess < DRAW_COUNTRY_CHESS_COUNT; ++uiChess){
-            const Chess *pc = pChess[uiCoutry][uiChess];
+            const Chess *pc = pChess[uiChess];
             const uint32_t dynamicOffsets = uiCoutry * DRAW_COUNTRY_CHESS_COUNT + uiChess;
             if(pc){
                 g_Chess.UpdateUniform(device, pc->GetFontIndex(), pc->GetPos(), CHESS_WIDTH, CHESS_HEIGHT, dynamicOffsets);
@@ -154,6 +154,31 @@ void PlayChess(Chess *pChess, uint32_t dstRow, uint32_t dstColumn){
     pChess->SetPos(dstRow, dstColumn);
     UpdateChessUniform(g_VulkanDevice.device);
     g_PlayChessMutex.unlock();
+    if(g_Game.GameOver()){
+        g_Ai.End();
+    }
+    uint32_t currerntCountry;
+    const Chess *pCheck = g_Game.Check(&currerntCountry);
+    if(pCheck){
+        //被将方不"解将"，则有问题
+        uint32_t country = pCheck->GetCountry();
+        if(currerntCountry == g_Game.GetCurrentCountry()){
+            g_Game.ExtraTurn(country);
+        }
+        else{
+            g_Game.NextCountry();
+        }
+    }
+    else{
+        g_Game.NextCountry();
+    }
+    //下完棋要调用下面的函数
+    if(g_Game.IsOnline()){
+        if(g_OnLine.IsServer())g_Ai.EnableNextCountry(g_ImGuiInput.enableAutoPlay);
+    }
+    else{
+        g_Ai.EnableNextCountry(g_ImGuiInput.enableAutoPlay);
+    }    
 }
 auto CreateThread(void *(*__start_routine)(void *), void *__arg){
 #ifdef WIN32
@@ -402,13 +427,13 @@ void *process_server(void *userData){
 #endif
 void InitJiangPos(){
     const Chessboard *pBoard = g_Game.GetChessBoard();
-    const Chess *pChess = pBoard->GetChess()[WEI_COUNTRY_INDEX][JIANG_CHESS_INDEX];
+    const Chess *pChess = pBoard->GetChess(WEI_COUNTRY_INDEX)[JIANG_CHESS_INDEX];
     g_JiangPos[WEI_COUNTRY_INDEX] = glm::vec2(pChess->GetColumn(), pChess->GetRow());
-    pChess = pBoard->GetChess()[SHU_COUNTRY_INDEX][JIANG_CHESS_INDEX];
+    pChess = pBoard->GetChess(SHU_COUNTRY_INDEX)[JIANG_CHESS_INDEX];
     g_JiangPos[SHU_COUNTRY_INDEX] = glm::vec2(pChess->GetColumn(), pChess->GetRow());
-    pChess = pBoard->GetChess()[WU_COUNTRY_INDEX][JIANG_CHESS_INDEX];
+    pChess = pBoard->GetChess(WU_COUNTRY_INDEX)[JIANG_CHESS_INDEX];
     g_JiangPos[WU_COUNTRY_INDEX] = glm::vec2(pChess->GetColumn(), pChess->GetRow());
-    pChess = pBoard->GetChess()[HAN_COUNTRY_INDEX][JIANG_CHESS_INDEX];
+    pChess = pBoard->GetChess(HAN_COUNTRY_INDEX)[JIANG_CHESS_INDEX];
     g_JiangPos[HAN_COUNTRY_INDEX] = glm::vec2(pChess->GetColumn(), pChess->GetRow());
 }
 void Invert(uint32_t row, uint32_t column, uint32_t&newRow, uint32_t&newColumn){
@@ -522,27 +547,26 @@ void *process_client(void *userData){
             strcpy(g_Players[message.clientIndex].country, message.player.country);
         }
         else if(message.event == PLAY_CHESS_GAME_EVENT){
-            auto pChess = g_Game.GetChessBoard()->GetChess();
+            auto pChess = g_Game.GetChessBoard()->GetChess(message.select.GetCountry());
             uint32_t dstRow = message.target.GetRow(), dstColumn = message.target.GetColumn();
-            Chess *pStart = pChess[message.select.GetCountry()][message.select.GetChess()], *pTarget = nullptr;
+            Chess *pStart = pChess[message.select.GetChess()], *pTarget = nullptr;
             if(message.target.GetCountry() >= MAX_COUNTRY_INDEX){
                 RotateChess(g_Game.GetCurrentCountry(), dstRow, dstColumn,dstRow, dstColumn);
             }
             else{
-                pTarget = pChess[message.target.GetCountry()][message.target.GetChess()];
+                pTarget = pChess[message.target.GetChess()];
                 dstRow = pTarget->GetRow();
                 dstColumn = pTarget->GetColumn();
             }
             PlayChess(pStart, dstRow, dstColumn);
-            const uint32_t country = g_Game.Check();
-            uint32_t lastCountry = g_Game.GetCurrentCountry();
-            if(country != INVALID_COUNTRY_INDEX && country != lastCountry && g_Game.GetNextCountry() != country){
-                g_Game.ExtraTurn(country);
-            }
-            else{
-                g_Game.NextCountry();
-            }
-            if(g_OnLine.IsServer())g_Ai.EnableNextCountry(g_ImGuiInput.enableAutoPlay);
+            // const uint32_t country = g_Game.Check()->GetCountry();
+            // uint32_t lastCountry = g_Game.GetCurrentCountry();
+            // if(country != INVALID_COUNTRY_INDEX && country != lastCountry && g_Game.GetNextCountry() != country){
+            //     g_Game.ExtraTurn(country);
+            // }
+            // else{
+            //     g_Game.NextCountry();
+            // }
         }
         else if(message.event == GAME_OVER_GAME_EVENT){
             printf("in function %s:game over\n", __FUNCTION__);
@@ -743,13 +767,13 @@ bool ShowSinglePlayerModeMainInterface(bool *mainInterface){
         if(currentCountry != INVALID_COUNTRY_INDEX && player != INVALID_COUNTRY_INDEX){
             ImGui::Text("你是%s, 该%s下棋\n", countryName[player], player == currentCountry?"你":countryName[currentCountry]);
         }
-        if(ImGui::BeginTable("检查框列表", 1)){
-            // ImGui::TableNextColumn();
-            // if(ImGui::Checkbox("托管", &g_ImGuiInput.enableAutoPlay)){
-            //     if(g_ImGuiInput.enableAutoPlay && g_Game.GetCurrentCountry() == g_Game.GetPlayer()){
-            //         g_Ai.Enable();
-            //     }
-            // }
+        if(ImGui::BeginTable("检查框列表", 2)){
+            ImGui::TableNextColumn();
+            if(ImGui::Checkbox("托管", &g_ImGuiInput.enableAutoPlay)){
+                if(g_ImGuiInput.enableAutoPlay && g_Game.GetCurrentCountry() == g_Game.GetPlayer()){
+                    g_Ai.Enable();
+                }
+            }
             ImGui::TableNextColumn();
             if(ImGui::Checkbox("启用汉势力", &g_ImGuiInput.enableHan)){
                 if(g_ImGuiInput.enableHan){
@@ -881,16 +905,6 @@ void *PlayChessFun(void *userData){
     PPC ppc = *(PPC *)userData;
     Chess *pStart = g_Game.GetChess(ppc.srcCountry, ppc.srcRow, ppc.srcColumn);
     PlayChess(pStart, ppc.dstRow, ppc.dstColumn);
-    uint32_t country = g_Game.Check();
-    uint32_t lastCountry = g_Game.GetCurrentCountry();
-    if(country != INVALID_COUNTRY_INDEX && country != lastCountry && g_Game.GetNextCountry() != country){
-        g_Game.ExtraTurn(country);
-    }
-    else{
-        g_Game.NextCountry();
-    }
-    //下完棋要调用下面的函数
-    g_Ai.EnableNextCountry(g_ImGuiInput.enableAutoPlay);
     return nullptr;
 }
 int32_t GetCanPlay(const glm::vec2&mousePos, const std::vector<glm::vec2>&canplays){

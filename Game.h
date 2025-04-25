@@ -6,6 +6,7 @@
 #ifdef __linux
 #include <unistd.h>
 #endif
+//建头文件，把所有宏加进去，其他类包含即可
 #ifndef MAX_BYTE
 #define MAX_BYTE 0xff
 #endif
@@ -69,14 +70,15 @@ public:
     //-1表示需要重新随机
     // void NewGame(int32_t play = -1);
 
-    // void UpdateChessUniform(VkDevice device);
-    // void UpdateSelectChessUniform(VkDevice device, std::vector<Chess>&canplays);
-    uint32_t Check()const;
+    //返回的某势力的'将', 该将下一步会被吃掉
+    const Chess *Check(uint32_t *srcCountry)const;
+    //返回的棋子下一步能吃掉country的'将'
+    const Chess *Check(uint32_t country)const;
     void SetNotAllianceCountry(uint32_t country, uint32_t row, uint32_t column);
 
-    inline const Chess *Check(uint32_t srcCountry, uint32_t dstCountry, uint32_t chess) const{
-        return mChessboard.Check(srcCountry, dstCountry, chess);
-    }
+    // inline const Chess *Check(uint32_t srcCountry, uint32_t dstCountry, uint32_t chess) const{
+    //     return mChessboard.Check(srcCountry, dstCountry, chess);
+    // }
     inline auto GetPalacesCenter(uint32_t country)const{
         return mChessboard.GetPalacesCenter(country);
     }
@@ -121,7 +123,7 @@ public:
     // inline auto GetChess()const{
     //     return mChessboard.GetChess();
     // }
-    inline auto GetChessBoard(){
+    inline auto GetChessBoard()const{
         return &mChessboard;
     }
     inline uint32_t GetChessCount(uint32_t country)const{

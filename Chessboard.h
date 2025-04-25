@@ -3,13 +3,6 @@
 #include <array>
 #include "Chess.h"
 #include "VulkanChessboard.h"
-#define JIANG_CHESS_INDEX 0
-#define MA_CHESS_INDEX (JIANG_CHESS_INDEX + JIANG_CHESS_COUNT)
-#define PAO_CHESS_INDEX (MA_CHESS_INDEX + MA_CHESS_COUNT)
-#define CHE_CHESS_INDEX (PAO_CHESS_INDEX + PAO_CHESS_COUNT)
-#define SHI_CHESS_INDEX (CHE_CHESS_INDEX + CHE_CHESS_COUNT)
-#define XIANG_CHESS_INDEX (SHI_CHESS_INDEX + SHI_CHESS_COUNT)
-#define BING_CHESS_INDEX (XIANG_CHESS_INDEX + XIANG_CHESS_COUNT)
 
 #define HAN_PAO_CHESS_INDEX 1
 #define HAN_CHE_CHESS_INDEX (HAN_PAO_CHESS_INDEX + HAN_PAO_CHESS_COUNT)
@@ -51,8 +44,11 @@ public:
     // void Select(const Chess *pChess, std::vector<glm::vec2>&canplays);
     // void Select(uint32_t country, uint32_t chess, std::vector<glm::vec2>&canplays);
 
-    inline auto GetChess()const{
-        return mChess;
+    // inline auto GetChess()const{
+    //     return mChess;
+    // }
+    inline auto GetChess(uint32_t country)const{
+        return mChess[country];
     }
     inline auto&GetPalacesCenter(uint32_t territory)const{
         return mPalacesCenter[territory];

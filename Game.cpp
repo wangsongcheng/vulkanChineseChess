@@ -91,17 +91,33 @@ void Game::CaptureChess(const Chess *play, const Chess *target){
     }
 }
 
-uint32_t Game::Check()const{
-    uint32_t country = INVALID_COUNTRY_INDEX, currentCountry = mCurrentCountry;
-    do{
-        const Chess *pChess = Check(mCurrentCountry, currentCountry, JIANG_CHESS_INDEX);
-        if(pChess){
-            country = currentCountry;
-            break;
+const Chess *Game::Check(uint32_t *sCountry) const{
+    const Chess *pChess = nullptr;
+    for (size_t srcCountry = 0; srcCountry < mCountryCount; ++srcCountry){
+        for (size_t dstCountry = 0; dstCountry < mCountryCount; ++dstCountry){
+            if(srcCountry != dstCountry){
+                pChess = mChessboard.Check(srcCountry, dstCountry, JIANG_CHESS_INDEX);
+                if(pChess){
+                    *sCountry = srcCountry;
+                    return mChessboard.GetChess(dstCountry)[JIANG_CHESS_INDEX];
+                }
+            }
         }
-        currentCountry = GetNextCountry(currentCountry);
-    } while (currentCountry != mCurrentCountry);
-    return country;
+    }
+    return pChess;
+}
+
+const Chess *Game::Check(uint32_t country) const{
+    const Chess *pChess = nullptr;
+    for (size_t i = 0; i < mCountryCount; ++i){
+        if(i != country){
+            pChess = mChessboard.Check(i, country, JIANG_CHESS_INDEX);
+            if(pChess){
+                break;
+            }    
+        }
+    }
+    return pChess;
 }
 
 void Game::SetNotAllianceCountry(uint32_t country, uint32_t row, uint32_t column){
