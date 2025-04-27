@@ -156,73 +156,66 @@ void VulkanImage::CopyImage(VkCommandBuffer command, VulkanImage &srcImage) {
     }
 
     // 源图像布局转换屏障 (UNDEFINED → TRANSFER_SRC_OPTIMAL)
-    VkImageMemoryBarrier srcBarrier{
-        .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
-        .srcAccessMask = 0,
-        .dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT,
-        .oldLayout = srcImage.layout,
-        .newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-        .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-        .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-        .image = srcImage.image,
-        .subresourceRange = srcImage.subresourceRange
-    };
+    VkImageMemoryBarrier srcBarrier = {};
+    srcBarrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+    srcBarrier.srcAccessMask = 0;
+    srcBarrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+    srcBarrier.oldLayout = srcImage.layout;
+    srcBarrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+    srcBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    srcBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    srcBarrier.image = srcImage.image;
+    srcBarrier.subresourceRange = srcImage.subresourceRange;
+    
 
     vkCmdPipelineBarrier(command, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 0, nullptr, 1, &srcBarrier);
 
     // 目标图像布局转换屏障 (UNDEFINED → TRANSFER_DST_OPTIMAL)
-    VkImageMemoryBarrier dstBarrier{
-        .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
-        .srcAccessMask = 0,
-        .dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT,
-        .oldLayout = layout,
-        .newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-        .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-        .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-        .image = image,
-        .subresourceRange = subresourceRange
-    };
+    VkImageMemoryBarrier dstBarrier = {};
+    dstBarrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+    dstBarrier.srcAccessMask = 0;
+    dstBarrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+    dstBarrier.oldLayout = layout;
+    dstBarrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+    dstBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    dstBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    dstBarrier.image = image;
+    dstBarrier.subresourceRange = subresourceRange;
 
     vkCmdPipelineBarrier(command, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 0, nullptr, 1, &dstBarrier);
 
     // 创建拷贝区域（处理所有mip层级）
-    std::vector<VkImageCopy> copyRegions;
+    std::vector<VkImageCopy> copyRegions(mipLevels);
     for (uint32_t i = 0; i < mipLevels; ++i) {
-        copyRegions.push_back(VkImageCopy{
-            .srcSubresource = {
-                .aspectMask = srcImage.subresourceRange.aspectMask,
-                .mipLevel = i,
-                .baseArrayLayer = srcImage.subresourceRange.baseArrayLayer,
-                .layerCount = srcImage.subresourceRange.layerCount},
-            .srcOffset = {0, 0, 0},
-            .dstSubresource = {
-                .aspectMask = subresourceRange.aspectMask,
-                .mipLevel = i,
-                .baseArrayLayer = subresourceRange.baseArrayLayer,
-                .layerCount = subresourceRange.layerCount},
-            .dstOffset = {0, 0, 0},
-            .extent = {
-                .width = std::max(srcImage.size.width >> i, 1u),
-                .height = std::max(srcImage.size.height >> i, 1u),
-                .depth = srcImage.size.depth}
-        });
+        copyRegions[i].srcOffset = {0, 0, 0};
+        copyRegions[i].dstOffset = {0, 0, 0};
+        copyRegions[i].srcSubresource.mipLevel = i;
+        copyRegions[i].dstSubresource.mipLevel = i;
+        copyRegions[i].extent.depth = srcImage.size.depth;
+        copyRegions[i].extent.width = std::max(srcImage.size.width >> i, 1u);
+        copyRegions[i].extent.height = std::max(srcImage.size.height >> i, 1u);
+        copyRegions[i].dstSubresource.layerCount = subresourceRange.layerCount;
+        copyRegions[i].dstSubresource.aspectMask = subresourceRange.aspectMask;
+        copyRegions[i].dstSubresource.baseArrayLayer = subresourceRange.baseArrayLayer;
+        copyRegions[i].srcSubresource.layerCount = srcImage.subresourceRange.layerCount;
+        copyRegions[i].srcSubresource.aspectMask = srcImage.subresourceRange.aspectMask;
+        copyRegions[i].srcSubresource.baseArrayLayer = srcImage.subresourceRange.baseArrayLayer;
     }
 
     // 执行图像拷贝命令
     vkCmdCopyImage(command, srcImage.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, static_cast<uint32_t>(copyRegions.size()), copyRegions.data());
 
     // 目标图像后处理屏障 (TRANSFER_DST_OPTIMAL → SHADER_READ_ONLY_OPTIMAL)
-    VkImageMemoryBarrier postBarrier{
-        .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
-        .srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT,
-        .dstAccessMask = VK_ACCESS_SHADER_READ_BIT,
-        .oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-        .newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-        .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-        .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-        .image = image,
-        .subresourceRange = subresourceRange
-    };
+    VkImageMemoryBarrier postBarrier = {};
+    postBarrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+    postBarrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT,
+    postBarrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT,
+    postBarrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+    postBarrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+    postBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+    postBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+    postBarrier.image = image,
+    postBarrier.subresourceRange = subresourceRange;
 
     vkCmdPipelineBarrier(command, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, nullptr, 0, nullptr, 1, &postBarrier);
 
@@ -313,7 +306,7 @@ void VulkanTextureImage::CreateImageArray(VulkanDevice device, const void *const
     CopyImage(device, datas, imageCount, pool, graphics);
 }
 
-void VulkanCubeImage::CreateImage(VulkanDevice device, uint32_t width, uint32_t arrayLayers){
+void VulkanCubeImage::CreateImage(VulkanDevice device, uint32_t width){
     channels = 4;
     size.depth = 1;
     size.width = width;

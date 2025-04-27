@@ -58,7 +58,7 @@ struct VulkanTextureImage:VulkanImage{
     void CreateImageArray(VulkanDevice device, const void *const *datas, uint32_t imageCount, uint32_t width, uint32_t height, VkQueue graphics, VulkanPool pool);
 };
 struct VulkanCubeImage:VulkanImage{
-    void CreateImage(VulkanDevice device, uint32_t width, uint32_t arrayLayers = 1);
+    void CreateImage(VulkanDevice device, uint32_t width);
     void CreateImage(VulkanDevice device, const void *const *datas, uint32_t width, VkQueue graphics, VulkanPool pool);
     //立方体贴图本身就是图片数组, 那么立方体纹理数组要怎么写?arraylayer = imagecount*6?
     // void CreateImageArray(VulkanDevice device, const void *const *datas, uint32_t imageCount, uint32_t width, VkQueue graphics, VulkanPool pool);

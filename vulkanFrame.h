@@ -18,7 +18,7 @@ struct VulkanQueue{
     VkQueue graphics = VK_NULL_HANDLE;
     VkQueue compute = VK_NULL_HANDLE;
     void CreateQueue(VulkanDevice device, VkSurfaceKHR surface){
-        uint32_t queueFamilies[3];
+        int32_t queueFamilies[3];
         queueFamilies[0] = device.GetQueueFamiliesIndex(surface);
         queueFamilies[1] = device.GetQueueFamiliesIndex(VK_QUEUE_GRAPHICS_BIT);
         queueFamilies[2] = device.GetQueueFamiliesIndex(VK_QUEUE_COMPUTE_BIT);
@@ -53,7 +53,7 @@ namespace vulkanFrame{
 
     // VkResult Prepare(VkDevice device, uint32_t *imageIndex, VkSwapchainKHR swapchain, const VkSemaphore&imageAcquired);
     uint32_t Prepare(VkDevice device, VkSwapchainKHR swapchain, const VkSemaphore&imageAcquired, void(*recreateSwapchain)(void* userData), void* userData);
-    VkResult Present(VkDevice device, uint32_t imageIndex, VkSwapchainKHR swapchain, const VkQueue present, const VkSemaphore&renderComplete, void(*recreateSwapchain)(void* userData) = nullptr, void* userData = nullptr);
+    VkResult Present(uint32_t imageIndex, VkSwapchainKHR swapchain, const VkQueue present, const VkSemaphore&renderComplete, void(*recreateSwapchain)(void* userData) = nullptr, void* userData = nullptr);
     //返回vkQueuePresentKHR的执行结果
     VkResult Render(VkDevice device, uint32_t currentFrame, const VkCommandBuffer& commandbuffers, VkSwapchainKHR swapchain, const VulkanQueue&vulkanQueue, const VulkanSynchronize&vulkanSynchronize, void(*recreateSwapchain)(void* userData) = nullptr, void* userData = nullptr);
 
@@ -61,7 +61,7 @@ namespace vulkanFrame{
     // void SetImageLayout(VkCommandBuffer cmdbuffer, VkImage image, VkImageLayout oldImageLayout, VkImageLayout newImageLayout, VkImageSubresourceRange subresourceRange, VkPipelineStageFlags srcStageMask, VkPipelineStageFlags dstStageMask);
     // void SetImageLayout(VkCommandBuffer cmdbuffer, VkImage image, VkImageAspectFlags aspectMask, VkImageLayout oldImageLayout, VkImageLayout newImageLayout, VkPipelineStageFlags srcStageMask, VkPipelineStageFlags dstStageMask, uint32_t imageCount);
 
-    VkResult Submit(VkDevice device, const VkCommandBuffer&commandbuffers, VkQueue graphics, const VkSemaphore&imageAcquired, const VkSemaphore&renderComplete, const VkFence&fence = VK_NULL_HANDLE);
+    VkResult Submit(const VkCommandBuffer&commandbuffers, VkQueue graphics, const VkSemaphore&imageAcquired, const VkSemaphore&renderComplete, const VkFence&fence = VK_NULL_HANDLE);
     //setlayoutBindings可以用偏移
     void UpdateDescriptorSets(VkDevice device, const VkDescriptorSetLayoutBinding *pBindings, uint32_t count, const std::vector<VulkanBuffer>&descriptorBuffer, const std::vector<VulkanImage>&descriptorImage, VkDescriptorSet&destSet, const VkSampler&textureSampler = VK_NULL_HANDLE);
 };

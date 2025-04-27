@@ -20,7 +20,7 @@
 
 #include "VulkanImgui.h"
 #include "imgui_impl_glfw.h"
-#define DEBUG
+// #define DEBUG
 #define MAX_UNDO_STEP 100
 struct ImGuiInput{
     bool enableHan;
@@ -1272,7 +1272,7 @@ void CleanupVulkan(){
     g_VulkanDevice.Cleanup();
 }
 int main(){
-    // srandom(time(nullptr));
+    srandom(time(nullptr));
     if (GLFW_FALSE == glfwInit()) {
         printf("initialize glfw error");
         return 1;

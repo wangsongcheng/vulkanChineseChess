@@ -13,7 +13,7 @@
 #define SHI_CHESS_INDEX (CHE_CHESS_INDEX + CHE_CHESS_COUNT)
 #define XIANG_CHESS_INDEX (SHI_CHESS_INDEX + SHI_CHESS_COUNT)
 #define BING_CHESS_INDEX (XIANG_CHESS_INDEX + XIANG_CHESS_COUNT)
-
+//以下宏最好不要修改
 #define WU_TERRITORY_INDEX 0
 #define WEI_TERRITORY_INDEX 1
 #define SHU_TERRITORY_INDEX 2
@@ -35,8 +35,7 @@ protected:
     uint32_t GetTerritoryIndex()const;
     uint32_t GetTerritoryIndex(uint32_t row, uint32_t column)const;
     void RemoveInvalidChess(const void *pBoard, std::vector<glm::vec2>&canplays)const;
-    //调用该函数前，需要先确保棋子已经在九宫格内
-    void InPalaceMove(const glm::vec2&palacesCenter, std::vector<glm::vec2>&canplays)const;
+    virtual void InPalaceMove(const void *pBoard, std::vector<glm::vec2>&canplays)const;
 public:
     Chess(/* args */);
     Chess(uint32_t row, uint32_t column, bool hasExitPermission);
@@ -132,6 +131,7 @@ public:
     virtual void Select(const void *pBoard, std::vector<glm::vec2>&canplays)const;
 };
 class Pao:public Chess{
+    virtual void InPalaceMove(const void *pBoard, std::vector<glm::vec2>&canplays)const;
 public:
     Pao();
     Pao(uint32_t row, uint32_t column);

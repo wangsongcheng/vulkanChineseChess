@@ -66,7 +66,7 @@ const char *vulkanFrame::cvmx_chip_type_to_string(VkResult type){
 	return "VK_ERROR_UNKNOWN";
 }
 
-VkResult vulkanFrame::Submit(VkDevice device, const VkCommandBuffer&commandbuffers, VkQueue graphics, const VkSemaphore&imageAcquired, const VkSemaphore&renderComplete, const VkFence&fence){
+VkResult vulkanFrame::Submit(const VkCommandBuffer&commandbuffers, VkQueue graphics, const VkSemaphore&imageAcquired, const VkSemaphore&renderComplete, const VkFence&fence){
 	// imagesInFlight[imageIndex] = inFlightFences[currentFrame];
 	VkSubmitInfo submitInfo = {};
 	VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
@@ -98,7 +98,7 @@ uint32_t vulkanFrame::Prepare(VkDevice device, VkSwapchainKHR swapchain, const V
     return imageIndex;
 }
 
-VkResult vulkanFrame::Present(VkDevice device, uint32_t imageIndex, VkSwapchainKHR swapchain, const VkQueue present, const VkSemaphore&renderComplete, void(*recreateSwapchain)(void* userData), void* userData){
+VkResult vulkanFrame::Present(uint32_t imageIndex, VkSwapchainKHR swapchain, const VkQueue present, const VkSemaphore&renderComplete, void(*recreateSwapchain)(void* userData), void* userData){
 	VkPresentInfoKHR presentInfo = {};
 	presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
 	presentInfo.pImageIndices = &imageIndex;
@@ -121,8 +121,8 @@ VkResult vulkanFrame::Render(VkDevice device, uint32_t currentFrame, const VkCom
     vkResetFences(device, 1, &vulkanSynchronize.fences[currentFrame]);
     uint32_t imageIndex = Prepare(device, swapchain, vulkanSynchronize.imageAcquired[currentFrame], recreateSwapchain, userData);
     
-    VK_CHECK(Submit(device, commandbuffers, vulkanQueue.graphics, vulkanSynchronize.imageAcquired[currentFrame], vulkanSynchronize.renderComplete[currentFrame], vulkanSynchronize.fences[currentFrame]));
-    return Present(device, imageIndex, swapchain, vulkanQueue.present, vulkanSynchronize.renderComplete[currentFrame], recreateSwapchain, userData);;
+    VK_CHECK(Submit(commandbuffers, vulkanQueue.graphics, vulkanSynchronize.imageAcquired[currentFrame], vulkanSynchronize.renderComplete[currentFrame], vulkanSynchronize.fences[currentFrame]));
+    return Present(imageIndex, swapchain, vulkanQueue.present, vulkanSynchronize.renderComplete[currentFrame], recreateSwapchain, userData);;
 }
 
 VkResult vulkanFrame::CreateTextureSampler(VkDevice device, VkSampler &sampler){
