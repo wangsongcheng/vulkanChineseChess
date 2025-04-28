@@ -24,14 +24,14 @@ class Ai{
     // bool mPause;
     Game *mGame;
     OnLine *mOnline;
+    bool Check(uint32_t country, uint32_t row, uint32_t column)const;
+    int32_t CanPlay(uint32_t country, const std::vector<glm::vec2>&canplays)const;
+    //获得能吃到pTarget的棋子
+    Chess *GetSelect(uint32_t country, const Chess *pTarget)const;
+    Chess *GetTarget(const Chess *pSelect, const std::vector<glm::vec2>&canplays)const;
     //返回的棋子肯定有位置可以下
     Chess *RandChess(uint32_t country)const;
     Chess *RandTarget(uint32_t country, const std::vector<glm::vec2>&canplays, uint32_t *row, uint32_t *column)const;
-    //获得能吃到pTarget的棋子
-    Chess *GetSelect(uint32_t country, const Chess *pTarget)const;
-    bool Check(uint32_t country, uint32_t row, uint32_t column)const;
-    int32_t CanPlay(uint32_t country, const std::vector<glm::vec2>&canplays)const;
-    Chess *GetTarget(const Chess *pSelect, const std::vector<glm::vec2>&canplays)const;
 public:
     Ai(/* args */);
     ~Ai();

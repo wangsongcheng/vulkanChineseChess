@@ -4,26 +4,26 @@
 #include "Chess.h"
 #include "VulkanChessboard.h"
 
-#define HAN_PAO_CHESS_INDEX 1
-#define HAN_CHE_CHESS_INDEX (HAN_PAO_CHESS_INDEX + HAN_PAO_CHESS_COUNT)
+#define MAX_UNDO_STEP 100
 
 class Chessboard{
     uint32_t mCountryCount;
+    std::vector<glm::vec4>mRecord;
     std::array<glm::vec2, MAX_COUNTRY_INDEX>mPalacesCenter;
     std::array<Chess *, DRAW_COUNTRY_CHESS_COUNT>mChess[MAX_COUNTRY_INDEX];
-    void InitHanChessinfo(std::array<Chess *, DRAW_COUNTRY_CHESS_COUNT>&pChess);
     void InitWuChessRowAndColumn(std::array<Chess *, DRAW_COUNTRY_CHESS_COUNT>&pChess);
     void InitShuChessRowAndColumn(std::array<Chess *, DRAW_COUNTRY_CHESS_COUNT>&pChess);
     void InitWeiChessRowAndColumn(std::array<Chess *, DRAW_COUNTRY_CHESS_COUNT>&pChess);
     void InitHanChessRowAndColumn(std::array<Chess *, DRAW_COUNTRY_CHESS_COUNT>&pChess);
-    void InitChessInfo(uint32_t country, std::array<Chess *, DRAW_COUNTRY_CHESS_COUNT>&pChess);
     void InitHanChessRowAndColumn(uint32_t country, std::array<Chess *, DRAW_COUNTRY_CHESS_COUNT>&pChess);
 public:
     Chessboard(/* args */);
     ~Chessboard();
-    void CaptureChess(uint32_t srcCountry, uint32_t dstCountry, uint32_t dstChess);
-    //返回的棋子属于srcCountry, 该棋子下一步能吃掉dstCountry的chess
-    const Chess *Check(uint32_t srcCountry, uint32_t dstCountry, uint32_t chess)const;
+    void CaptureChess(const Chess *srcChess, const Chess *dstChess);
+    // //返回的棋子属于srcCountry, 该棋子下一步能吃掉dstCountry的chess
+    // const Chess *Check(uint32_t srcCountry, uint32_t dstCountry, uint32_t chess)const;
+    //返回的棋子属于country, 该棋子下一步能走到dstRow,dstColumn
+    const Chess *Check(uint32_t country, uint32_t dstRow, uint32_t dstColumn)const;
 
     void DestroyCountry(uint32_t country);
 
@@ -44,6 +44,10 @@ public:
     // void Select(const Chess *pChess, std::vector<glm::vec2>&canplays);
     // void Select(uint32_t country, uint32_t chess, std::vector<glm::vec2>&canplays);
     bool IsHasExitPermission(uint32_t country);
+
+    void SaveStep(uint32_t srcRow, uint32_t srcColumn, uint32_t dstRow, uint32_t dstColumn);
+
+    void UndoStep(uint32_t step = 1);
     // inline auto GetChess()const{
     //     return mChess;
     // }

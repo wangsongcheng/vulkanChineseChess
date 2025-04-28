@@ -13,6 +13,7 @@
 //不应该修改以下四个宏的值,否则，程序肯定乱套
 #define WU_COUNTRY_INDEX 0
 #define WEI_COUNTRY_INDEX 1
+//汉能走的情况下, 蜀应该为3，汉为2
 #define SHU_COUNTRY_INDEX 2
 #define HAN_COUNTRY_INDEX 3
 
@@ -78,6 +79,10 @@ public:
     //返回的棋子下一步能吃掉country的'将'
     const Chess *Check(uint32_t country)const;
     void SetNotAllianceCountry(uint32_t country, uint32_t row, uint32_t column);
+
+    inline void SaveStep(uint32_t srcRow, uint32_t srcColumn, uint32_t dstRow, uint32_t dstColumn){
+        mChessboard.SaveStep(srcRow, srcColumn, dstRow, dstColumn);
+    }
 
     // inline const Chess *Check(uint32_t srcCountry, uint32_t dstCountry, uint32_t chess) const{
     //     return mChessboard.Check(srcCountry, dstCountry, chess);

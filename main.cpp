@@ -21,7 +21,6 @@
 #include "VulkanImgui.h"
 #include "imgui_impl_glfw.h"
 // #define DEBUG
-#define MAX_UNDO_STEP 100
 struct ImGuiInput{
     bool enableHan;
     bool enableAutoPlay;
@@ -51,8 +50,6 @@ VulkanImGui g_VulkanImGui;
 VulkanChess g_Chess;
 VulkanWireframe g_SelectChess;
 VulkanChessboard g_VulkanChessboard;
-
-std::vector<glm::vec4>g_Record;
 
 std::vector<std::string>g_CountryItems[MAX_COUNTRY_INDEX];
 
@@ -102,23 +99,11 @@ void MoveChess(const glm::vec2&start, const glm::vec2&end, uint32_t fontIndex, u
 #endif
     }
 }
-void SaveStep(uint32_t srcRow, uint32_t srcColumn, uint32_t dstRow, uint32_t dstColumn){
-    //这个功能目前没有用到
-    //想写撤回功能的话, 还需要记录是不是吃子。另外，棋子被吃后也别直接销毁棋子，而是加一个标记然后不显示
-    if(g_Record.size() >= MAX_UNDO_STEP){
-        g_Record.erase(g_Record.begin());
-    }
-    g_Record.push_back(glm::vec4(srcRow, srcColumn, dstRow, dstColumn));
-}
 void UndoStep(){
-    // if(g_Record.size() > 0){
-    //     auto last = g_Record.back();
-    //     g_Record.pop_back();
-    //     PlayChess(g_Game.GetChess(last.x, last.y), last.z, last.w);
-    // }
+
 }
 void MoveChess(Chess *pStart, const Chess *pEnd){
-    const uint32_t dynamicOffsets = pStart->GetCountry() * DRAW_COUNTRY_CHESS_COUNT + pStart->GetChess();
+    const uint32_t dynamicOffsets = ROW_COLUMN_TO_INDEX(pStart->GetCountry(), pStart->GetChessOffset(), DRAW_COUNTRY_CHESS_COUNT);
     const glm::vec2 start = glm::vec2(COLUMN_TO_X(pStart->GetColumn()), ROW_TO_Y(pStart->GetRow())), end = glm::vec2(COLUMN_TO_X(pEnd->GetColumn()), ROW_TO_Y(pEnd->GetRow()));
     MoveChess(start, end, pStart->GetFontIndex(), dynamicOffsets);
 }
@@ -130,7 +115,7 @@ void UnSelectChess(){
 void PlayChess(Chess *pChess, uint32_t dstRow, uint32_t dstColumn){
     g_PlayChessMutex.lock();
     UnSelectChess();
-    SaveStep(pChess->GetRow(), pChess->GetColumn(), dstRow, dstColumn);
+    g_Game.SaveStep(pChess->GetRow(), pChess->GetColumn(), dstRow, dstColumn);
     const Chess *pTarget = g_Game.GetChess(dstRow, dstColumn);
     if(pTarget){
         MoveChess(pChess, pTarget);
@@ -143,7 +128,7 @@ void PlayChess(Chess *pChess, uint32_t dstRow, uint32_t dstColumn){
         }
     }
     else{
-        const uint32_t dynamicOffsets = pChess->GetCountry() * DRAW_COUNTRY_CHESS_COUNT + pChess->GetChess();
+        const uint32_t dynamicOffsets = ROW_COLUMN_TO_INDEX(pChess->GetCountry(), pChess->GetChessOffset(), DRAW_COUNTRY_CHESS_COUNT);
         const glm::vec2 start = glm::vec2(COLUMN_TO_X(pChess->GetColumn()), ROW_TO_Y(pChess->GetRow())), end = glm::vec2(COLUMN_TO_X(dstColumn), ROW_TO_Y(dstRow));
         MoveChess(start, end, pChess->GetFontIndex(), dynamicOffsets);
     }
@@ -161,7 +146,6 @@ void PlayChess(Chess *pChess, uint32_t dstRow, uint32_t dstColumn){
     uint32_t currerntCountry;
     const Chess *pCheck = g_Game.Check(&currerntCountry);
     if(pCheck){
-        //被将方不"解将"，则有问题
         uint32_t country = pCheck->GetCountry();
         if(currerntCountry == g_Game.GetCurrentCountry()){
             g_Game.ExtraTurn(country);
@@ -1272,7 +1256,7 @@ void CleanupVulkan(){
     g_VulkanDevice.Cleanup();
 }
 int main(){
-    srandom(time(nullptr));
+    // srandom(time(nullptr));
     if (GLFW_FALSE == glfwInit()) {
         printf("initialize glfw error");
         return 1;

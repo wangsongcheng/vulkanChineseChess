@@ -82,13 +82,7 @@ void Game::InitinalizeGame(int32_t player, int32_t currentCountry){
     mChessboard.InitializeChess(mPlayer, mHanCanPlay);
 }
 void Game::NextCountry(){
-    // if(mBackupPlayer != INVALID_COUNTRY_INDEX){
-    //     mCurrentCountry = mBackupPlayer;
-    //     mBackupPlayer = INVALID_COUNTRY_INDEX;
-    // }
-    // else{
     mCurrentCountry = GetNextCountry(mCurrentCountry);
-    // }
 }
 uint32_t Game::GetNextCountry()const{
     return GetNextCountry(mCurrentCountry);
@@ -133,7 +127,8 @@ void Game::RemoveInvalidTarget(const Chess *pChess, std::vector<glm::vec2>&canpl
 }
 
 void Game::CaptureChess(const Chess *play, const Chess *target){
-    mChessboard.CaptureChess(play->GetCountry(), target->GetCountry(), target->GetChess());
+    //因为我们直接用了简化的棋子索引，现在不能正确使用，或许应该再加上偏移
+    mChessboard.CaptureChess(play, target);
     if(!mHanCanPlay){
         if(target->GetChess() == JIANG_CHESS_INDEX){
             if(target->GetCountry() == HAN_COUNTRY_INDEX){
@@ -151,10 +146,12 @@ const Chess *Game::Check(uint32_t *sCountry) const{
     for (size_t srcCountry = 0; srcCountry < mCountryCount; ++srcCountry){
         for (size_t dstCountry = 0; dstCountry < mCountryCount; ++dstCountry){
             if(srcCountry != dstCountry){
-                pChess = mChessboard.Check(srcCountry, dstCountry, JIANG_CHESS_INDEX);
+                const Chess *pJiang = mChessboard.GetChess(dstCountry)[JIANG_CHESS_INDEX];
+                if(!pJiang)break;
+                pChess = mChessboard.Check(srcCountry, pJiang->GetRow(), pJiang->GetColumn());
                 if(pChess){
                     *sCountry = srcCountry;
-                    return mChessboard.GetChess(dstCountry)[JIANG_CHESS_INDEX];
+                    return pJiang;
                 }
             }
         }
@@ -166,7 +163,9 @@ const Chess *Game::Check(uint32_t country) const{
     const Chess *pChess = nullptr;
     for (size_t i = 0; i < mCountryCount; ++i){
         if(i != country){
-            pChess = mChessboard.Check(i, country, JIANG_CHESS_INDEX);
+            const Chess *pJiang = mChessboard.GetChess(country)[JIANG_CHESS_INDEX];
+            if(!pJiang)break;
+            pChess = mChessboard.Check(i, pJiang->GetRow(), pJiang->GetColumn());
             if(pChess){
                 break;
             }    
@@ -215,6 +214,7 @@ void Game::SetNotAllianceCountry(uint32_t country, uint32_t row, uint32_t column
     }
     if(allianceCountry != INVALID_COUNTRY_INDEX){
         notAllianceCountry = GET_NOT_ALLIANCE_COUNTRY(country, allianceCountry);
-        mChessboard.CaptureChess(notAllianceCountry, HAN_COUNTRY_INDEX, JIANG_CHESS_INDEX);    
+        mChessboard.GetCountryChess(notAllianceCountry, HAN_COUNTRY_INDEX);
+        mChessboard.DestroyCountry(HAN_COUNTRY_INDEX);
     }
 }
