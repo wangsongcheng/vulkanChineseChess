@@ -38,7 +38,7 @@ bool IsBoundary(int32_t row, int32_t column){
         // printf("到达边界, row:%u, column:%u\n", row, column);
         return true;
     }
-    else if ((row < CHESSBOARD_BING_GRID_DENSITY || row > CHESSBOARD_BOUNDARY_CHESS_COUNT - 1 + CHESSBOARD_BING_GRID_DENSITY) && (row < 0 || column < CHESSBOARD_BING_GRID_DENSITY || column > CHESSBOARD_BOUNDARY_CHESS_COUNT - 1 + CHESSBOARD_BING_GRID_DENSITY)){
+    else if ((row < CHESSBOARD_BING_GRID_DENSITY || row > CHESSBOARD_BOUNDARY_CENTER_RECT_COUNT - 1 + CHESSBOARD_BING_GRID_DENSITY) && (row < 0 || column < CHESSBOARD_BING_GRID_DENSITY || column > CHESSBOARD_BOUNDARY_CENTER_RECT_COUNT - 1 + CHESSBOARD_BING_GRID_DENSITY)){
         // printf("到达边界, row:%u, column:%u\n", row, column);
         return true;
     }
@@ -102,8 +102,8 @@ Chess::~Chess(){
 void Chess::SetPos(uint32_t row, uint32_t column){
     mRow = row;
     mColumn = column;
-    mPos.y = ROW_TO_Y(mRow);
-    mPos.x = COLUMN_TO_X(mColumn);
+    mPos.y = CHESS_ROW_TO_Y(mRow);
+    mPos.x = CHESS_COLUMN_TO_X(mColumn);
     if(INVALID_TERRITORY_INDEX == mTerritory)mTerritory = GetTerritoryIndex(row, column);
 }
 
@@ -262,13 +262,13 @@ void Pao::InPalaceMove(const void *pBoard, std::vector<glm::vec2> &canplays) con
             }
         }
         else{
-            //炮不一样的地方在于，不在中心也有可能直接跳到斜对面
+            //炮不一样的地方在于:不在中心也有可能直接跳到斜对面
             if(board->GetChess(center.y, center.x)){
                 const glm::vec2 pao = glm::vec2(mColumn, mRow);
                 const glm::vec2 dir = center - pao;
                 const glm::vec2 pos = pao + dir * 2.0f;
-                const Chess *pChedss = board->GetChess(pos.y, pos.x);
-                if(pChedss && pChedss->GetCountry() != mCountry)canplays.push_back(pos);
+                const Chess *pChess = board->GetChess(pos.y, pos.x);
+                if(pChess && pChess->GetCountry() != mCountry)canplays.push_back(pos);
             }
             else{
                 canplays.push_back(center);
@@ -365,7 +365,7 @@ void Pao::Select(const void *pBoard, std::vector<glm::vec2>&canplays) const{
 //     }
 // }
 
-// void Che::SetMatrix(Chess **pChess, float m[CHESSBOARD_ROW * CHESSBOARD_COLUMN]){
+// void Che::SetMatrix(Chess **pChess, float m[CHESSBOARD_ROW * MAX_CHESSBOARD_COLUMN]){
 //     //先设置为单位矩阵，再根据棋盘赋值
 //     // auto r = glm::determinant(m[0][0]);
 // }

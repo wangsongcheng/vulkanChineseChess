@@ -1,6 +1,7 @@
 #include <cstring>
 #include "VulkanBuffer.h"
 VkResult VulkanBuffer::CreateBuffer(VulkanDevice device, VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties){
+    if(buffer != VK_NULL_HANDLE)Destroy(device.device);
     this->size = size;
     VkBufferCreateInfo info = {};
     info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
@@ -8,11 +9,10 @@ VkResult VulkanBuffer::CreateBuffer(VulkanDevice device, VkDeviceSize size, VkBu
     info.usage = usage;
     info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
     VkResult result = vkCreateBuffer(device.device, &info, nullptr, &buffer);
-    // VK_MEMORY_PROPERTY_HOST_COHERENT_BIT可以保证数据写入后立即更新到buffer。但会导致性能下降
-    // 这种方式只使用于VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT应该用vkCmdCopyBuffer
+    if (result != VK_SUCCESS) return result; // 提前返回错误
 	VkMemoryRequirements memoryRequirements;
 	vkGetBufferMemoryRequirements(device.device, buffer, &memoryRequirements);
-    device.AllocateMemory(memoryRequirements.size, memoryRequirements.memoryTypeBits, properties, memory);
+    result = device.AllocateMemory(memoryRequirements.size, memoryRequirements.memoryTypeBits, properties, memory);
 	vkBindBufferMemory(device.device, buffer, memory, 0);
     return result;
 }
@@ -46,7 +46,6 @@ void VulkanBuffer::UpdateData(VulkanDevice device, const void *pData, VkQueue gr
 	submitInfo.pCommandBuffers = &command;
 
 	vkQueueSubmit(graphics, 1, &submitInfo, fence);
-	vkQueueWaitIdle(graphics);
     
     // Wait for the fence to signal that command buffer has finished executing
     vkWaitForFences(device.device, 1, &fence, VK_TRUE, UINT64_MAX);

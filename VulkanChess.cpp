@@ -1,6 +1,7 @@
 #include "font.h"
 #include <string.h>
 #include "VulkanChess.h"
+#include "Game.h"
 void VulkanChess::GetCircularVertex(const glm::vec3 &color, std::vector<Vertex> &vertices){
     Vertex v;
     v.color = color;
@@ -51,7 +52,7 @@ void VulkanChess::CreateFontResource(VulkanDevice device, VulkanPool pool, VkQue
     for (size_t i = 0; i < fontImageCount; ++i){
         datas[i] = new unsigned char[imageSize];
         memset(datas[i], 0, imageSize);
-        font::GetFontImageData(fontBuffer, FONT_WIDTH, FONT_HEIGHT, word[i], datas[i]);
+        font::GetFontImageData(fontBuffer, FONT_WIDTH, word[i], datas[i]);
     }
     fonts.image.CreateImageArray(device, (void *const *)datas.data(), fontImageCount, FONT_WIDTH, FONT_HEIGHT, 1, graphics, pool);
     for (auto&it:datas){
@@ -114,9 +115,7 @@ void VulkanChess::Cleanup(VkDevice device){
     vkDestroySampler(device, fonts.sampler, VK_NULL_HANDLE);
 }
 
-void VulkanChess::Setup(VulkanDevice device, uint32_t countryCount, uint32_t chessCount, VkDescriptorSetLayout layout, VkQueue graphics, VulkanPool pool){
-    game.chessCount = chessCount;
-    game.countryCount = countryCount;
+void VulkanChess::Setup(VulkanDevice device, VkDescriptorSetLayout layout, VkQueue graphics, VulkanPool pool){
     auto&physicalDeviceProperties = device.GetPhysicalDeviceProperties();
     uint32_t minUniformBufferOffset = ALIGN(sizeof(glm::mat4), physicalDeviceProperties.limits.minUniformBufferOffsetAlignment);
     uint32_t mFontMinUniformBufferOffset = ALIGN(sizeof(FontUniform), physicalDeviceProperties.limits.minUniformBufferOffsetAlignment);
@@ -125,10 +124,10 @@ void VulkanChess::Setup(VulkanDevice device, uint32_t countryCount, uint32_t che
     CreateFontResource(device, pool, graphics);
     CreateChessResource(device, pool, graphics);
     
-    uniform.chess.CreateBuffer(device, minUniformBufferOffset * chessCount * countryCount, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+    uniform.chess.CreateBuffer(device, minUniformBufferOffset * DRAW_CHESS_COUNT * MAX_COUNTRY_INDEX, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
     uniform.chess.size = minUniformBufferOffset;
 
-    uniform.font.CreateBuffer(device, mFontMinUniformBufferOffset * chessCount * countryCount, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+    uniform.font.CreateBuffer(device, mFontMinUniformBufferOffset * DRAW_CHESS_COUNT * MAX_COUNTRY_INDEX, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
     uniform.font.size = mFontMinUniformBufferOffset;
 
     pool.AllocateDescriptorSets(device.device, &layout, 1, &descriptorSet.font);
@@ -137,23 +136,23 @@ void VulkanChess::Setup(VulkanDevice device, uint32_t countryCount, uint32_t che
     UpdateDescriptorSet(device.device);
 }
 
-void VulkanChess::UpdateUniform(VkDevice device, uint32_t fontIndex, const glm::vec2&pos, uint32_t width, uint32_t height, uint32_t dynamicOffsets){
-    const glm::mat4 model = glm::scale(glm::translate(glm::mat4(1), glm::vec3(pos.x, pos.y, 0)), glm::vec3(width, height, 1));
+void VulkanChess::UpdateUniform(VkDevice device, uint32_t fontIndex, const glm::vec2&pos, uint32_t dynamicOffsets){
+    const glm::mat4 model = glm::scale(glm::translate(glm::mat4(1), glm::vec3(pos.x, pos.y, 0)), glm::vec3(CHESS_WIDTH, CHESS_HEIGHT, 1));
     uniform.chess.UpdateData(device, &model, dynamicOffsets * uniform.chess.size);
 
     FontUniform fontUbo;
     fontUbo.imageIndex = fontIndex;
     glm::vec3 fontPos = glm::vec3(pos.x, pos.y, 0);
-    fontPos.x -=  width * .8;
-    fontPos.y -= height * 1;
-    fontUbo.model = glm::scale(glm::translate(glm::mat4(1), fontPos), glm::vec3(width * 2, height * 2, 1));
+    fontPos.x -=  CHESS_WIDTH * .8;
+    fontPos.y -= CHESS_HEIGHT * 1;
+    fontUbo.model = glm::scale(glm::translate(glm::mat4(1), fontPos), glm::vec3(FONT_WIDTH, FONT_HEIGHT, 1));
     uniform.font.UpdateData(device, &fontUbo, dynamicOffsets * uniform.font.size);
 }
 
 void VulkanChess::DrawFont(VkCommandBuffer command, VkPipelineLayout layout){
     uint32_t dynamicOffsets;
     mFont.Bind(command);
-    for (size_t i = 0; i < game.chessCount * game.countryCount; ++i){
+    for (size_t i = 0; i < DRAW_CHESS_COUNT * MAX_COUNTRY_INDEX; ++i){
         dynamicOffsets = i * uniform.font.size;
         vkCmdBindDescriptorSets(command, VK_PIPELINE_BIND_POINT_GRAPHICS, layout, 0, 1, &descriptorSet.font, 1, &dynamicOffsets);
         mFont.Draw(command);
@@ -162,11 +161,11 @@ void VulkanChess::DrawFont(VkCommandBuffer command, VkPipelineLayout layout){
 void VulkanChess::DrawChess(VkCommandBuffer command, VkPipelineLayout layout, uint32_t currentCountry){
     mChess.Bind(command);
     uint32_t dynamicOffsets = 0;
-    for (size_t uiCountry = 0; uiCountry < game.countryCount; ++uiCountry){
-        for (size_t uiChess = 0; uiChess < game.chessCount; ++uiChess){
-            dynamicOffsets = ROW_COLUMN_TO_INDEX(uiCountry, uiChess, game.chessCount) * uniform.chess.size;
+    for (size_t uiCountry = 0; uiCountry < MAX_COUNTRY_INDEX; ++uiCountry){
+        for (size_t uiChess = 0; uiChess < DRAW_CHESS_COUNT; ++uiChess){
+            dynamicOffsets = ROW_COLUMN_TO_INDEX(uiCountry, uiChess, DRAW_CHESS_COUNT) * uniform.chess.size;
             vkCmdBindDescriptorSets(command, VK_PIPELINE_BIND_POINT_GRAPHICS, layout, 0, 1, &descriptorSet.chess, 1, &dynamicOffsets);
-            mChess.Draw(command, uiCountry == currentCountry?uiCountry * mChess.vertexCount:(game.countryCount + uiCountry) * mChess.vertexCount);
+            mChess.Draw(command, uiCountry == currentCountry?uiCountry * mChess.vertexCount:(MAX_COUNTRY_INDEX + uiCountry) * mChess.vertexCount);
         }
     }
 }

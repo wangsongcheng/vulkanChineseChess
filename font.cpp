@@ -11,7 +11,7 @@ uint32_t font::GetFileSize(FILE *fp){
     return size;
 }
 
-void font::GetFontImageData(const unsigned char *fontData, int bitmap_w, int bitmap_h, wchar_t word, unsigned char *out){
+void font::GetFontImageData(const unsigned char *fontData, int bitmap_w, wchar_t word, unsigned char *out){
 	stbtt_fontinfo info;
     const float pixels = bitmap_w;
 	if(!stbtt_InitFont(&info, fontData, 0)){

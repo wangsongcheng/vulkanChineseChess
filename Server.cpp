@@ -6,7 +6,7 @@ Server::~Server(){
 }
 bool Server::CreateServer(int listenCount){
     mSocket = socket(AF_INET, SOCK_STREAM, 0);
-    if(mSocket == -1){
+    if(mSocket == INVALID_SOCKET){
         perror("create server socket error");
         return false;
     }

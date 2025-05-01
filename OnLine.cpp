@@ -87,8 +87,10 @@ void OnLine::Cleanup(){
     message.event = GAME_OVER_GAME_EVENT;
     if(IsServer())
         mServer.SendToAllClient(&message, sizeof(message));
-    else
+    else{
+        message.event = PLAYER_EXIT_GAME_EVENT;
         mClient.SendTo(&message, sizeof(message));
+    }
     mServer.ShutdownClient();
     mServer.ShutdownServer();
     mClient.Shutdown();

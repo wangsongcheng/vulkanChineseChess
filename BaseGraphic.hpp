@@ -191,13 +191,13 @@ struct VulkanSphere:BaseGraphic{
         v.color = glm::vec3(1, 0, 0) * .5f;
         vertices.emplace_back(Vertex(glm::vec3(0.0f, 0.0f, radius), color));
         // 纬度细分（递增Z轴）
-        for (int lat = 1; lat <= SPHERE_DETAIL; ++lat) {
+        for (uint32_t lat = 1; lat <= SPHERE_DETAIL; ++lat) {
             float theta = lat * M_PI / SPHERE_DETAIL; // [0, π]
             float sinTheta = sin(theta);
             float cosTheta = cos(theta);
             
             // 经度细分（复平面XY映射）
-            for (int lon = 0; lon <= SPHERE_DETAIL; ++lon) {
+            for (uint32_t lon = 0; lon <= SPHERE_DETAIL; ++lon) {
                 float phi = lon * 2 * M_PI / SPHERE_DETAIL; // [0, 2π]
                 float sinPhi = sin(phi);
                 float cosPhi = cos(phi);
@@ -216,13 +216,13 @@ struct VulkanSphere:BaseGraphic{
         vertices.emplace_back(Vertex(glm::vec3(0.0f, 0.0f, -radius), color));        
     }
     void GetIndices(uint32_t vertexCount, std::vector<uint16_t>&indices){
-        for (int lat = 0; lat < SPHERE_DETAIL; ++lat) {
-            for (int lon = 0; lon < SPHERE_DETAIL; ++lon) {
+        for (uint32_t lat = 0; lat < SPHERE_DETAIL; ++lat) {
+            for (uint32_t lon = 0; lon < SPHERE_DETAIL; ++lon) {
                 // 计算当前层和下一层的顶点索引
-                int current = (lat == 0) ? 0 : ( (lat - 1) * (SPHERE_DETAIL + 1) + lon + 1 );
-                int next = (lat == 0) ? 0 : ( (lat - 1) * (SPHERE_DETAIL + 1) + lon + 2 );
-                int below = (lat == SPHERE_DETAIL - 1) ? vertexCount - 1 : ( lat * (SPHERE_DETAIL + 1) + lon + 1 );
-                int belowNext = (lat == SPHERE_DETAIL - 1) ? vertexCount - 1 : ( lat * (SPHERE_DETAIL + 1) + lon + 2 );
+                int32_t current = (lat == 0) ? 0 : ( (lat - 1) * (SPHERE_DETAIL + 1) + lon + 1 );
+                int32_t next = (lat == 0) ? 0 : ( (lat - 1) * (SPHERE_DETAIL + 1) + lon + 2 );
+                int32_t below = (lat == SPHERE_DETAIL - 1) ? vertexCount - 1 : ( lat * (SPHERE_DETAIL + 1) + lon + 1 );
+                int32_t belowNext = (lat == SPHERE_DETAIL - 1) ? vertexCount - 1 : ( lat * (SPHERE_DETAIL + 1) + lon + 2 );
 
                 // 连接三角形
                 if (lat > 0) { // 非北极层
@@ -242,7 +242,7 @@ struct VulkanSphere:BaseGraphic{
         }
 
         // 闭合南极层
-        for (int lon = 0; lon < SPHERE_DETAIL; ++lon) {
+        for (uint32_t lon = 0; lon < SPHERE_DETAIL; ++lon) {
             int current = (SPHERE_DETAIL - 2) * (SPHERE_DETAIL + 1) + lon + 1;
             int next = (lon == SPHERE_DETAIL - 1) ? (SPHERE_DETAIL - 2) * (SPHERE_DETAIL + 1) + 1 : current + 1;
             
@@ -303,7 +303,7 @@ private:
         std::vector<Vertex> vctBot;
 
         Vertex tVertex;
-        for(int i = 0; i < unitVertices.size(); ++i){
+        for(uint32_t i = 0; i < unitVertices.size(); ++i){
             tVertex.pos = unitVertices[i].pos;
             tVertex.pos.y = height;
             vctTop.push_back(tVertex);  
@@ -317,7 +317,7 @@ private:
 
         std::vector<Vertex>vertices;
         // 圆柱侧面
-        for(int i = 0; i < vctTop.size() - 1; ++i){
+        for(uint32_t i = 0; i < vctTop.size() - 1; ++i){
             // 左三角形
             vertices.push_back(vctTop[i]);
             vertices.push_back(vctBot[i]);
@@ -330,8 +330,7 @@ private:
         }
         
         // 顶部圆形
-        glm::vec3 position;
-        for (int i = 0; i < vctTop.size() - 1; ++i){
+        for (uint32_t i = 0; i < vctTop.size() - 1; ++i){
             glm::vec3 position(0.0f, height, 0.0f);
             glm::vec3 normal(0.0f, 1.0f, 0.0f);
             tVertex.pos = position;
@@ -345,7 +344,7 @@ private:
         }
 
         // 底部圆形
-        for (int i = 0; i < vctBot.size() - 1; ++i){
+        for (uint32_t i = 0; i < vctBot.size() - 1; ++i){
             glm::vec3 position(0.0f, 0.0f, 0.0f);
             glm::vec3 normal(0.0f, -1.0f, 0.0f);
             tVertex.pos = position;

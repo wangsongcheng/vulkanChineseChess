@@ -2,20 +2,15 @@
 #define CHESS_INCLUDE
 #include <vector>
 #include <cstdint>
+#include "stdafx.h"
 #include "glm/glm.hpp"
-#define CHESS_WIDTH 20
-#define CHESS_HEIGHT CHESS_WIDTH
 
-#define HAN_PAO_CHESS_INDEX 1
-#define HAN_CHE_CHESS_INDEX (HAN_PAO_CHESS_INDEX + HAN_PAO_CHESS_COUNT)
-
-//以下宏最好不要修改
-#define WU_TERRITORY_INDEX 0
-#define WEI_TERRITORY_INDEX 1
-#define SHU_TERRITORY_INDEX 2
-#define HAN_TERRITORY_INDEX 3
-#define CENTER_TERRITORY_INDEX 4
-#define INVALID_TERRITORY_INDEX -1
+#define WU_TERRITORY_INDEX WU_COUNTRY_INDEX
+#define WEI_TERRITORY_INDEX WEI_COUNTRY_INDEX
+#define SHU_TERRITORY_INDEX SHU_COUNTRY_INDEX
+#define HAN_TERRITORY_INDEX HAN_COUNTRY_INDEX
+#define CENTER_TERRITORY_INDEX (HAN_TERRITORY_INDEX + 1)
+#define INVALID_TERRITORY_INDEX INVALID_COUNTRY_INDEX
 
 #define GET_TERRITORY_INDEX(COUNTRY, PLAYERCOUNTRY)((COUNTRY - PLAYERCOUNTRY) % 4)
 class Chess{
@@ -24,10 +19,10 @@ class Chess{
     bool mHasExitPermission;
 protected:
     uint32_t mRow;
-    uint32_t mChess;
+    uint32_t mChess;//用于判断棋子的类型
     uint32_t mColumn;
     uint32_t mCountry;
-    uint32_t mChessOffset = 0;//[0, 棋子数量)
+    uint32_t mChessOffset = 0;//用于计算棋子的uniform偏移等
     uint32_t mTerritory = INVALID_TERRITORY_INDEX;
     uint32_t GetTerritoryIndex()const;
     uint32_t GetTerritoryIndex(uint32_t row, uint32_t column)const;

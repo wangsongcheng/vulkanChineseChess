@@ -30,7 +30,7 @@ bool VulkanDevice::GetPhysicalDevices(bool (*GetPhysicalDevices)(VkPhysicalDevic
 }
 uint32_t VulkanDevice::GetQueueFamiliesIndex(VkQueueFlagBits queue){
     int32_t queueFamilyIndex = -1;
-	for (int i = 0; i < queueFamiliesProperties.size(); ++i) {
+	for (uint32_t i = 0; i < queueFamiliesProperties.size(); ++i) {
         if (queueFamiliesProperties[i].queueCount > 0 && queueFamiliesProperties[i].queueFlags & queue) {
             queueFamilyIndex = i;
             break;
@@ -91,7 +91,7 @@ uint32_t VulkanDevice::GetQueueFamiliesIndex(VkSurfaceKHR surface){
     VkBool32 presentSupport = false;
     if (surface != VK_NULL_HANDLE){
         //该队列族有呈现能力即可
-        for (int i = 0; i < queueFamiliesProperties.size(); ++i) {
+        for (uint32_t i = 0; i < queueFamiliesProperties.size(); ++i) {
             vkGetPhysicalDeviceSurfaceSupportKHR(physicalDevice, i, surface, &presentSupport);
             if (presentSupport) {
                 queueFamilyIndex = i;
@@ -116,7 +116,7 @@ VkResult VulkanDevice::AllocateMemory(VkDeviceSize size, uint32_t typeFilter, Vk
     allocateInfo.pNext = nullptr;
     allocateInfo.allocationSize = size;
     allocateInfo.memoryTypeIndex = findMemoryTypeIndex(typeFilter, properties);
-    if (allocateInfo.memoryTypeIndex == -1) {
+    if (allocateInfo.memoryTypeIndex == -1u) {
         throw std::runtime_error("Failed to find suitable memory type!");
     }
 	return vkAllocateMemory(device, &allocateInfo, nullptr, &memory);

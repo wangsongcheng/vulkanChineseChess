@@ -24,6 +24,7 @@ class Ai{
     // bool mPause;
     Game *mGame;
     OnLine *mOnline;
+    const Chess *Check(uint32_t country) const;
     bool Check(uint32_t country, uint32_t row, uint32_t column)const;
     int32_t CanPlay(uint32_t country, const std::vector<glm::vec2>&canplays)const;
     //获得能吃到pTarget的棋子
@@ -73,16 +74,16 @@ public:
         return mOnline->GetAiClientIndex();        
     }
     inline uint32_t GetPlayer()const{
-        return mGame->GetPlayer();
-    }
-    inline void NextCountry(){
-        mGame->NextCountry();
+        return mGame->GetPlayerCountry();
     }
     inline uint32_t GetCurrentCountry()const{
         return mGame->GetCurrentCountry();        
     }
     inline bool IsServer()const{
         return mOnline->IsServer();
+    }
+    inline void PlayChess(Chess *pChess, uint32_t dstRow, uint32_t dstColumn)const{
+        mGame->PlayChess(pChess, dstRow, dstColumn);
     }
     inline void SendPlayChessMessage(const Player&game, const Chess *pSelect, const Chess *pTarget)const{
         mOnline->SendPlayChessMessage(game, pSelect, pTarget);

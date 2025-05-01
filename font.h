@@ -4,6 +4,6 @@
 #include <iostream>
 namespace font{
     uint32_t GetFileSize(FILE *fp);
-    void GetFontImageData(const unsigned char *fontData, int bitmap_w, int bitmap_h, wchar_t word, unsigned char *out);
+    void GetFontImageData(const unsigned char *fontData, int bitmap_w, wchar_t word, unsigned char *out);
 }
 #endif
