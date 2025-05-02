@@ -48,7 +48,7 @@ public:
     inline void End(){
         mEnd = true;
     }
-    inline bool IsEnd(){
+    inline bool IsEnd()const{
         return mEnd;
     }
     // inline bool IsPause(){
@@ -84,6 +84,12 @@ public:
     }
     inline void PlayChess(Chess *pChess, uint32_t dstRow, uint32_t dstColumn)const{
         mGame->PlayChess(pChess, dstRow, dstColumn);
+    }
+    inline void UnSelectChess()const{
+        mGame->UnSelectChess();
+    }
+    inline void SelectChess(const Chess *pChess)const{
+        mGame->SelectChess(pChess);
     }
     inline void SendPlayChessMessage(const Player&game, const Chess *pSelect, const Chess *pTarget)const{
         mOnline->SendPlayChessMessage(game, pSelect, pTarget);

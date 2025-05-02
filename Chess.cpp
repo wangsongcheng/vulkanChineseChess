@@ -38,7 +38,7 @@ bool IsBoundary(int32_t row, int32_t column){
         // printf("到达边界, row:%u, column:%u\n", row, column);
         return true;
     }
-    else if ((row < CHESSBOARD_BING_GRID_DENSITY || row > CHESSBOARD_BOUNDARY_CENTER_RECT_COUNT - 1 + CHESSBOARD_BING_GRID_DENSITY) && (row < 0 || column < CHESSBOARD_BING_GRID_DENSITY || column > CHESSBOARD_BOUNDARY_CENTER_RECT_COUNT - 1 + CHESSBOARD_BING_GRID_DENSITY)){
+    else if ((row < CHESSBOARD_BING_GRID_DENSITY || row > CHESSBOARD_BOUNDARY_CENTER_RECT_COUNT + CHESSBOARD_BING_GRID_DENSITY) && (column < CHESSBOARD_BING_GRID_DENSITY || column > CHESSBOARD_BOUNDARY_CENTER_RECT_COUNT + CHESSBOARD_BING_GRID_DENSITY)){
         // printf("到达边界, row:%u, column:%u\n", row, column);
         return true;
     }

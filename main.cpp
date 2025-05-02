@@ -13,11 +13,6 @@
 #include "VulkanImgui.h"
 #include "VulkanWindow.h"
 #include "imgui_impl_glfw.h"
-struct ImGuiInput{
-    bool enableAi;
-    bool enableHan;
-    bool enableAutoPlay;
-};
 VulkanPool g_VulkanPool;
 VulkanQueue g_VulkanQueue;
 VulkanDevice g_VulkanDevice;
@@ -392,13 +387,7 @@ void *process_client(void *userData){
                 dstColumn = pTarget->GetColumn();
             }
             g_Game.PlayChess(pStart, dstRow, dstColumn);
-            //下完棋要调用下面的函数
-            if(g_Game.IsOnline()){
-                if(g_OnLine.IsServer())g_Ai.EnableNextCountry(g_ImGuiInput.enableAutoPlay);
-            }
-            else{
-                g_Ai.EnableNextCountry(g_ImGuiInput.enableAutoPlay);
-            }
+            g_Ai.EnableNextCountry(g_ImGuiInput.enableAutoPlay);
         }
         else if(message.event == PLAYER_EXIT_GAME_EVENT){
             printf("in function %s:player exit\n", __FUNCTION__);
@@ -732,13 +721,7 @@ void *PlayChessFun(void *userData){
     if(g_Game.GameOver()){
         g_Ai.End();
     }
-    //下完棋要调用下面的函数
-    if(g_Game.IsOnline()){
-        if(g_OnLine.IsServer())g_Ai.EnableNextCountry(g_ImGuiInput.enableAutoPlay);
-    }
-    else{
-        g_Ai.EnableNextCountry(g_ImGuiInput.enableAutoPlay);
-    }
+    g_Ai.EnableNextCountry(g_ImGuiInput.enableAutoPlay);
     return nullptr;
 }
 const Chess *g_Select;
@@ -786,10 +769,10 @@ void mousebutton(GLFWwindow *window,int button,int action,int mods){
     const glm::vec2 mousePos = glm::vec2(xpos, ypos);
     if (g_Game.IsGameStart() && action == GLFW_RELEASE && button == GLFW_MOUSE_BUTTON_LEFT){
         if(SelectChess(mousePos)){
-            g_Game.SelectChess(g_VulkanDevice.device, g_Select);
+            g_Game.SelectChess(g_Select);
         }
         else{
-            g_Game.UnSelectChess(g_VulkanDevice.device);
+            g_Game.UnSelectChess();
         }
     }
 }

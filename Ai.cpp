@@ -1,11 +1,11 @@
 #include "Ai.h"
+extern ImGuiInput g_ImGuiInput;
 extern std::array<Player, MAX_COUNTRY_INDEX>g_Players;
-void aiPlay(const Ai *pAi){
+void aiPlay(Ai *pAi){
     uint32_t dstRow, dstColumn;
     Chess *pSelect = pAi->GetSelect(pAi->GetCurrentCountry());
     const Chess *pTarget = pAi->GetTarget(pSelect, &dstRow, &dstColumn);
-    printf("pSelect:row:%d, column:%d,offset:%d\n", pSelect->GetRow(), pSelect->GetColumn(), pSelect->GetChessOffset());
-    // SelectChess(g_VulkanDevice.device, pSelect);
+    pAi->SelectChess(pSelect);
     if(pAi->IsOnline()){
         //ai发送的pSelect没被正确解析
         if(pTarget){
@@ -21,7 +21,9 @@ void aiPlay(const Ai *pAi){
     else{
         pAi->PlayChess(pSelect, dstRow, dstColumn);
     }
-    // UnSelectChess(g_VulkanDevice.device);
+    pAi->UnSelectChess();
+    //下完棋要调用下面的函数
+    pAi->EnableNextCountry(g_ImGuiInput.enableAutoPlay);
 }
 void *AiPlayChess(void *userData){
     Ai *pAi = (Ai *)userData;
@@ -531,6 +533,7 @@ Chess *Ai::RandTarget(uint32_t country, const std::vector<glm::vec2> &canplays, 
     do{
         index = rand() % canplays.size();
         pTarget = pBoard->GetChess(canplays[index].y, canplays[index].x);
+        if(canplays.size() <= 1)break;
     } while (Check(country, canplays[index].y, canplays[index].x));
     *row = canplays[index].y;
     *column = canplays[index].x;
@@ -594,6 +597,7 @@ Chess *Ai::GetSelect(uint32_t country)const{
     auto pBoard = mGame->GetChessboard();
     const Chess *pCheck = Check(country);
     auto pCountryChess = pBoard->GetChess(country);
+    //还需要考虑该棋子走开后，将会不会被吃掉....不过...如果不自己搞一个chessboard类模拟的话，似乎没法判断啊
     if(pCheck){
         //被将了。优先把将的棋子吃掉，不行则走将
         pSelect = GetSelect(country, pCheck);
@@ -688,75 +692,3 @@ const Chess *Ai::GetTarget(const Chess *pSelect, uint32_t *row, uint32_t *column
     if(!pTarget)pTarget = RandTarget(country, canplays, row, column);
     return pTarget;
 }
-// void Ai::GetPlayChess(uint32_t country, Chess **pSelect, Chess **pTarget, uint32_t *row, uint32_t *column) const{
-//     std::vector<glm::vec2>canplays;
-//     // // 继续用if 写ai吧。先考虑防守，将优先级最高，必须立即解，依次是车马，炮相士兵
-//     // // 进攻的话，看看棋谱吧，特别是有可能和残局差不多的布局
-//     // // const ChessInfo *pSelect = nullptr, *pRival = nullptr;
-//     // // const uint32_t nextCountry = GetNextCountry(g_CurrentCountry);
-//     // // const ChessInfo * = GetRival(g_CurrentCountry, (uint32_t)JIANG_CHESS_INDEX);
-//     // // if(pRival){
-//     // //     pSelect = g_Chessboard.GetChessInfo(g_CurrentCountry, JIANG_CHESS_INDEX);
-//     // //     Dangerous(&pSelect, &pRival);
-//     // // }
-//     // // else{
-//     // //     pRival = GetRival(g_CurrentCountry, &pSelect);
-//     // //     if(!pRival){
-//     // //         pSelect = nullptr;
-//     // //         //如果某个棋子面临被吃问题, 如果有棋子可以解则解，无再逃走
-//     // //         for (uint32_t uiChess = 1; uiChess < COUNTRY_CHESS_COUNT; ++uiChess){
-//     // //             pRival = GetRival(g_CurrentCountry, nextCountry, uiChess);
-//     // //             if(pRival){
-//     // //                 pSelect = g_Chessboard.GetChessInfo(g_CurrentCountry, uiChess);
-//     // //                 Dangerous(&pSelect, &pRival);
-//     // //                 break;
-//     // //             }
-//     // //         }
-//     // //     }
-//     // // }
-//     *pSelect = GetSelect(country);
-//     auto pAllChess = mGame->GetChessBoard()->GetChess();
-//     if(!*pSelect){
-//         do{
-//             *pSelect = pAllChess[country][rand() % DRAW_COUNTRY_CHESS_COUNT];
-//             if(*pSelect){
-//                 canplays.clear();
-//                 const Chess *pChess = pAllChess[country][(*pSelect)->GetChess()];
-//                 pChess->Select(mGame->GetChessBoard(), canplays);
-//                 mGame->RemoveInvalidTarget(pChess, canplays);
-//                 //如果该势力下的任何位置都能被其他势力吃到, 那么会死循环
-//                 //虽然不太可能，但尽量加一个解将的算法
-//                 //除了汉以外，不要吃汉的其他棋子
-//                 //而且也不应该用select的属性，因为我们判断的是，下的位置是不是能被吃掉, 所以应该那目标位置算
-
-//                 //计谋篇
-//                 //驱虎吞狼:强制和棋多的一方结盟
-//                 //二虎竞食:强制和棋少的一方结盟
-//                 //离间之计:强制破坏另外两方盟约
-//                 if(Check((*pSelect)->GetCountry(), (*pSelect)->GetChess())){
-//                     (*pSelect) = nullptr;
-//                 }
-//             }
-//         }while(!*pSelect || -1 == CanPlay(country, canplays));//不用担心判断*player后死循环,因为"将"肯定会存在,否则就输了
-//     }
-//     else{
-//         (*pSelect)->Select(mGame->GetChessBoard(), canplays);
-//     }
-//     *pTarget = GetTarget(*pSelect, canplays);
-//     if(*pTarget){
-//         *row = (*pTarget)->GetRow();
-//         *column = (*pTarget)->GetColumn();
-//     }
-//     if(!*pTarget){
-//         //这个分支也有吃子的可能
-//         canplays.clear();
-//         pAllChess[country][(*pSelect)->GetChess()]->Select(mGame->GetChessBoard(), canplays);
-//         int32_t index = 0;
-//         do{
-//             index = rand() % canplays.size();
-//             *pTarget = mGame->GetChess(canplays[index].y, canplays[index].x);
-//         } while (*pTarget && (*pTarget)->GetCountry() == country);
-//         *row = canplays[index].y;
-//         *column = canplays[index].x;
-//     }
-// }

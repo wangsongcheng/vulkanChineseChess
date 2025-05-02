@@ -53,11 +53,11 @@ public:
 
     void RemoveInvalidTarget(const Chess *pChess, std::vector<glm::vec2>&canplays);
 
-    void SelectChess(VkDevice device, const Chess *pChess);
+    void SelectChess(const Chess *pChess);
 
     void SetNotAllianceCountry(uint32_t country, uint32_t row, uint32_t column);
 
-    void UnSelectChess(VkDevice device);
+    void UnSelectChess();
 
     void NextCountry();
     void NewGame(int32_t playerCountry = -1, int32_t currentCountry = -1);

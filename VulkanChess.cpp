@@ -64,7 +64,7 @@ void VulkanChess::CreateFontResource(VulkanDevice device, VulkanPool pool, VkQue
 void VulkanChess::CreateChessResource(VulkanDevice device, VulkanPool pool, VkQueue graphics){
     //这里得准备4*2种颜色的棋子
     std::vector<Vertex> circularVertices;
-    glm::vec3 countryColor[] = { WU_CHESS_COUNTRY_COLOR, WEI_CHESS_COUNTRY_COLOR, SHU_CHESS_COUNTRY_COLOR, HAN_CHESS_COUNTRY_COLOR };
+    glm::vec3 countryColor[] = { SHU_CHESS_COUNTRY_COLOR, WU_CHESS_COUNTRY_COLOR, WEI_CHESS_COUNTRY_COLOR, HAN_CHESS_COUNTRY_COLOR };
 
     GetCircularVertex(countryColor[0], circularVertices);
     mChess.vertexCount = circularVertices.size();
