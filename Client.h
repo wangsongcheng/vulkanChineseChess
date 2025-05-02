@@ -20,7 +20,7 @@ typedef unsigned long long SOCKET;
 #ifndef MAX_BYTE
 #define MAX_BYTE 0xff
 #endif
-#define INVALID_SOCKET -1
+#define INVALID_SOCKET 10000
 #define INTERNET_PORT 10086
 #define INVALID_PLAYER_INDEX -1
 class Client{

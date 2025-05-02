@@ -252,13 +252,13 @@ void *process_server(void *userData){
 #endif
 void InitJiangPos(){
     const Chessboard *pBoard = g_Game.GetChessboard();
-    const Chess *pChess = pBoard->GetChess(WEI_COUNTRY_INDEX)[JIANG_CHESS_INDEX];
+    const Chess *pChess = pBoard->GetChess(WEI_COUNTRY_INDEX)[Chess::Type::Jiang_Chess];
     g_JiangPos[WEI_COUNTRY_INDEX] = glm::vec2(pChess->GetColumn(), pChess->GetRow());
-    pChess = pBoard->GetChess(SHU_COUNTRY_INDEX)[JIANG_CHESS_INDEX];
+    pChess = pBoard->GetChess(SHU_COUNTRY_INDEX)[Chess::Type::Jiang_Chess];
     g_JiangPos[SHU_COUNTRY_INDEX] = glm::vec2(pChess->GetColumn(), pChess->GetRow());
-    pChess = pBoard->GetChess(WU_COUNTRY_INDEX)[JIANG_CHESS_INDEX];
+    pChess = pBoard->GetChess(WU_COUNTRY_INDEX)[Chess::Type::Jiang_Chess];
     g_JiangPos[WU_COUNTRY_INDEX] = glm::vec2(pChess->GetColumn(), pChess->GetRow());
-    pChess = pBoard->GetChess(HAN_COUNTRY_INDEX)[JIANG_CHESS_INDEX];
+    pChess = pBoard->GetChess(HAN_COUNTRY_INDEX)[Chess::Type::Jiang_Chess];
     g_JiangPos[HAN_COUNTRY_INDEX] = glm::vec2(pChess->GetColumn(), pChess->GetRow());
 }
 void Invert(uint32_t row, uint32_t column, uint32_t&newRow, uint32_t&newColumn){
@@ -712,6 +712,15 @@ void RecordCommand(VkCommandBuffer command, VkFramebuffer frame){
     vkEndCommandBuffer(command);
 }
 void keybutton(GLFWwindow *window, int key, int scancode, int action, int mods){
+    if(action == GLFW_RELEASE){
+        if(key == GLFW_KEY_Z){
+            if(GLFW_PRESS == glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) || GLFW_PRESS == glfwGetKey(window, GLFW_KEY_LEFT_CONTROL)){
+                auto pBoard = g_Game.GetChessboard();
+                pBoard->UndoStep();
+                g_Game.UpdateUniform(g_VulkanDevice.device, g_WindowWidth);
+            }
+        }    
+    }
 }
 void *PlayChessFun(void *userData){
     glm::vec4 info = *(glm::vec4 *)userData;
@@ -1035,6 +1044,7 @@ void CleanupVulkan(){
     g_VulkanDevice.Cleanup();
 }
 int main(){
+    srandom(time(nullptr));
     if (GLFW_FALSE == glfwInit()) {
         printf("initialize glfw error");
         return 1;

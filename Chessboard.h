@@ -8,9 +8,12 @@
 
 class Chessboard{
     uint32_t mCountryCount;
-    std::vector<glm::vec4>mRecord;
+    std::vector<std::array<Chess, 2>>mRecord;
     std::array<glm::vec2, MAX_COUNTRY_INDEX>mPalacesCenter;
     std::array<Chess *, DRAW_CHESS_COUNT>mChess[MAX_COUNTRY_INDEX];
+
+    Chess *CreateChess(uint32_t country, Chess::Type chess, uint32_t row, uint32_t column);
+
     void InitWuChessRowAndColumn(std::array<Chess *, DRAW_CHESS_COUNT>&pChess);
     void InitShuChessRowAndColumn(std::array<Chess *, DRAW_CHESS_COUNT>&pChess);
     void InitWeiChessRowAndColumn(std::array<Chess *, DRAW_CHESS_COUNT>&pChess);
@@ -36,10 +39,10 @@ public:
     Chess *GetChess(uint32_t country, uint32_t row, uint32_t column)const;
 
 
-    void InitializeChess(uint32_t playerCountry, bool isControllable = false, uint32_t countryCount = 4);
+    void InitializeChess(uint32_t playerCountry, bool isControllable = false, uint32_t countryCount = MAX_COUNTRY_INDEX);
 
-    int32_t IsInPalace(uint32_t row, uint32_t column)const;
-    int32_t IsPalaceCenter(uint32_t row, uint32_t column)const;
+    uint32_t IsInPalace(uint32_t row, uint32_t column)const;
+    uint32_t IsPalaceCenter(uint32_t row, uint32_t column)const;
 
     // void Select(const Chess *pChess, std::vector<glm::vec2>&canplays);
     // void Select(uint32_t country, uint32_t chess, std::vector<glm::vec2>&canplays);
@@ -58,7 +61,7 @@ public:
         return mPalacesCenter[territory];
     }
     inline bool IsDeath(uint32_t country)const{
-        return !mChess[country][JIANG_CHESS_INDEX];
+        return !mChess[country][Chess::Type::Jiang_Chess];
     }
 };
 #endif

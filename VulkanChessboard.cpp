@@ -265,7 +265,7 @@ void VulkanChessboard::Setup(VulkanDevice device, VkDescriptorSetLayout setLayou
     UpdateDescriptorSet(device.device);
 }
 
-void VulkanChessboard::UpdateUniform(VkDevice device, uint32_t windowWidth){
+void VulkanChessboard::UpdateUniform(VkDevice device, uint32_t windowWidth, uint32_t playerCountry){
     //因为棋盘里面的坐标都是固定的, 所以可以直接在类里全画出来
     //但棋子位置不固定...
     UpdateBigGridUniform(device);
@@ -277,7 +277,7 @@ void VulkanChessboard::UpdateUniform(VkDevice device, uint32_t windowWidth){
     UpdateBackgroundUniform(device, windowWidth);
 
     //在确定位置前，绝对不能看出来在哪里
-    UpdateFontUniform(device, -1);
+    UpdateFontUniform(device, playerCountry);
 }
 
 void VulkanChessboard::UpdateFontUniform(VkDevice device, int32_t playerCountry){

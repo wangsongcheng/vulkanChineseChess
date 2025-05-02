@@ -1,6 +1,5 @@
 #include "OnLine.h"
 void OnLine::GetLocalIp(char outIp[]){
-    int status = -1;
     char buffer[MAX_BYTE] = {0};
     if(!gethostname(buffer, sizeof(buffer))){
 #ifdef WIN32

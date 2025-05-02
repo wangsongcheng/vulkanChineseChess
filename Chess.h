@@ -17,9 +17,20 @@ class Chess{
     glm::vec3 mPos;
     uint32_t mFontIndex;
     bool mHasExitPermission;
+public:
+    //一般情况不需要修改。添加新棋的话，应该从最后加索引, 也就是目前的兵
+    enum Type{
+        Jiang_Chess = 0,
+        Ma_Chess = Jiang_Chess + 1,
+        Pao_Chess = Ma_Chess + MA_CHESS_COUNT,
+        Che_Chess = Pao_Chess + PAO_CHESS_COUNT,
+        Shi_Chess = Che_Chess + CHE_CHESS_COUNT,
+        Xiang_Chess = Shi_Chess + SHI_CHESS_COUNT,
+        Bing_Chess = Xiang_Chess + XIANG_CHESS_COUNT
+    };
 protected:
+    Type mChess;
     uint32_t mRow;
-    uint32_t mChess;//用于判断棋子的类型
     uint32_t mColumn;
     uint32_t mCountry;
     uint32_t mChessOffset = 0;//用于计算棋子的uniform偏移等
@@ -30,8 +41,8 @@ protected:
     virtual void InPalaceMove(const void *pBoard, std::vector<glm::vec2>&canplays)const;
 public:
     Chess(/* args */);
-    Chess(uint32_t country, uint32_t chess, uint32_t fontIndex, bool hasExitPermission);
-    Chess(uint32_t country, uint32_t chess, uint32_t fontIndex, uint32_t row, uint32_t column, bool hasExitPermission);
+    Chess(uint32_t country, Type chess, uint32_t fontIndex, bool hasExitPermission);
+    Chess(uint32_t country, Type chess, uint32_t fontIndex, uint32_t row, uint32_t column, bool hasExitPermission);
     ~Chess();
     inline uint32_t GetRow()const{
         return mRow;
@@ -42,7 +53,7 @@ public:
     inline uint32_t GetColumn()const{
         return mColumn;
     }
-    inline uint32_t GetChess()const{
+    inline auto GetChess()const{
         return mChess;
     }
     inline uint32_t GetCountry()const{
@@ -51,7 +62,7 @@ public:
     inline uint32_t GetFontIndex()const{
         return mFontIndex ;
     }
-    inline void SetChess(uint32_t chess){
+    inline void SetChess(Type chess){
         mChess = chess;
     }
     inline void SetCountry(uint32_t country){

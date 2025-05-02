@@ -23,7 +23,7 @@ class Game{
         bool isControllable = false;
     }state;
     struct{
-        uint32_t country;
+        uint32_t country = INVALID_COUNTRY_INDEX;
     }player;
     Chessboard mChessboard;
     uint32_t mCurrentCountry;
@@ -31,7 +31,7 @@ class Game{
     uint32_t mMaxCountryCount = 3;
     void UpdateChessUniform(VkDevice device);
     void UpdateSelectChessUniform(VkDevice device, std::vector<glm::vec2>&canplays);
-    int32_t GetCanPlay(const glm::vec2&mousePos, const std::vector<glm::vec2>&canplays);
+    uint32_t GetCanPlay(const glm::vec2&mousePos, const std::vector<glm::vec2>&canplays);
 public:
     Game(/* args */);
     ~Game();
@@ -44,7 +44,7 @@ public:
     uint32_t GetNextCountry()const;
     uint32_t GetNextCountry(uint32_t country)const;
 
-    void InitinalizeGame(int32_t playerCountry = -1, int32_t currentCountry = -1);
+    void InitinalizeGame(int32_t playerCountry = INVALID_COUNTRY_INDEX, int32_t currentCountry = INVALID_COUNTRY_INDEX);
 
     void MoveChess(const glm::vec2&start, const glm::vec2&end, uint32_t fontIndex, uint32_t dynamicOffsets);
 
@@ -60,7 +60,7 @@ public:
     void UnSelectChess();
 
     void NextCountry();
-    void NewGame(int32_t playerCountry = -1, int32_t currentCountry = -1);
+    void NewGame(int32_t playerCountry = INVALID_COUNTRY_INDEX, int32_t currentCountry = INVALID_COUNTRY_INDEX);
     //绘图方面的函数
     void Cleanup(VkDevice device);
 
@@ -93,7 +93,7 @@ public:
     inline uint32_t GetCurrentCountry(){
         return mCurrentCountry;
     }
-    inline const Chessboard *GetChessboard()const{
+    inline Chessboard *GetChessboard(){
         return &mChessboard;
     }
     inline bool IsOnline(){

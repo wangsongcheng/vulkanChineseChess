@@ -3,7 +3,7 @@ void Game::RemoveInvalidTarget(const Chess *pChess, std::vector<glm::vec2>&canpl
     if(!state.isControllable){
         for (auto it = canplays.begin(); it != canplays.end();){
             const Chess *pc = mChessboard.GetChess(it->y, it->x);
-            if(pc && pc->GetChess() == JIANG_CHESS_INDEX && pc->GetCountry() == HAN_CHE_CHESS_COUNT && pChess->GetChess() != MA_CHESS_INDEX){
+            if(pc && pc->GetChess() == Chess::Type::Jiang_Chess && pc->GetCountry() == HAN_CHE_CHESS_COUNT && pChess->GetChess() != Chess::Type::Ma_Chess){
                 it = canplays.erase(it);
             }
             else{
@@ -25,8 +25,8 @@ void Game::RemoveInvalidTarget(const Chess *pChess, std::vector<glm::vec2>&canpl
         }
     }
 }
-int32_t Game::GetCanPlay(const glm::vec2&mousePos, const std::vector<glm::vec2>&canplays){
-    int32_t index = INVALID_COUNTRY_INDEX;
+uint32_t Game::GetCanPlay(const glm::vec2&mousePos, const std::vector<glm::vec2>&canplays){
+    uint32_t index = INVALID_COUNTRY_INDEX;
     for (size_t i = 0; i < canplays.size(); ++i){
         const uint32_t chessY = CHESS_ROW_TO_Y(canplays[i].y) - CHESSBOARD_RECT_SIZE * .5;
         const uint32_t chessX = CHESS_COLUMN_TO_X(canplays[i].x) - CHESSBOARD_RECT_SIZE * .5;
@@ -113,7 +113,7 @@ void Game::areKingsFacing(){
 }
 bool Game::areKingsFacing(uint32_t srcCountry, uint32_t dstCountry){
     bool are = true;
-    const Chess *pSrc = mChessboard.GetChess(srcCountry)[JIANG_CHESS_INDEX], *pDst = mChessboard.GetChess(dstCountry)[JIANG_CHESS_INDEX];
+    const Chess *pSrc = mChessboard.GetChess(srcCountry)[Chess::Type::Jiang_Chess], *pDst = mChessboard.GetChess(dstCountry)[Chess::Type::Jiang_Chess];
     if(!pSrc || !pDst)return false;
     if(pSrc->GetRow() == pDst->GetRow()){
         const uint32_t row = pSrc->GetRow();
@@ -144,7 +144,7 @@ const Chess *Game::Check(uint32_t *sCountry) const{
     for (size_t srcCountry = 0; srcCountry < mMaxCountryCount; ++srcCountry){
         for (size_t dstCountry = 0; dstCountry < mMaxCountryCount; ++dstCountry){
             if(srcCountry != dstCountry){
-                const Chess *pJiang = mChessboard.GetChess(dstCountry)[JIANG_CHESS_INDEX];
+                const Chess *pJiang = mChessboard.GetChess(dstCountry)[Chess::Type::Jiang_Chess];
                 if(!pJiang)break;
                 pChess = mChessboard.Check(srcCountry, pJiang->GetRow(), pJiang->GetColumn());
                 if(pChess){
@@ -235,7 +235,7 @@ void Game::PlayChess(Chess *pChess, uint32_t dstRow, uint32_t dstColumn){
     pChess->SetPos(dstRow, dstColumn);
     areKingsFacing();
     UpdateChessUniform(vulkan.device.device);
-    if(!state.isControllable && pChess->GetChess() == MA_CHESS_INDEX){
+    if(!state.isControllable && pChess->GetChess() == Chess::Type::Ma_Chess){
         //不用提示了。因为结盟后，汉的棋子会归另一方
         SetNotAllianceCountry(pChess->GetCountry(), pChess->GetRow(), pChess->GetColumn());
     }
@@ -257,12 +257,13 @@ void Game::PlayChess(Chess *pChess, uint32_t dstRow, uint32_t dstColumn){
 }
 
 void Game::SetNotAllianceCountry(uint32_t country, uint32_t row, uint32_t column){
+    //如果已经结过盟了，则无法继续结盟
     if(mNotAllianceCountry != INVALID_COUNTRY_INDEX)return;
     glm::vec2 vPos[3];
     const uint32_t territory = GET_TERRITORY_INDEX(HAN_COUNTRY_INDEX, player.country);
     glm::vec2 center = mChessboard.GetPalacesCenter(territory);
     for (size_t i = 0; i < MAX_COUNTRY_INDEX; ++i){
-        if((state.isControllable || i != HAN_COUNTRY_INDEX) && mChessboard.IsDeath(i)){
+        if((i != HAN_COUNTRY_INDEX) && mChessboard.IsDeath(i)){
             //有势力阵亡，联盟就无效了
             return;
         }
@@ -286,7 +287,7 @@ void Game::SetNotAllianceCountry(uint32_t country, uint32_t row, uint32_t column
         vPos[WEI_COUNTRY_INDEX] = glm::vec2(center.x + 1, center.y - 1);
         vPos[SHU_COUNTRY_INDEX] = glm::vec2(center.x + 1, center.y + 1);
     }
-    int32_t allianceCountry = INVALID_COUNTRY_INDEX;
+    uint32_t allianceCountry = INVALID_COUNTRY_INDEX;
     for (size_t i = 0; i < MAX_COUNTRY_INDEX; ++i){
         if(vPos[i].x == column && vPos[i].y == row && country != i){
             allianceCountry = i;
@@ -336,5 +337,5 @@ void Game::Setup(VulkanDevice device, VkDescriptorSetLayout layout, VkQueue grap
 
 void Game::UpdateUniform(VkDevice device, uint32_t windowWidth){
     UpdateChessUniform(device);
-    vulkan.chessboard.UpdateUniform(device, windowWidth);
+    vulkan.chessboard.UpdateUniform(device, windowWidth, player.country);
 }
