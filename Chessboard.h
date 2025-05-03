@@ -12,8 +12,6 @@ class Chessboard{
     std::array<glm::vec2, MAX_COUNTRY_INDEX>mPalacesCenter;
     std::array<Chess *, DRAW_CHESS_COUNT>mChess[MAX_COUNTRY_INDEX];
 
-    Chess *CreateChess(uint32_t country, Chess::Type chess, uint32_t row, uint32_t column);
-
     void InitWuChessRowAndColumn(std::array<Chess *, DRAW_CHESS_COUNT>&pChess);
     void InitShuChessRowAndColumn(std::array<Chess *, DRAW_CHESS_COUNT>&pChess);
     void InitWeiChessRowAndColumn(std::array<Chess *, DRAW_CHESS_COUNT>&pChess);
@@ -22,11 +20,14 @@ class Chessboard{
 public:
     Chessboard(/* args */);
     ~Chessboard();
+    bool areKingsFacing(uint32_t srcCountry, uint32_t dstCountry);
+
     void CaptureChess(const Chess *srcChess, const Chess *dstChess);
     // //返回的棋子属于srcCountry, 该棋子下一步能吃掉dstCountry的chess
     // const Chess *Check(uint32_t srcCountry, uint32_t dstCountry, uint32_t chess)const;
     //返回的棋子属于country, 该棋子下一步能走到dstRow,dstColumn
     const Chess *Check(uint32_t country, uint32_t dstRow, uint32_t dstColumn)const;
+    Chess *CreateChess(uint32_t country, Chess::Type chess, uint32_t row, uint32_t column);
 
     void DestroyCountry(uint32_t country);
 
@@ -47,9 +48,9 @@ public:
     // void Select(const Chess *pChess, std::vector<glm::vec2>&canplays);
     // void Select(uint32_t country, uint32_t chess, std::vector<glm::vec2>&canplays);
     bool IsHasExitPermission(uint32_t country);
-
+    //单步下没问题，但如果是调用destroycountry销毁的呢
     void SaveStep(uint32_t srcRow, uint32_t srcColumn, uint32_t dstRow, uint32_t dstColumn);
-
+    //注意:想实现联网下的撤销功能时, 发出撤销请求后需要所有人投票同意后才能撤销
     void UndoStep(uint32_t step = 1);
     // inline auto GetChess()const{
     //     return mChess;

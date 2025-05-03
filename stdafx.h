@@ -11,6 +11,10 @@ struct ImGuiInput{
     bool enableHan;
     bool enableAutoPlay;
 };
+#ifndef MAX_BYTE
+#define MAX_BYTE 0xff
+#endif
+
 #define CHESSBOARD_LINE_WIDTH 1
 
 #define CHESSBOARD_RECT_SIZE 50

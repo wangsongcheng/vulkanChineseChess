@@ -35,14 +35,14 @@ OnLine g_OnLine;
 ImGuiInput g_ImGuiInput;
 glm::vec2 g_JiangPos[MAX_COUNTRY_INDEX];//目前只用于RotateChess
 std::array<Player, MAX_COUNTRY_INDEX>g_Players;
-
-std::vector<std::string>g_CountryItems[MAX_COUNTRY_INDEX];
+//用数组是为了在联机模式下显示和控制其他玩家的国籍;目前只能选择ai的国籍
+std::array<std::vector<std::string>, MAX_COUNTRY_INDEX>g_CountryItems;
 void ResetCountryItem(std::vector<std::string>&countryItems){
     std::vector<std::string>country = { "?", "魏", "蜀", "吴" };
     if(g_Game.IsControllable()){
         country.push_back("汉");
     }
-    if(countryItems.empty())countryItems.resize(country.size());
+    if(countryItems.size() != country.size())countryItems.resize(country.size());
     for (size_t i = 0; i < countryItems.size(); ++i){
         countryItems[i] = country[i];
     }
@@ -376,7 +376,6 @@ void *process_client(void *userData){
             auto pChess = pBoard->GetChess(message.select.GetCountry());
             uint32_t dstRow = message.target.GetRow(), dstColumn = message.target.GetColumn();
             Chess *pStart = pChess[message.select.GetChessOffset()], *pTarget = nullptr;
-            printf("pSelect:row:%d, column:%d,offset:%d\n", pStart->GetRow(), pStart->GetColumn(), pStart->GetChessOffset());
             if(message.target.GetCountry() >= MAX_COUNTRY_INDEX){
                 RotateChess(g_Game.GetCurrentCountry(), dstRow, dstColumn,dstRow, dstColumn);
             }
@@ -388,6 +387,7 @@ void *process_client(void *userData){
             }
             g_Game.PlayChess(pStart, dstRow, dstColumn);
             g_Ai.EnableNextCountry(g_ImGuiInput.enableAutoPlay);
+            g_Ai.SyncBoardCopy(pStart, dstRow, dstColumn);
         }
         else if(message.event == PLAYER_EXIT_GAME_EVENT){
             printf("in function %s:player exit\n", __FUNCTION__);
@@ -477,7 +477,7 @@ void ShowClientWidget(){
 }
 void ShowGameWidget(){
     if(ImGui::Begin("三国象棋")){
-        const char *countryName[4];
+        const char *countryName[MAX_COUNTRY_INDEX];
         countryName[WU_COUNTRY_INDEX] = "吴";
         countryName[WEI_COUNTRY_INDEX] = "魏";
         countryName[SHU_COUNTRY_INDEX] = "蜀";
@@ -594,7 +594,7 @@ bool ShowOnlineModeMainInterface(bool *mainInterface){
 }
 bool ShowSinglePlayerModeMainInterface(bool *mainInterface){
     bool ret = false;
-    const char *countryName[4];
+    const char *countryName[MAX_COUNTRY_INDEX];
     countryName[WU_COUNTRY_INDEX] = "吴";
     countryName[WEI_COUNTRY_INDEX] = "魏";
     countryName[SHU_COUNTRY_INDEX] = "蜀";
@@ -604,25 +604,24 @@ bool ShowSinglePlayerModeMainInterface(bool *mainInterface){
         if(currentCountry != INVALID_COUNTRY_INDEX && player != INVALID_COUNTRY_INDEX){
             ImGui::Text("你是%s, 该%s下棋\n", countryName[player], player == currentCountry?"你":countryName[currentCountry]);
         }
-        if(ImGui::BeginTable("检查框列表", 3)){
+        if(g_Game.IsGameStart()){
+            if(ImGui::Checkbox("启用AI", &g_ImGuiInput.enableAi)){
+                if(g_ImGuiInput.enableAi){
+                    if(!g_Ai.IsEnd()){
+                        g_Ai.End();
+                    }
+                    g_Ai.CreatePthread(&g_Game, &g_OnLine);
+                }
+                else{
+                    g_Ai.End();
+                }
+            }
+        }
+        if(ImGui::BeginTable("检查框列表", 2)){
             ImGui::TableNextColumn();
             if(ImGui::Checkbox("托管", &g_ImGuiInput.enableAutoPlay)){
                 if(g_ImGuiInput.enableAutoPlay && currentCountry == player){
                     g_Ai.Enable();
-                }
-            }
-            ImGui::TableNextColumn();
-            if(ImGui::Checkbox("启用AI", &g_ImGuiInput.enableAi)){
-                if(g_Game.IsGameStart()){
-                    if(g_ImGuiInput.enableAi){
-                        if(!g_Ai.IsEnd()){
-                            g_Ai.End();
-                        }
-                        g_Ai.CreatePthread(&g_Game, &g_OnLine);
-                    }
-                    else{
-                        g_Ai.End();
-                    }
                 }
             }
             ImGui::TableNextColumn();
@@ -633,7 +632,7 @@ bool ShowSinglePlayerModeMainInterface(bool *mainInterface){
                 else{
                     g_Game.DiscardHan();
                 }
-                g_Game.NewGame();
+                ResetCountryItem(g_CountryItems[0]);
             }
             ImGui::EndTable();
         }
@@ -712,21 +711,24 @@ void RecordCommand(VkCommandBuffer command, VkFramebuffer frame){
     vkEndCommandBuffer(command);
 }
 void keybutton(GLFWwindow *window, int key, int scancode, int action, int mods){
-    if(action == GLFW_RELEASE){
-        if(key == GLFW_KEY_Z){
-            if(GLFW_PRESS == glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) || GLFW_PRESS == glfwGetKey(window, GLFW_KEY_LEFT_CONTROL)){
-                auto pBoard = g_Game.GetChessboard();
-                pBoard->UndoStep();
-                g_Game.UpdateUniform(g_VulkanDevice.device, g_WindowWidth);
-            }
-        }    
-    }
+    //没解决这个问题前，不给撤回
+    //单步下没问题，但如果是调用destroycountry销毁的呢
+    // if(action == GLFW_RELEASE){
+    //     if(key == GLFW_KEY_Z){
+    //         if(GLFW_PRESS == glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) || GLFW_PRESS == glfwGetKey(window, GLFW_KEY_LEFT_CONTROL)){
+    //             auto pBoard = g_Game.GetChessboard();
+    //             pBoard->UndoStep();
+    //             g_Game.UpdateUniform(g_VulkanDevice.device, g_WindowWidth);
+    //         }
+    //     }
+    // }
 }
 void *PlayChessFun(void *userData){
     glm::vec4 info = *(glm::vec4 *)userData;
     auto pBoard = g_Game.GetChessboard();
     Chess *pStart = pBoard->GetChess(info.y, info.x);
     g_Game.PlayChess(pStart, info.w, info.z);
+    g_Ai.SyncBoardCopy(pStart, info.w, info.z);
     if(g_Game.GameOver()){
         g_Ai.End();
     }

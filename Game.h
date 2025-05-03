@@ -1,8 +1,5 @@
 #ifndef GAME_H
 #define GAME_H
-#ifndef MAX_BYTE
-#define MAX_BYTE 0xff
-#endif
 #include "Chessboard.h"
 #include "VulkanChess.h"
 #include "VulkanWireframe.h"
@@ -36,7 +33,6 @@ public:
     Game(/* args */);
     ~Game();
     void areKingsFacing();
-    bool areKingsFacing(uint32_t srcCountry, uint32_t dstCountry);
     //返回被将的棋子
     const Chess *Check(uint32_t *srcCountry)const;
 
@@ -83,6 +79,9 @@ public:
     }
     inline void EnableHan(){
         state.isControllable = true;
+    }
+    inline uint32_t GetNotAllianceCountry(){
+        return mNotAllianceCountry;
     }
     inline uint32_t GetCountryCount(){
         return mMaxCountryCount;

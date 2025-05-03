@@ -24,15 +24,28 @@ class Ai{
     // bool mPause;
     Game *mGame;
     OnLine *mOnline;
+    //用来推演的，这样就能判断吃子后是否被吃，并可以根据分数决定是否可以互换棋子，例如一开始就用炮吃马，可能是亏本行为
+    Chessboard mChessboard;
+    
     const Chess *Check(uint32_t country) const;
     bool Check(uint32_t country, uint32_t row, uint32_t column)const;
     int32_t CanPlay(uint32_t country, const std::vector<glm::vec2>&canplays)const;
+    
+    Chess *GetCheck(uint32_t country)const;
+    Chess *GetTarget(uint32_t country)const;
     //获得能吃到pTarget的棋子
     Chess *GetSelect(uint32_t country, const Chess *pTarget)const;
+    Chess *GetCannonScreenPiece(const Chess *pao, const Chess *pTarget)const;
     Chess *GetTarget(const Chess *pSelect, const std::vector<glm::vec2>&canplays)const;
+
+    bool IsBoundary(int32_t row, int32_t column)const;
+    
     //返回的棋子肯定有位置可以下
     Chess *RandChess(uint32_t country)const;
+    Chess *ResolveCheck(uint32_t country, const Chess *pCheck);
     Chess *RandTarget(uint32_t country, const std::vector<glm::vec2>&canplays, uint32_t *row, uint32_t *column)const;
+
+    void SetNotAllianceCountry(uint32_t country, uint32_t row, uint32_t column);
 public:
     Ai(/* args */);
     ~Ai();
@@ -40,10 +53,10 @@ public:
     void Enable();
     void EnableNextCountry(bool autoPlay);
     void CreatePthread(Game *pGame, OnLine *pOnline);
-    Chess *GetSelect(uint32_t country)const;
+    Chess *GetSelect(uint32_t country);
     const Chess *GetTarget(const Chess *pSelect, uint32_t *row, uint32_t *column)const;
     
-    // void GetPlayChess(uint32_t country, Chess **pSelect, Chess **target, uint32_t *row, uint32_t *column)const;
+    void SyncBoardCopy(Chess *pChess, uint32_t dstRow, uint32_t dstColumn);
 
     inline void End(){
         mEnd = true;

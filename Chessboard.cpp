@@ -248,6 +248,34 @@ Chessboard::Chessboard(/* args */){
 
 Chessboard::~Chessboard(){
 }
+
+bool Chessboard::areKingsFacing(uint32_t srcCountry, uint32_t dstCountry){
+    bool are = true;
+    const Chess *pSrc = mChess[srcCountry][Chess::Type::Jiang_Chess], *pDst = mChess[dstCountry][Chess::Type::Jiang_Chess];
+    if(!pSrc || !pDst)return false;
+    if(pSrc->GetRow() == pDst->GetRow()){
+        const uint32_t row = pSrc->GetRow();
+        for (size_t i = std::min(pDst->GetColumn(), pSrc->GetColumn()) + 1; i < std::max(pDst->GetColumn(), pSrc->GetColumn()); i++){
+            if(GetChess(row, i)){
+                are = false;
+                break;
+            }
+        }
+    }
+    else if(pSrc->GetColumn() == pDst->GetColumn()){
+        const uint32_t column = pSrc->GetColumn();
+        for (size_t i = std::min(pDst->GetRow(), pSrc->GetRow()) + 1; i < std::max(pDst->GetRow(), pSrc->GetRow()); i++){
+            if(GetChess(i, column)){
+                are = false;
+                break;
+            }
+        }
+    }
+    else{
+        are = false;
+    }
+    return are;
+}
 void Chessboard::InitializeChess(uint32_t playerCountry, bool isControllable, uint32_t countryCount){
     mCountryCount = countryCount;
     mPalacesCenter[HAN_TERRITORY_INDEX] = glm::vec2(1, CHESSBOARD_ROW / 2);
@@ -372,8 +400,7 @@ bool Chessboard::IsHasExitPermission(uint32_t country){
     return has;
 }
 void Chessboard::SaveStep(uint32_t srcRow, uint32_t srcColumn, uint32_t dstRow, uint32_t dstColumn){
-    //在移动棋子前调用，保存移动前的位置。
-    //但如果存在吃子情况，则需要同时记录被吃棋子信息，也就是，极有可能需要记录2种棋子信息
+    //如果实在没办法，干脆直接保存整个棋盘
     if(mRecord.size() >= MAX_UNDO_STEP){
         mRecord.erase(mRecord.begin());
     }

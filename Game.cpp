@@ -101,7 +101,7 @@ void Game::areKingsFacing(){
     for (uint32_t srcCountry = 0; srcCountry < mMaxCountryCount; srcCountry++){
         for (uint32_t dstountry = 0; dstountry < mMaxCountryCount; dstountry++){
             if(srcCountry != dstountry){
-                if(areKingsFacing(srcCountry, dstountry)){
+                if(mChessboard.areKingsFacing(srcCountry, dstountry)){
                     mChessboard.DestroyCountry(srcCountry);
                     mChessboard.DestroyCountry(dstountry);
                     srcCountry = mMaxCountryCount;
@@ -111,39 +111,13 @@ void Game::areKingsFacing(){
         }
     }
 }
-bool Game::areKingsFacing(uint32_t srcCountry, uint32_t dstCountry){
-    bool are = true;
-    const Chess *pSrc = mChessboard.GetChess(srcCountry)[Chess::Type::Jiang_Chess], *pDst = mChessboard.GetChess(dstCountry)[Chess::Type::Jiang_Chess];
-    if(!pSrc || !pDst)return false;
-    if(pSrc->GetRow() == pDst->GetRow()){
-        const uint32_t row = pSrc->GetRow();
-        for (size_t i = std::min(pDst->GetColumn(), pSrc->GetColumn()) + 1; i < std::max(pDst->GetColumn(), pSrc->GetColumn()); i++){
-            if(mChessboard.GetChess(row, i)){
-                are = false;
-                break;
-            }
-        }
-    }
-    else if(pSrc->GetColumn() == pDst->GetColumn()){
-        const uint32_t column = pSrc->GetColumn();
-        for (size_t i = std::min(pDst->GetRow(), pSrc->GetRow()) + 1; i < std::max(pDst->GetRow(), pSrc->GetRow()); i++){
-            if(mChessboard.GetChess(i, column)){
-                are = false;
-                break;
-            }
-        }
-    }
-    else{
-        are = false;
-    }
-    return are;
-}
-
 const Chess *Game::Check(uint32_t *sCountry) const{
     const Chess *pChess = nullptr;
+    if(mChessboard.IsDeath(mCurrentCountry))return nullptr;
     for (size_t srcCountry = 0; srcCountry < mMaxCountryCount; ++srcCountry){
-        for (size_t dstCountry = 0; dstCountry < mMaxCountryCount; ++dstCountry){
-            if(srcCountry != dstCountry){
+        uint32_t dstCountry = GetNextCountry(mCurrentCountry);
+        if(srcCountry != dstCountry){
+            while (dstCountry != mCurrentCountry){
                 const Chess *pJiang = mChessboard.GetChess(dstCountry)[Chess::Type::Jiang_Chess];
                 if(!pJiang)break;
                 pChess = mChessboard.Check(srcCountry, pJiang->GetRow(), pJiang->GetColumn());
@@ -151,6 +125,7 @@ const Chess *Game::Check(uint32_t *sCountry) const{
                     *sCountry = srcCountry;
                     return pJiang;
                 }
+                dstCountry = GetNextCountry(dstCountry);
             }
         }
     }
