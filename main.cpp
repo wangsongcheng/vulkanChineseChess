@@ -713,6 +713,7 @@ void RecordCommand(VkCommandBuffer command, VkFramebuffer frame){
 void keybutton(GLFWwindow *window, int key, int scancode, int action, int mods){
     //没解决这个问题前，不给撤回
     //单步下没问题，但如果是调用destroycountry销毁的呢
+    //必须是玩家回合才能撤销。不然就要处理很多同步问题//撤销功能使用后，需要注意当前下棋的玩家,也就是说，撤回后，需要正确修改当前下棋的国籍
     // if(action == GLFW_RELEASE){
     //     if(key == GLFW_KEY_Z){
     //         if(GLFW_PRESS == glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) || GLFW_PRESS == glfwGetKey(window, GLFW_KEY_LEFT_CONTROL)){
