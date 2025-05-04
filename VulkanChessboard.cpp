@@ -91,7 +91,7 @@ void VulkanChessboard::CreateFontResource(VulkanDevice device, VkQueue graphics,
     fonts.font.CreateVertexBuffer(device, vertices, sizeof(vertices), 4, graphics, pool);
 	long int size = 0;
 	unsigned char *fontBuffer = NULL;
-	FILE *fontFile = fopen("fonts/SourceHanSerifCN-Bold.otf", "rb");
+	FILE *fontFile = fopen("fonts/ukai.ttc", "rb");
 	if(fontFile){
 		size = font::GetFileSize(fontFile);
 		fontBuffer = (unsigned char *)malloc(size);
@@ -99,7 +99,7 @@ void VulkanChessboard::CreateFontResource(VulkanDevice device, VkQueue graphics,
 	}
 	else{
 		perror("open file error");
-		printf("file name is fonts/SourceHanSerifCN-Bold.otf\n");
+		printf("file name is fonts/ukai.ttc\n");
         return;
 	}
     const uint32_t imageSize = ALLIANCE_POINT_FONT_WIDTH * ALLIANCE_POINT_FONT_HEIGHT;

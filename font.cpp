@@ -14,8 +14,14 @@ uint32_t font::GetFileSize(FILE *fp){
 void font::GetFontImageData(const unsigned char *fontData, int bitmap_w, wchar_t word, unsigned char *out){
 	stbtt_fontinfo info;
     const float pixels = bitmap_w;
-	if(!stbtt_InitFont(&info, fontData, 0)){
-		printf("in function:%s, stbtt_InitFont error\n", __FUNCTION__);
+    int offset = stbtt_GetFontOffsetForIndex(fontData, 0);
+    if (offset < 0) {
+        printf("无效的TTC索引\n");
+        return;
+    }
+    int result = stbtt_InitFont(&info, fontData, offset);
+	if(!result){
+		printf("in function:%s, stbtt_InitFont error, result = %d\n", __FUNCTION__, result);
         return;
 	}
 	float scale = stbtt_ScaleForPixelHeight(&info, pixels);

@@ -910,7 +910,7 @@ void Setup(GLFWwindow *window){
     ImGui_ImplGlfw_InitForVulkan(window, true);
     g_VulkanImGui.Setup(g_VulkanDevice, g_VulkanPool);
     g_VulkanImGui.CreatePipeline(g_VulkanDevice.device, g_VulkanWindow.renderPass, g_PipelineCache);
-    g_VulkanImGui.CreateFont(g_VulkanDevice, "fonts/SourceHanSerifCN-Bold.otf", g_VulkanQueue.graphics, g_VulkanPool);
+    g_VulkanImGui.CreateFont(g_VulkanDevice, "fonts/ukai.ttc", g_VulkanQueue.graphics, g_VulkanPool);
     g_OnLine.Init();
     for (size_t i = 0; i < MAX_COUNTRY_INDEX - 1; i++){
         ResetCountryItem(g_CountryItems[i]);

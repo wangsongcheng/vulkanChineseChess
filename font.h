@@ -1,5 +1,6 @@
 #ifndef FONT_H
 #define FONT_H
+#include <vector>
 #include <stdint.h>
 #include <iostream>
 namespace font{

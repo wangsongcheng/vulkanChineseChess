@@ -24,7 +24,7 @@ void VulkanChess::CreateFontResource(VulkanDevice device, VulkanPool pool, VkQue
     
 	long int size = 0;
 	unsigned char *fontBuffer = NULL;
-	FILE *fontFile = fopen("fonts/SourceHanSerifCN-Bold.otf", "rb");
+	FILE *fontFile = fopen("fonts/ukai.ttc", "rb");
 	if(fontFile){
 		size = font::GetFileSize(fontFile);
 		fontBuffer = (unsigned char *)malloc(size);
@@ -32,7 +32,7 @@ void VulkanChess::CreateFontResource(VulkanDevice device, VulkanPool pool, VkQue
 	}
 	else{
 		perror("open file error");
-		printf("file name is fonts/SourceHanSerifCN-Bold.otf\n");
+		printf("file name is fonts/ukai.ttc\n");
         return;
 	}
     const uint32_t imageSize = FONT_WIDTH * FONT_HEIGHT;
@@ -148,10 +148,10 @@ void VulkanChess::UpdateUniform(VkDevice device, uint32_t fontIndex, const glm::
     fontUbo.imageIndex = fontIndex;
     glm::vec3 fontPos = glm::vec3(pos.x, pos.y, 0);
     if(fontIndex == FONT_INDEX_SHI){
-        fontPos.x -=  width * .7;
+        fontPos.x -=  width;
     }
     else{
-        fontPos.x -=  width * .8;
+        fontPos.x -=  width * .9;
     }
     fontPos.y -= height * 1;
     fontUbo.model = glm::scale(glm::translate(glm::mat4(1), fontPos), glm::vec3(width * 2, height * 2, 1));
