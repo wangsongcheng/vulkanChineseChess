@@ -137,15 +137,24 @@ void VulkanChess::Setup(VulkanDevice device, VkDescriptorSetLayout layout, VkQue
 }
 
 void VulkanChess::UpdateUniform(VkDevice device, uint32_t fontIndex, const glm::vec2&pos, uint32_t dynamicOffsets){
-    const glm::mat4 model = glm::scale(glm::translate(glm::mat4(1), glm::vec3(pos.x, pos.y, 0)), glm::vec3(CHESS_WIDTH, CHESS_HEIGHT, 1));
+    UpdateUniform(device, fontIndex, pos, CHESS_WIDTH,CHESS_HEIGHT, dynamicOffsets);
+}
+
+void VulkanChess::UpdateUniform(VkDevice device, uint32_t fontIndex, const glm::vec2 &pos, uint32_t width, uint32_t height, uint32_t dynamicOffsets){
+    const glm::mat4 model = glm::scale(glm::translate(glm::mat4(1), glm::vec3(pos.x, pos.y, 0)), glm::vec3(width, height, 1));
     uniform.chess.UpdateData(device, &model, dynamicOffsets * uniform.chess.size);
 
     FontUniform fontUbo;
     fontUbo.imageIndex = fontIndex;
     glm::vec3 fontPos = glm::vec3(pos.x, pos.y, 0);
-    fontPos.x -=  CHESS_WIDTH * .8;
-    fontPos.y -= CHESS_HEIGHT * 1;
-    fontUbo.model = glm::scale(glm::translate(glm::mat4(1), fontPos), glm::vec3(FONT_WIDTH, FONT_HEIGHT, 1));
+    if(fontIndex == FONT_INDEX_SHI){
+        fontPos.x -=  width * .7;
+    }
+    else{
+        fontPos.x -=  width * .8;
+    }
+    fontPos.y -= height * 1;
+    fontUbo.model = glm::scale(glm::translate(glm::mat4(1), fontPos), glm::vec3(width * 2, height * 2, 1));
     uniform.font.UpdateData(device, &fontUbo, dynamicOffsets * uniform.font.size);
 }
 

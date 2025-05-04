@@ -22,7 +22,7 @@ typedef unsigned long long SOCKET;
 #endif
 #define INVALID_SOCKET 10000
 #define INTERNET_PORT 10086
-#define INVALID_PLAYER_INDEX -1
+#define INVALID_PLAYER_INDEX 10
 class Client{
     SOCKET mSocket;
     void Recv(SOCKET __fd, void *__buf, size_t __n, int __flags)const;

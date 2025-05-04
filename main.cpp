@@ -386,8 +386,13 @@ void *process_client(void *userData){
                 dstColumn = pTarget->GetColumn();
             }
             g_Game.PlayChess(pStart, dstRow, dstColumn);
-            g_Ai.EnableNextCountry(g_ImGuiInput.enableAutoPlay);
-            g_Ai.SyncBoardCopy(pStart, dstRow, dstColumn);
+            if(!g_Ai.IsEnd()){
+                if(g_Game.GameOver()){
+                    g_Ai.End();
+                }
+                g_Ai.EnableNextCountry(g_ImGuiInput.enableAutoPlay);
+                g_Ai.SyncBoardCopy(pStart, dstRow, dstColumn);    
+            }
         }
         else if(message.event == PLAYER_EXIT_GAME_EVENT){
             printf("in function %s:player exit\n", __FUNCTION__);
@@ -729,21 +734,22 @@ void *PlayChessFun(void *userData){
     auto pBoard = g_Game.GetChessboard();
     Chess *pStart = pBoard->GetChess(info.y, info.x);
     g_Game.PlayChess(pStart, info.w, info.z);
-    g_Ai.SyncBoardCopy(pStart, info.w, info.z);
-    if(g_Game.GameOver()){
-        g_Ai.End();
+    if(g_ImGuiInput.enableAi){
+        g_Ai.SyncBoardCopy(pStart, info.w, info.z);
+        if(g_Game.GameOver()){
+            g_Ai.End();
+        }
+        g_Ai.EnableNextCountry(g_ImGuiInput.enableAutoPlay);
     }
-    g_Ai.EnableNextCountry(g_ImGuiInput.enableAutoPlay);
     return nullptr;
 }
 const Chess *g_Select;
 bool SelectChess(const glm::vec2 &mousePos){
-    //如果这句代码在网络模式无效，则检查下有没有正确调用SetPlayerCountry
     auto pBoard = g_Game.GetChessboard();
-    const uint32_t clientIndex = g_OnLine.GetClientIndex();
-    uint32_t currentCountry = g_Game.GetCurrentCountry(), playerCountry = g_Game.GetPlayerCountry();
-    if(currentCountry != playerCountry)return false;
+    const uint32_t currentCountry = g_Game.GetCurrentCountry(), playerCountry = g_Game.GetPlayerCountry();
+    if(!g_Ai.IsEnd() && currentCountry != playerCountry)return false;
     if(g_Select){
+        g_Game.UnSelectChess();
         static glm::vec4 info;
         info = g_Game.PrepareChess(g_Select, mousePos);
         if(info.x == 0 && info.y == 0){
@@ -761,14 +767,15 @@ bool SelectChess(const glm::vec2 &mousePos){
                 target.SetPos(info.w, info.z);
                 target.SetCountry(MAX_COUNTRY_INDEX);
             }
+            const uint32_t clientIndex = g_OnLine.GetClientIndex();
             g_OnLine.SendPlayChessMessage(g_Players[clientIndex], g_Select, &target);
         }
         else{
+            g_Game.UnSelectChess();
             //得另开线程才看到棋子移动效果
             CreateThread(PlayChessFun, &info);
         }
         g_Select = nullptr;
-        return false;
     }
     else{
         g_Select = pBoard->GetChess(currentCountry, mousePos);
@@ -780,12 +787,8 @@ void mousebutton(GLFWwindow *window,int button,int action,int mods){
     glfwGetCursorPos(window, &xpos, &ypos);
     const glm::vec2 mousePos = glm::vec2(xpos, ypos);
     if (g_Game.IsGameStart() && action == GLFW_RELEASE && button == GLFW_MOUSE_BUTTON_LEFT){
-        if(SelectChess(mousePos)){
-            g_Game.SelectChess(g_Select);
-        }
-        else{
-            g_Game.UnSelectChess();
-        }
+        SelectChess(mousePos);
+        g_Game.SelectChess(g_Select);
     }
 }
 VkVertexInputBindingDescription inputBindingDescription(uint32_t binding) {

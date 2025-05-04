@@ -59,6 +59,8 @@ struct ImGuiInput{
 #define ALLIANCE_POINT_WIDTH 15
 #define ALLIANCE_POINT_HEIGHT ALLIANCE_POINT_WIDTH
 
+#define CHESS_WIDTH 20
+#define CHESS_HEIGHT CHESS_WIDTH
 //字体宏一般情况下需要修改
 //字体大小不一定要和棋子大小一样
 #define FONT_WIDTH 40
@@ -75,9 +77,6 @@ struct ImGuiInput{
 #define FONT_INDEX_SHU SHU_COUNTRY_INDEX
 #define FONT_INDEX_WEI WEI_COUNTRY_INDEX
 #define FONT_INDEX_HAN HAN_COUNTRY_INDEX
-
-#define CHESS_WIDTH 20
-#define CHESS_HEIGHT CHESS_WIDTH
 
 //仅修改数量不够, 还需设置它们的位置
 #define SHI_CHESS_COUNT 2

@@ -53,6 +53,7 @@ void Game::UnSelectChess(){
         model[i] = glm::translate(glm::mat4(1), glm::vec3(CHESS_COLUMN_TO_X(100), CHESS_ROW_TO_Y(100), 0));
     }
     vulkan.select.UpdateUniform(vulkan.device.device, model);
+    UpdateChessUniform(vulkan.device.device);
 }
 void Game::UpdateChessUniform(VkDevice device){
     for (uint32_t uiCoutry = 0; uiCoutry < MAX_COUNTRY_INDEX; ++uiCoutry){
@@ -76,6 +77,7 @@ void Game::SelectChess(const Chess *pChess){
         pChess->Select(&mChessboard, canplays);
         RemoveInvalidTarget(pChess, canplays);
         UpdateSelectChessUniform(vulkan.device.device, canplays);
+        vulkan.chess.UpdateUniform(vulkan.device.device, pChess->GetFontIndex(), pChess->GetPos(), CHESS_WIDTH * 1.2, CHESS_HEIGHT * 1.2, ROW_COLUMN_TO_INDEX(pChess->GetCountry(), pChess->GetChessOffset(), DRAW_CHESS_COUNT));
     }
 }
 glm::vec4 Game::PrepareChess(const Chess *pSelect, const glm::vec2 &mousePos){
@@ -183,7 +185,8 @@ glm::vec2 lerp(const glm::vec2&p0, const glm::vec2&p1, float t){
 void Game::MoveChess(const glm::vec2&start, const glm::vec2&end, uint32_t fontIndex, uint32_t dynamicOffsets){
     for (float t = 0; t < 1; t += .01){
         const glm::vec2 pos = lerp(start, end, t);
-        vulkan.chess.UpdateUniform(vulkan.device.device, fontIndex, pos, dynamicOffsets);
+        // vulkan.chess.UpdateUniform(vulkan.device.device, fontIndex, pos, dynamicOffsets);
+        vulkan.chess.UpdateUniform(vulkan.device.device, fontIndex, pos, CHESS_WIDTH * 1.2, CHESS_HEIGHT * 1.2, dynamicOffsets);
 #ifdef WIN32
         Sleep(1);
 #else
