@@ -3,10 +3,10 @@
 #include "stdafx.h"
 #include "BaseGraphic.hpp"
 
-#define WU_CHESS_COUNTRY_COLOR glm::vec3(0, 1, 0)
-#define WEI_CHESS_COUNTRY_COLOR glm::vec3(0, 0, 1)
-#define SHU_CHESS_COUNTRY_COLOR glm::vec3(1, 0, 0)
-#define HAN_CHESS_COUNTRY_COLOR glm::vec3(1, 1, 0)
+#define WU_CHESS_COUNTRY_COLOR glm::vec3(0, .8, 0)
+#define WEI_CHESS_COUNTRY_COLOR glm::vec3(0, 0, .8)
+#define SHU_CHESS_COUNTRY_COLOR glm::vec3(.8, 0, 0)
+#define HAN_CHESS_COUNTRY_COLOR glm::vec3(.8, .8, 0)
 
 class VulkanChess{
     struct Vertex {

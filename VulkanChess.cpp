@@ -151,9 +151,9 @@ void VulkanChess::UpdateUniform(VkDevice device, uint32_t fontIndex, const glm::
         fontPos.x -=  width;
     }
     else{
-        fontPos.x -=  width * .9;
+        fontPos.x -=  width;
     }
-    fontPos.y -= height * 1;
+    fontPos.y -= height;
     fontUbo.model = glm::scale(glm::translate(glm::mat4(1), fontPos), glm::vec3(width * 2, height * 2, 1));
     uniform.font.UpdateData(device, &fontUbo, dynamicOffsets * uniform.font.size);
 }

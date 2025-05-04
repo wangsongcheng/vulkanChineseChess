@@ -747,7 +747,7 @@ const Chess *g_Select;
 bool SelectChess(const glm::vec2 &mousePos){
     auto pBoard = g_Game.GetChessboard();
     const uint32_t currentCountry = g_Game.GetCurrentCountry(), playerCountry = g_Game.GetPlayerCountry();
-    if(!g_Ai.IsEnd() && currentCountry != playerCountry)return false;
+    if((!g_Ai.IsEnd() || (g_Game.IsOnline() && !g_OnLine.IsServer())) && currentCountry != playerCountry)return false;
     if(g_Select){
         g_Game.UnSelectChess();
         static glm::vec4 info;

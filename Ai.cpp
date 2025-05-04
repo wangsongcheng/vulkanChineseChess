@@ -5,9 +5,7 @@ void aiPlay(Ai *pAi){
     uint32_t dstRow, dstColumn;
     Chess *pSelect = pAi->GetSelect(pAi->GetCurrentCountry());
     const Chess *pTarget = pAi->GetTarget(pSelect, &dstRow, &dstColumn);
-    pAi->SelectChess(pSelect);
     if(pAi->IsOnline()){
-        //ai发送的pSelect没被正确解析
         if(pTarget){
             pAi->SendPlayChessMessage(g_Players[pAi->GetCurrentCountry()], pSelect, pTarget);
         }
@@ -19,12 +17,13 @@ void aiPlay(Ai *pAi){
         }
     }
     else{
+        pAi->SelectChess(pSelect);
         pAi->PlayChess(pSelect, dstRow, dstColumn);
         pAi->SyncBoardCopy(pSelect, dstRow, dstColumn);
+        pAi->UnSelectChess();
+        //下完棋要调用下面的函数
+        pAi->EnableNextCountry(g_ImGuiInput.enableAutoPlay);
     }
-    pAi->UnSelectChess();
-    //下完棋要调用下面的函数
-    pAi->EnableNextCountry(g_ImGuiInput.enableAutoPlay);
 }
 void *AiPlayChess(void *userData){
     Ai *pAi = (Ai *)userData;

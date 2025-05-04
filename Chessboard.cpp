@@ -9,42 +9,47 @@ Chess *Chessboard::CreateChess(uint32_t country, Chess::Type chess, uint32_t row
     }
     case Chess::Type::Ma_Chess:return new Ma(country, row, column);
     case Chess::Type::Pao_Chess:return new Pao(country, row, column);
+#ifndef ENABLE_BATTLE_FAN_GUANYU
     case Chess::Type::Che_Chess:return new Che(country, row, column);
-    case Chess::Type::Shi_Chess:return new Shi(country, row, column);
     case Chess::Type::Xiang_Chess:return new Xiang(country, row, column);
+#endif
+    case Chess::Type::Shi_Chess:return new Shi(country, row, column);
     case Chess::Type::Bing_Chess:return new Bing(country, row, column);
     }
     return nullptr;
 }
 void Chessboard::InitWuChessRowAndColumn(std::array<Chess *, DRAW_CHESS_COUNT> &pChess){
     pChess[Chess::Type::Jiang_Chess]->SetPos(CHESSBOARD_ROW / 2, CHESSBOARD_COLUMN);
-    std::array<int32_t, MA_CHESS_COUNT>maOffset = { -3, 3 };
+#ifdef ENABLE_BATTLE_FAN_GUANYU
+    std::array<int32_t, MA_CHESS_COUNT>maOffset = { 3, -3, 0 };
+    for (size_t i = 0; i < MA_CHESS_COUNT; i++){
+        if(pChess[Chess::Type::Ma_Chess + i])pChess[Chess::Type::Ma_Chess + i]->SetPos(pChess[Chess::Type::Jiang_Chess]->GetRow() + maOffset[i], i == MA_CHESS_COUNT - 1?CHESSBOARD_COLUMN - 2:pChess[Chess::Type::Jiang_Chess]->GetColumn());
+    }
+#else
+    std::array<int32_t, MA_CHESS_COUNT>maOffset = { 3, -3 };
     for (size_t i = 0; i < MA_CHESS_COUNT; i++){
         if(pChess[Chess::Type::Ma_Chess + i])pChess[Chess::Type::Ma_Chess + i]->SetPos(pChess[Chess::Type::Jiang_Chess]->GetRow() + maOffset[i], pChess[Chess::Type::Jiang_Chess]->GetColumn());
     }
-    std::array<int32_t, SHI_CHESS_COUNT>shiOffset = { -1, 1 };
+#endif
+    std::array<int32_t, SHI_CHESS_COUNT>shiOffset = { 1, -1 };
     for (size_t i = 0; i < SHI_CHESS_COUNT; i++){
         if(pChess[Chess::Type::Shi_Chess + i])pChess[Chess::Type::Shi_Chess + i]->SetPos(pChess[Chess::Type::Jiang_Chess]->GetRow() + shiOffset[i], pChess[Chess::Type::Jiang_Chess]->GetColumn());
     }
-    std::array<int32_t, CHE_CHESS_COUNT>cheOffset = { -4, 4 };
+#ifdef ENABLE_BATTLE_FAN_GUANYU
+    // std::array<int32_t, Chess::Type::Bing_Chess>bingOffset = { -2, 2 };
+    if(pChess[Chess::Type::Bing_Chess])pChess[Chess::Type::Bing_Chess]->SetPos(CHESSBOARD_ROW - CHESSBOARD_BING_GRID_DENSITY - 1, CHESSBOARD_COLUMN - 3);
+    for (size_t i = 1; i < BING_CHESS_COUNT; ++i){
+        if(pChess[i + Chess::Type::Bing_Chess])pChess[i + Chess::Type::Bing_Chess]->SetPos(pChess[i + Chess::Type::Bing_Chess - 1]->GetRow() - 2, pChess[Chess::Type::Bing_Chess]->GetColumn());
+    }
+#else
+    std::array<int32_t, CHE_CHESS_COUNT>cheOffset = { 4, -4 };
     for (size_t i = 0; i < CHE_CHESS_COUNT; i++){
         if(pChess[Chess::Type::Che_Chess + i])pChess[Chess::Type::Che_Chess + i]->SetPos(pChess[Chess::Type::Jiang_Chess]->GetRow() + cheOffset[i], pChess[Chess::Type::Jiang_Chess]->GetColumn());
     }
-    std::array<int32_t, XIANG_CHESS_COUNT>xiangOffset = { -2, 2 };
+    std::array<int32_t, XIANG_CHESS_COUNT>xiangOffset = { 2, -2 };
     for (size_t i = 0; i < XIANG_CHESS_COUNT; i++){
         if(pChess[Chess::Type::Xiang_Chess + i])pChess[Chess::Type::Xiang_Chess + i]->SetPos(pChess[Chess::Type::Jiang_Chess]->GetRow() + xiangOffset[i], pChess[Chess::Type::Jiang_Chess]->GetColumn());
     }
-#ifdef ENABLE_BATTLE_FAN_GUANYU
-    std::array<int32_t, PAO_CHESS_COUNT>paoOffset = { -2, 2 };
-    for (size_t i = 0; i < PAO_CHESS_COUNT; i++){
-        if(pChess[Chess::Type::Pao_Chess + i])pChess[Chess::Type::Pao_Chess + i]->SetPos(pChess[Chess::Type::Ma_Chess + i].->GetRow(), pChess[Chess::Type::Xiang_Chess + i * 1]->GetColumn() - 2);
-    }
-    std::array<int32_t, Chess::Type::Bing_Chess>bingOffset = { -2, 2 };
-    if(pChess[Chess::Type::Bing_Chess])pChess[Chess::Type::Bing_Chess]->SetPos(MAX_CHESSBOARD_ROW - CHESSBOARD_BING_GRID_DENSITY, CHESSBOARD_BING_GRID_DENSITY + 1);
-    for (size_t i = 1; i < BING_CHESS_COUNT; ++i){
-        if(pChess[i + Chess::Type::Bing_Chess])pChess[i + Chess::Type::Bing_Chess]->SetPos(pChess[Chess::Type::Bing_Chess]->GetRow(), pChess[i + Chess::Type::Bing_Chess - 1]->GetColumn() + bingOffset);
-    }
-#else
     // std::array<int32_t, PAO_CHESS_COUNT>paoOffset = { 2, -2 };
     for (size_t i = 0; i < PAO_CHESS_COUNT; i++){
         if(pChess[Chess::Type::Pao_Chess + i])pChess[Chess::Type::Pao_Chess + i]->SetPos(pChess[Chess::Type::Ma_Chess + i]->GetRow(), CHESSBOARD_COLUMN - 2);
@@ -59,14 +64,32 @@ void Chessboard::InitWuChessRowAndColumn(std::array<Chess *, DRAW_CHESS_COUNT> &
 void Chessboard::InitShuChessRowAndColumn(std::array<Chess *, DRAW_CHESS_COUNT>&pChess){
     pChess[Chess::Type::Jiang_Chess]->SetPos(CHESSBOARD_ROW, CHESSBOARD_COLUMN / 2);
     // 偏移也偏移变量(offset)不能共用,因为每个棋子的数量可能不同，也可能被修改
+#ifdef ENABLE_BATTLE_FAN_GUANYU
+    std::array<int32_t, MA_CHESS_COUNT>maOffset = { -3, 3, 0 };
+    for (size_t i = 0; i < MA_CHESS_COUNT; i++){
+        if(pChess[Chess::Type::Ma_Chess + i])pChess[Chess::Type::Ma_Chess + i]->SetPos(i ==MA_CHESS_COUNT - 1?CHESSBOARD_ROW - 2:pChess[Chess::Type::Jiang_Chess]->GetRow(), pChess[Chess::Type::Jiang_Chess]->GetColumn() + maOffset[i]);
+    }
+#else
     std::array<int32_t, MA_CHESS_COUNT>maOffset = { -3, 3 };
     for (size_t i = 0; i < MA_CHESS_COUNT; i++){
         if(pChess[Chess::Type::Ma_Chess + i])pChess[Chess::Type::Ma_Chess + i]->SetPos(pChess[Chess::Type::Jiang_Chess]->GetRow(), pChess[Chess::Type::Jiang_Chess]->GetColumn() + maOffset[i]);
     }
+#endif
     std::array<int32_t, SHI_CHESS_COUNT>shiOffset = { -1, 1 };
     for (size_t i = 0; i < SHI_CHESS_COUNT; i++){
         if(pChess[Chess::Type::Shi_Chess + i])pChess[Chess::Type::Shi_Chess + i]->SetPos(pChess[Chess::Type::Jiang_Chess]->GetRow(), pChess[Chess::Type::Jiang_Chess]->GetColumn() + shiOffset[i]);
     }
+#ifdef ENABLE_BATTLE_FAN_GUANYU
+    std::array<int32_t, PAO_CHESS_COUNT>paoOffset = { -2, 2 };
+    for (size_t i = 0; i < PAO_CHESS_COUNT; i++){
+        if(pChess[Chess::Type::Pao_Chess + i])pChess[Chess::Type::Pao_Chess + i]->SetPos(pChess[Chess::Type::Jiang_Chess]->GetRow(), pChess[Chess::Type::Jiang_Chess]->GetColumn() + paoOffset[i]);
+    }
+    std::array<int32_t, Chess::Type::Bing_Chess>bingOffset = { -2, 2 };
+    if(pChess[Chess::Type::Bing_Chess])pChess[Chess::Type::Bing_Chess]->SetPos(CHESSBOARD_ROW - 3, CHESSBOARD_BING_GRID_DENSITY + 1);
+    for (size_t i = 1; i < BING_CHESS_COUNT; ++i){
+        if(pChess[i + Chess::Type::Bing_Chess])pChess[i + Chess::Type::Bing_Chess]->SetPos(pChess[Chess::Type::Bing_Chess]->GetRow(), pChess[i + Chess::Type::Bing_Chess - 1]->GetColumn() + 2);
+    }
+#else
     std::array<int32_t, CHE_CHESS_COUNT>cheOffset = { -4, 4 };
     for (size_t i = 0; i < CHE_CHESS_COUNT; i++){
         if(pChess[Chess::Type::Che_Chess + i])pChess[Chess::Type::Che_Chess + i]->SetPos(pChess[Chess::Type::Jiang_Chess]->GetRow(), pChess[Chess::Type::Jiang_Chess]->GetColumn() + cheOffset[i]);
@@ -75,17 +98,6 @@ void Chessboard::InitShuChessRowAndColumn(std::array<Chess *, DRAW_CHESS_COUNT>&
     for (size_t i = 0; i < XIANG_CHESS_COUNT; i++){
         if(pChess[Chess::Type::Xiang_Chess + i])pChess[Chess::Type::Xiang_Chess + i]->SetPos(pChess[Chess::Type::Jiang_Chess]->GetRow(), pChess[Chess::Type::Jiang_Chess]->GetColumn() + xiangOffset[i]);
     }
-#ifdef ENABLE_BATTLE_FAN_GUANYU
-    std::array<int32_t, PAO_CHESS_COUNT>paoOffset = { -2, 2 };
-    for (size_t i = 0; i < PAO_CHESS_COUNT; i++){
-        if(pChess[Chess::Type::Pao_Chess + i])pChess[Chess::Type::Pao_Chess + i]->SetPos(MAX_CHESSBOARD_ROW - 2, pChess[Chess::Type::Xiang_Chess + i * 1]->GetColumn());
-    }
-    std::array<int32_t, Chess::Type::Bing_Chess>bingOffset = { -2, 2 };
-    if(pChess[Chess::Type::Bing_Chess])pChess[Chess::Type::Bing_Chess]->SetPos(MAX_CHESSBOARD_ROW - 3, CHESSBOARD_BING_GRID_DENSITY + 1);
-    for (size_t i = 1; i < BING_CHESS_COUNT; ++i){
-        if(pChess[i + Chess::Type::Bing_Chess])pChess[i + Chess::Type::Bing_Chess]->SetPos(pChess[Chess::Type::Bing_Chess]->GetRow(), pChess[i + Chess::Type::Bing_Chess - 1]->GetColumn() + bingOffset);
-    }
-#else
     // std::array<int32_t, PAO_CHESS_COUNT>paoOffset = { -2, 2 };
     for (size_t i = 0; i < PAO_CHESS_COUNT; i++){
         if(pChess[Chess::Type::Pao_Chess + i])pChess[Chess::Type::Pao_Chess + i]->SetPos(CHESSBOARD_ROW - 2, pChess[Chess::Type::Ma_Chess + i]->GetColumn());
@@ -99,15 +111,32 @@ void Chessboard::InitShuChessRowAndColumn(std::array<Chess *, DRAW_CHESS_COUNT>&
 }
 void Chessboard::InitWeiChessRowAndColumn(std::array<Chess *, DRAW_CHESS_COUNT>&pChess){
     pChess[Chess::Type::Jiang_Chess]->SetPos(0, CHESSBOARD_COLUMN / 2);
-
+#ifdef ENABLE_BATTLE_FAN_GUANYU
+    std::array<int32_t, MA_CHESS_COUNT>maOffset = { 3, -3, 0 };
+    for (size_t i = 0; i < MA_CHESS_COUNT; i++){
+        if(pChess[Chess::Type::Ma_Chess + i])pChess[Chess::Type::Ma_Chess + i]->SetPos(i == MA_CHESS_COUNT - 1?2:pChess[Chess::Type::Jiang_Chess]->GetRow(), pChess[Chess::Type::Jiang_Chess]->GetColumn() + maOffset[i]);
+    }
+#else
     std::array<int32_t, MA_CHESS_COUNT>maOffset = { 3, -3 };
     for (size_t i = 0; i < MA_CHESS_COUNT; i++){
         if(pChess[Chess::Type::Ma_Chess + i])pChess[Chess::Type::Ma_Chess + i]->SetPos(pChess[Chess::Type::Jiang_Chess]->GetRow(), pChess[Chess::Type::Jiang_Chess]->GetColumn() + maOffset[i]);
     }
+#endif
     std::array<int32_t, SHI_CHESS_COUNT>shiOffset = { 1, -1 };
     for (size_t i = 0; i < SHI_CHESS_COUNT; i++){
         if(pChess[Chess::Type::Shi_Chess + i])pChess[Chess::Type::Shi_Chess + i]->SetPos(pChess[Chess::Type::Jiang_Chess]->GetRow(), pChess[Chess::Type::Jiang_Chess]->GetColumn() + shiOffset[i]);
     }
+#ifdef ENABLE_BATTLE_FAN_GUANYU
+    std::array<int32_t, PAO_CHESS_COUNT>paoOffset = { 2, -2 };
+    for (size_t i = 0; i < PAO_CHESS_COUNT; i++){
+        if(pChess[Chess::Type::Pao_Chess + i])pChess[Chess::Type::Pao_Chess + i]->SetPos(pChess[Chess::Type::Jiang_Chess]->GetRow(), pChess[Chess::Type::Jiang_Chess]->GetColumn() + paoOffset[i]);
+    }
+    std::array<int32_t, Chess::Type::Bing_Chess>bingOffset = { -2, 2 };
+    if(pChess[Chess::Type::Bing_Chess])pChess[Chess::Type::Bing_Chess]->SetPos(3, CHESSBOARD_COLUMN - CHESSBOARD_BING_GRID_DENSITY - 1);
+    for (size_t i = 1; i < BING_CHESS_COUNT; ++i){
+        if(pChess[i + Chess::Type::Bing_Chess])pChess[i + Chess::Type::Bing_Chess]->SetPos(pChess[Chess::Type::Bing_Chess]->GetRow(), pChess[i + Chess::Type::Bing_Chess - 1]->GetColumn() - 2);
+    }
+#else
     std::array<int32_t, CHE_CHESS_COUNT>cheOffset = { 4, -4 };
     for (size_t i = 0; i < CHE_CHESS_COUNT; i++){
         if(pChess[Chess::Type::Che_Chess + i])pChess[Chess::Type::Che_Chess + i]->SetPos(pChess[Chess::Type::Jiang_Chess]->GetRow(), pChess[Chess::Type::Jiang_Chess]->GetColumn() + cheOffset[i]);
@@ -116,17 +145,6 @@ void Chessboard::InitWeiChessRowAndColumn(std::array<Chess *, DRAW_CHESS_COUNT>&
     for (size_t i = 0; i < XIANG_CHESS_COUNT; i++){
         if(pChess[Chess::Type::Xiang_Chess + i])pChess[Chess::Type::Xiang_Chess + i]->SetPos(pChess[Chess::Type::Jiang_Chess]->GetRow(), pChess[Chess::Type::Jiang_Chess]->GetColumn() + xiangOffset[i]);
     }
-#ifdef ENABLE_BATTLE_FAN_GUANYU
-    std::array<int32_t, PAO_CHESS_COUNT>paoOffset = { -2, 2 };
-    for (size_t i = 0; i < PAO_CHESS_COUNT; i++){
-        if(pChess[Chess::Type::Pao_Chess + i])pChess[Chess::Type::Pao_Chess + i]->SetPos(MAX_CHESSBOARD_ROW - 2, pChess[Chess::Type::Xiang_Chess + i * 1]->GetColumn());
-    }
-    std::array<int32_t, Chess::Type::Bing_Chess>bingOffset = { -2, 2 };
-    if(pChess[Chess::Type::Bing_Chess])pChess[Chess::Type::Bing_Chess]->SetPos(MAX_CHESSBOARD_ROW - 3, CHESSBOARD_BING_GRID_DENSITY + 1);
-    for (size_t i = 1; i < BING_CHESS_COUNT; ++i){
-        if(pChess[i + Chess::Type::Bing_Chess])pChess[i + Chess::Type::Bing_Chess]->SetPos(pChess[Chess::Type::Bing_Chess]->GetRow(), pChess[i + Chess::Type::Bing_Chess - 1]->GetColumn() + bingOffset);
-    }
-#else
     // std::array<int32_t, PAO_CHESS_COUNT>paoOffset = { -2, 2 };
     for (size_t i = 0; i < PAO_CHESS_COUNT; i++){
         if(pChess[Chess::Type::Pao_Chess + i])pChess[Chess::Type::Pao_Chess + i]->SetPos(2, pChess[Chess::Type::Ma_Chess + i]->GetColumn());
@@ -140,15 +158,31 @@ void Chessboard::InitWeiChessRowAndColumn(std::array<Chess *, DRAW_CHESS_COUNT>&
 }
 void Chessboard::InitHanChessRowAndColumn(std::array<Chess *, DRAW_CHESS_COUNT>&pChess){
     pChess[Chess::Type::Jiang_Chess]->SetPos(CHESSBOARD_ROW / 2, 0);
-
+#ifdef ENABLE_BATTLE_FAN_GUANYU
+    std::array<int32_t, MA_CHESS_COUNT>maOffset = { -3, 3, 0 };
+    for (size_t i = 0; i < MA_CHESS_COUNT; i++){
+        if(pChess[Chess::Type::Ma_Chess + i])pChess[Chess::Type::Ma_Chess + i]->SetPos(pChess[Chess::Type::Jiang_Chess]->GetRow() + maOffset[i], i == MA_CHESS_COUNT - 1?2:pChess[Chess::Type::Jiang_Chess]->GetColumn());
+    }
+#else
     std::array<int32_t, MA_CHESS_COUNT>maOffset = { 3, -3 };
     for (size_t i = 0; i < MA_CHESS_COUNT; i++){
         if(pChess[Chess::Type::Ma_Chess + i])pChess[Chess::Type::Ma_Chess + i]->SetPos(pChess[Chess::Type::Jiang_Chess]->GetRow() + maOffset[i], pChess[Chess::Type::Jiang_Chess]->GetColumn());
     }
-    std::array<int32_t, SHI_CHESS_COUNT>shiOffset = { 1, -1 };
+#endif
+    std::array<int32_t, SHI_CHESS_COUNT>shiOffset = { -1, 1 };
     for (size_t i = 0; i < SHI_CHESS_COUNT; i++){
         if(pChess[Chess::Type::Shi_Chess + i])pChess[Chess::Type::Shi_Chess + i]->SetPos(pChess[Chess::Type::Jiang_Chess]->GetRow() + shiOffset[i], pChess[Chess::Type::Jiang_Chess]->GetColumn());
     }
+#ifdef ENABLE_BATTLE_FAN_GUANYU
+    std::array<int32_t, PAO_CHESS_COUNT>paoOffset = { -2, 2 };
+    for (size_t i = 0; i < PAO_CHESS_COUNT; i++){
+        if(pChess[Chess::Type::Pao_Chess + i])pChess[Chess::Type::Pao_Chess + i]->SetPos(pChess[Chess::Type::Jiang_Chess]->GetRow() + paoOffset[i], pChess[Chess::Type::Jiang_Chess]->GetColumn());
+    }
+    if(pChess[Chess::Type::Bing_Chess])pChess[Chess::Type::Bing_Chess]->SetPos(CHESSBOARD_BING_GRID_DENSITY + 1, 3);
+    for (size_t i = 1; i < BING_CHESS_COUNT; ++i){
+        if(pChess[i + Chess::Type::Bing_Chess])pChess[i + Chess::Type::Bing_Chess]->SetPos(pChess[i + Chess::Type::Bing_Chess - 1]->GetRow() + 2, pChess[Chess::Type::Bing_Chess]->GetColumn());
+    }
+#else
     std::array<int32_t, CHE_CHESS_COUNT>cheOffset = { 4, -4 };
     for (size_t i = 0; i < CHE_CHESS_COUNT; i++){
         if(pChess[Chess::Type::Che_Chess + i])pChess[Chess::Type::Che_Chess + i]->SetPos(pChess[Chess::Type::Jiang_Chess]->GetRow() + cheOffset[i], pChess[Chess::Type::Jiang_Chess]->GetColumn());
@@ -157,17 +191,6 @@ void Chessboard::InitHanChessRowAndColumn(std::array<Chess *, DRAW_CHESS_COUNT>&
     for (size_t i = 0; i < XIANG_CHESS_COUNT; i++){
         if(pChess[Chess::Type::Xiang_Chess + i])pChess[Chess::Type::Xiang_Chess + i]->SetPos(pChess[Chess::Type::Jiang_Chess]->GetRow() + xiangOffset[i], pChess[Chess::Type::Jiang_Chess]->GetColumn());
     }
-#ifdef ENABLE_BATTLE_FAN_GUANYU
-    std::array<int32_t, PAO_CHESS_COUNT>paoOffset = { 2, -2 };
-    for (size_t i = 0; i < PAO_CHESS_COUNT; i++){
-        if(pChess[Chess::Type::Pao_Chess + i])pChess[Chess::Type::Pao_Chess + i]->SetPos(pChess[Chess::Type::Ma_Chess + i].->GetRow(), pChess[Chess::Type::Xiang_Chess + i * 1]->GetColumn() - 2);
-    }
-    std::array<int32_t, Chess::Type::Bing_Chess>bingOffset = { 2, -2 };
-    if(pChess[Chess::Type::Bing_Chess])pChess[Chess::Type::Bing_Chess]->SetPos(MAX_CHESSBOARD_ROW - CHESSBOARD_BING_GRID_DENSITY, CHESSBOARD_BING_GRID_DENSITY + 1);
-    for (size_t i = 1; i < BING_CHESS_COUNT; ++i){
-        if(pChess[i + Chess::Type::Bing_Chess])pChess[i + Chess::Type::Bing_Chess]->SetPos(pChess[Chess::Type::Bing_Chess]->GetRow(), pChess[i + Chess::Type::Bing_Chess - 1]->GetColumn() + bingOffset);
-    }
-#else
     // std::array<int32_t, PAO_CHESS_COUNT>paoOffset = { 2, -2 };
     for (size_t i = 0; i < PAO_CHESS_COUNT; i++){
         if(pChess[Chess::Type::Pao_Chess + i])pChess[Chess::Type::Pao_Chess + i]->SetPos(pChess[Chess::Type::Ma_Chess + i]->GetRow(), 2);
@@ -182,64 +205,68 @@ void Chessboard::InitHanChessRowAndColumn(std::array<Chess *, DRAW_CHESS_COUNT>&
 void Chessboard::InitHanChessRowAndColumn(uint32_t country, std::array<Chess *, DRAW_CHESS_COUNT>&pChess){
     if(country == WU_COUNTRY_INDEX){
         pChess[Chess::Type::Jiang_Chess]->SetPos(0, CHESSBOARD_COLUMN / 2);
+        std::array<int32_t, HAN_CHE_CHESS_COUNT> offset = { 2, 0, -2 };
 #ifdef ENABLE_BATTLE_FAN_GUANYU
-        std::array<int32_t, HAN_CHE_CHESS_COUNT> offset = { -1, 1 };
         for (size_t i = 0; i < HAN_CHE_CHESS_COUNT; i++){
-            pChess[HAN_Chess::Type::Che_Chess + i]->SetPos(pChess[Chess::Type::Jiang_Chess]->GetRow() + 2, pChess[Chess::Type::Jiang_Chess]->GetColumn() + offset[i]);
+            pChess[Chess::Type::Che_Chess + i]->SetPos(pChess[Chess::Type::Jiang_Chess]->GetRow() + 2, pChess[Chess::Type::Jiang_Chess]->GetColumn() + offset[i]);
         }
 #else
-        std::array<int32_t, HAN_CHE_CHESS_COUNT> offset = { 2, 0, -2 };
         for (size_t i = 0; i < HAN_CHE_CHESS_COUNT; i++){
             pChess[Chess::Type::Che_Chess + i]->SetPos(pChess[Chess::Type::Jiang_Chess]->GetRow() + 3, pChess[Chess::Type::Jiang_Chess]->GetColumn() + offset[i]);
         }
 #endif
-        pChess[Chess::Type::Pao_Chess]->SetPos(pChess[Chess::Type::Jiang_Chess]->GetRow() + 2, pChess[Chess::Type::Jiang_Chess]->GetColumn());
+        for (size_t i = 0; i < HAN_PAO_CHESS_COUNT; i++){
+            pChess[Chess::Type::Pao_Chess + i]->SetPos(pChess[Chess::Type::Jiang_Chess]->GetRow() + 2, pChess[Chess::Type::Jiang_Chess]->GetColumn());
+        }
     }
     else if(country == WEI_COUNTRY_INDEX){
         pChess[Chess::Type::Jiang_Chess]->SetPos(CHESSBOARD_ROW / 2, CHESSBOARD_COLUMN);
+        std::array<int32_t, HAN_CHE_CHESS_COUNT> offset = { -2, 0, 2 };
 #ifdef ENABLE_BATTLE_FAN_GUANYU
-        std::array<int32_t, HAN_CHE_CHESS_COUNT> offset = { -1, 1 };
         for (size_t i = 0; i < HAN_CHE_CHESS_COUNT; i++){
-            pChess[HAN_Chess::Type::Che_Chess + i]->SetPos(pChess[Chess::Type::Jiang_Chess]->GetRow() + offset[i], pChess[Chess::Type::Jiang_Chess]->GetColumn() - 2);
+            pChess[Chess::Type::Che_Chess + i]->SetPos(pChess[Chess::Type::Jiang_Chess]->GetRow() + offset[i], pChess[Chess::Type::Jiang_Chess]->GetColumn() - 2);
         }
 #else
-        std::array<int32_t, HAN_CHE_CHESS_COUNT> offset = { 2, 0, -2 };
         for (size_t i = 0; i < HAN_CHE_CHESS_COUNT; i++){
             pChess[Chess::Type::Che_Chess + i]->SetPos(pChess[Chess::Type::Jiang_Chess]->GetRow() + offset[i], pChess[Chess::Type::Jiang_Chess]->GetColumn() - 3);
         }
 #endif
-        pChess[Chess::Type::Pao_Chess]->SetPos(pChess[Chess::Type::Jiang_Chess]->GetRow(), pChess[Chess::Type::Jiang_Chess]->GetColumn() - 2);
+        for (size_t i = 0; i < HAN_PAO_CHESS_COUNT; i++){
+            pChess[Chess::Type::Pao_Chess + i]->SetPos(pChess[Chess::Type::Jiang_Chess]->GetRow(), pChess[Chess::Type::Jiang_Chess]->GetColumn() - 2);
+        }
     }
     else if(country == HAN_COUNTRY_INDEX){
         pChess[Chess::Type::Jiang_Chess]->SetPos(CHESSBOARD_ROW, CHESSBOARD_COLUMN / 2);
+        std::array<int32_t, HAN_CHE_CHESS_COUNT> offset = { -2, 0, 2 };
 #ifdef ENABLE_BATTLE_FAN_GUANYU
-        std::array<int32_t, HAN_CHE_CHESS_COUNT> offset = { -1, 1 };
         for (size_t i = 0; i < HAN_CHE_CHESS_COUNT; i++){
             pChess[Chess::Type::Che_Chess + i]->SetPos(pChess[Chess::Type::Jiang_Chess]->GetRow() - 2, pChess[Chess::Type::Jiang_Chess]->GetColumn() + offset[i]);
         }
 #else
-        std::array<int32_t, HAN_CHE_CHESS_COUNT> offset = { -2, 0, 2 };
         for (size_t i = 0; i < HAN_CHE_CHESS_COUNT; i++){
             pChess[Chess::Type::Che_Chess + i]->SetPos(pChess[Chess::Type::Jiang_Chess]->GetRow() - 3, pChess[Chess::Type::Jiang_Chess]->GetColumn() + offset[i]);
         }
 #endif
-        pChess[Chess::Type::Pao_Chess]->SetPos(pChess[Chess::Type::Jiang_Chess]->GetRow() - 2, pChess[Chess::Type::Jiang_Chess]->GetColumn());
+        for (size_t i = 0; i < HAN_PAO_CHESS_COUNT; i++){
+            pChess[Chess::Type::Pao_Chess + i]->SetPos(pChess[Chess::Type::Jiang_Chess]->GetRow() - 2, pChess[Chess::Type::Jiang_Chess]->GetColumn());
+        }
     }
     else{
         //那就是蜀了
         pChess[Chess::Type::Jiang_Chess]->SetPos(CHESSBOARD_ROW / 2, 0);
+        std::array<int32_t, HAN_CHE_CHESS_COUNT> offset = { 2, 0, -2 };
 #ifdef ENABLE_BATTLE_FAN_GUANYU
-        std::array<int32_t, HAN_CHE_CHESS_COUNT> offset = { -1, 1 };
         for (size_t i = 0; i < HAN_CHE_CHESS_COUNT; i++){
-            pChess[HAN_Chess::Type::Che_Chess + i]->SetPos(pChess[Chess::Type::Jiang_Chess]->GetRow() + offset[i], pChess[Chess::Type::Jiang_Chess]->GetColumn() + 2);
+            pChess[Chess::Type::Che_Chess + i]->SetPos(pChess[Chess::Type::Jiang_Chess]->GetRow() + offset[i], pChess[Chess::Type::Jiang_Chess]->GetColumn() + 2);
         }
 #else
-        std::array<int32_t, HAN_CHE_CHESS_COUNT> offset = { -2, 0, 2 };
         for (size_t i = 0; i < HAN_CHE_CHESS_COUNT; i++){
             pChess[Chess::Type::Che_Chess + i]->SetPos(pChess[Chess::Type::Jiang_Chess]->GetRow() + offset[i], pChess[Chess::Type::Jiang_Chess]->GetColumn() + 3);
         }
 #endif
-        pChess[Chess::Type::Pao_Chess]->SetPos(pChess[Chess::Type::Jiang_Chess]->GetRow(), pChess[Chess::Type::Jiang_Chess]->GetColumn() + 2);
+        for (size_t i = 0; i < HAN_PAO_CHESS_COUNT; i++){
+            pChess[Chess::Type::Pao_Chess + i]->SetPos(pChess[Chess::Type::Jiang_Chess]->GetRow(), pChess[Chess::Type::Jiang_Chess]->GetColumn() + 2);
+        }
     }
 }
 Chessboard::Chessboard(/* args */){
@@ -340,7 +367,9 @@ void Chessboard::InitializeChess(uint32_t playerCountry, bool isControllable, ui
                 }
             }
             else{
-                    mChess[uiCountry][Chess::Type::Pao_Chess] = new Pao(uiCountry);
+                    for (size_t i = 0; i < HAN_PAO_CHESS_COUNT; i++){
+                        mChess[uiCountry][Chess::Type::Pao_Chess + i] = new Pao(uiCountry);                        
+                    }
                     for (uint32_t uiChess = Chess::Type::Che_Chess; uiChess < Chess::Type::Che_Chess + HAN_CHE_CHESS_COUNT; ++uiChess){
                         mChess[uiCountry][uiChess] = new Che(uiCountry);
                         mChess[uiCountry][uiChess]->SetChessOffset(uiChess);

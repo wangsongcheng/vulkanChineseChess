@@ -1,5 +1,5 @@
-#pragma once
-
+#ifndef STDAFX_H
+#define STDAFX_H
 #include <array>
 #include <unistd.h>
 #include "glm/glm.hpp"
@@ -14,17 +14,25 @@ struct ImGuiInput{
 #ifndef MAX_BYTE
 #define MAX_BYTE 0xff
 #endif
+//定义该宏启用襄樊战役
+// #define ENABLE_BATTLE_FAN_GUANYU
 
 #define CHESSBOARD_LINE_WIDTH 1
 
 #define CHESSBOARD_RECT_SIZE 50
 
 //棋盘内一行或一列的小矩形数量, 如果要算窗口大小，应该加2
+#ifdef ENABLE_BATTLE_FAN_GUANYU
+#define CHESSBOARD_RECT_COUNT 12
+#else
 #define CHESSBOARD_RECT_COUNT 16
-// #define CHESSBOARD_RECT_COUNT 10
+#endif
 //四个大矩形中，每个矩形所占的行数
+#ifdef ENABLE_BATTLE_FAN_GUANYU
+#define CHESSBOARD_BING_GRID_DENSITY 3
+#else
 #define CHESSBOARD_BING_GRID_DENSITY 4
-// #define CHESSBOARD_BING_GRID_DENSITY 3
+#endif
 
 #define MAX_CHESSBOARD_LINE (CHESSBOARD_RECT_COUNT + 1)
 //通常用于数组遍历
@@ -79,6 +87,17 @@ struct ImGuiInput{
 #define FONT_INDEX_HAN HAN_COUNTRY_INDEX
 
 //仅修改数量不够, 还需设置它们的位置
+#ifdef ENABLE_BATTLE_FAN_GUANYU
+#define SHI_CHESS_COUNT 2
+#define MA_CHESS_COUNT 3
+#define PAO_CHESS_COUNT 2
+#define CHE_CHESS_COUNT 0
+#define BING_CHESS_COUNT 3
+#define JIANG_CHESS_COUNT 1
+#define XIANG_CHESS_COUNT 0
+#define HAN_PAO_CHESS_COUNT 0
+#define HAN_CHE_CHESS_COUNT 3
+#else
 #define SHI_CHESS_COUNT 2
 #define MA_CHESS_COUNT 2
 #define PAO_CHESS_COUNT 2
@@ -86,8 +105,9 @@ struct ImGuiInput{
 #define BING_CHESS_COUNT 5
 #define JIANG_CHESS_COUNT 1
 #define XIANG_CHESS_COUNT 2
-#define HAN_CHE_CHESS_COUNT 3
 #define HAN_PAO_CHESS_COUNT 1
+#define HAN_CHE_CHESS_COUNT 3
+#endif
 
 #define COUNTRY_CHESS_COUNT (BING_CHESS_COUNT + PAO_CHESS_COUNT + CHE_CHESS_COUNT + MA_CHESS_COUNT + XIANG_CHESS_COUNT + SHI_CHESS_COUNT + JIANG_CHESS_COUNT)
 //一般情况不需要修改
@@ -103,3 +123,4 @@ struct ImGuiInput{
 
 #define CHESS_COLUMN_TO_X(COLUMN)((COLUMN + 1) * (CHESSBOARD_RECT_SIZE) + (COLUMN + 1) * CHESSBOARD_LINE_WIDTH)
 #define CHESS_ROW_TO_Y(ROW)(CHESS_COLUMN_TO_X(ROW))
+#endif
