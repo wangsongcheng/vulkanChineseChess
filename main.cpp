@@ -118,16 +118,20 @@ void RandomCountry(){
     countryName[HAN_COUNTRY_INDEX] = "汉";
     uint32_t playerIndex = 0;
     for (auto it = g_Players.begin(); it != g_Players.end(); ++it, ++playerIndex){
-        if(!strcmp(it->country, "?")){
+        if(strcmp(it->country, "?")){
+            countryIndex[playerIndex].random = false;
             countryIndex[playerIndex].uCountry = countryToindex(it->country);
         }
+        else{
+            countryIndex[playerIndex].random = true;
+        }
     }
-    static const uint32_t countryCount = g_Game.GetCountryCount();
+    const uint32_t countryCount = g_Game.GetCountryCount();
     RandomNumber(countryCount, countryCount, countryIndex);
     playerIndex = 0;
     for (auto it = g_Players.begin(); it != g_Players.end() && playerIndex < g_Game.GetCountryCount(); ++playerIndex, ++it){
         strcpy(it->country, countryName[countryIndex[playerIndex].uCountry]);
-        it->uCountry = countryIndex[playerIndex].uCountry;
+        it->uCountry = countryIndex[playerIndex].uCountry;    
     }
 }
 void SendPlayersInfoation(){
@@ -297,9 +301,7 @@ void *process_client(void *userData){
         else if(message.event == JOINS_GAME_GAME_EVENT){
             const uint32_t clientIndex = message.clientIndex;
             memcpy(&g_Players[clientIndex], &message.player, sizeof(Player));
-            if(clientIndex != g_OnLine.GetClientIndex()){
-                PlayerChangeCountry(clientIndex, message.player.country);
-            }
+            PlayerChangeCountry(clientIndex, message.player.country);
             printf("player joins game:name %s, country %s\n", g_Players[clientIndex].name, g_Players[clientIndex].country);
         }
         else if(message.event == CURRENT_COUNTRY_GAME_EVENT){
