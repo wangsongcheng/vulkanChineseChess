@@ -4,7 +4,8 @@
 #include "Server.h"
 #include "Chess.h"
 enum GameEvent{
-    GAME_OVER_GAME_EVENT = 0,
+    INVALID_GAMER_EVENT = 0,
+    GAME_OVER_GAME_EVENT,
     GAME_START_GAME_EVENT,
     JOINS_GAME_GAME_EVENT,
     PLAY_CHESS_GAME_EVENT,
@@ -54,9 +55,10 @@ public:
     OnLine(/* args */);
     ~OnLine();
     void Init();
-    void Cleanup();
-    void JoinsGame();
     void AddAi(const char *serverIp);
+    void Cleanup();
+    void ExitGame();
+    void JoinsGame();
     void SendCurrentCountry(uint32_t currentCountry);
     SOCKET AcceptClient(uint32_t client, void *__buf, size_t __n);
     void SendClientInfoation(uint32_t clientIndex, const Player *player);
@@ -64,6 +66,10 @@ public:
     void SendPlayersInfoation(uint32_t clientIndex, const Player *player);
     void SendCountryInfomation(uint32_t clientIndex, const char *country);
     void SendPlayChessMessage(const Player&game, const Chess *pSelect, const Chess *pTarget)const;
+
+    inline uint32_t GetPlayerCount(){
+        return mServer.GetValidClientCount();
+    }
 
     inline void ShutdownClient(uint32_t clientIndex){
         mServer.ShutdownClient(clientIndex);

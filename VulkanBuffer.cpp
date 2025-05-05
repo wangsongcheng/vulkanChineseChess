@@ -18,6 +18,7 @@ VkResult VulkanBuffer::CreateBuffer(VulkanDevice device, VkDeviceSize size, VkBu
 }
 
 void VulkanBuffer::UpdateData(VulkanDevice device, const void *pData, VkQueue graphics, VulkanPool pool){
+    if(!pData || buffer == VK_NULL_HANDLE)return;
     VulkanBuffer temporary;
     temporary.CreateBuffer(device, size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
     temporary.UpdateData(device.device, size, pData);
@@ -61,6 +62,7 @@ void VulkanBuffer::UpdateData(VkDevice device, const void *pData, VkDeviceSize o
 }
 
 void VulkanBuffer::UpdateData(VkDevice device, VkDeviceSize size, const void *pData, VkDeviceSize offset){
+    if(!pData || buffer == VK_NULL_HANDLE)return;
 	void* data;
 	vkMapMemory(device, memory, offset, size, 0, &data);
 	memcpy(data, pData, size);

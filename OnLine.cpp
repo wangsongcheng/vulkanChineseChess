@@ -81,21 +81,25 @@ void OnLine::JoinsGame(){
 }
 
 void OnLine::Cleanup(){
-    GameMessage message;
-    message.clientIndex = clientIndex;
-    message.event = GAME_OVER_GAME_EVENT;
-    if(IsServer())
-        mServer.SendToAllClient(&message, sizeof(message));
-    else{
-        message.event = PLAYER_EXIT_GAME_EVENT;
-        mClient.SendTo(&message, sizeof(message));
-    }
     mServer.ShutdownClient();
     mServer.ShutdownServer();
     mClient.Shutdown();
 #ifdef WIN32
     WSACleanup();
 #endif
+}
+
+void OnLine::ExitGame(){
+    GameMessage message;
+    message.clientIndex = clientIndex;
+    if(IsServer()){
+        message.event = GAME_OVER_GAME_EVENT;
+        mServer.SendToAllClient(&message, sizeof(message));
+    }
+    else{
+        message.event = PLAYER_EXIT_GAME_EVENT;
+        mClient.SendTo(&message, sizeof(message));
+    }
 }
 
 void OnLine::AddAi(const char *serverIp){

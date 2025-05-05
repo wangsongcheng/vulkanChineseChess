@@ -10,6 +10,22 @@ struct ImGuiInput{
     bool enableAi;
     bool enableHan;
     bool enableAutoPlay;
+    struct{
+        bool bOnline;
+        bool bMain = true;
+        bool bSinglePlayer;
+        void RetMain(){
+            bMain = true;
+            bOnline = false;
+            bSinglePlayer = false;    
+        }
+    }interface;
+    void Init(){
+        enableAi = false;
+        enableHan = false;
+        enableAutoPlay = false;
+        interface.RetMain();
+    }
 };
 #ifndef MAX_BYTE
 #define MAX_BYTE 0xff

@@ -149,17 +149,18 @@ auto CreateThread(void *(*__start_routine)(void *), void *__arg){
 #endif
     return pthreadId;
 }
-#define PROCESS_SERVER_RELAY
-#ifdef PROCESS_SERVER_RELAY
+//不知道为什么，玩家离开事件中，发送游戏结束事件，该函数一直收不到
+//但process_client函数能收到, 我怀疑是直接绕过该函数发到process_client函数, 但为什么呢?
 void *process_server(void *userData){
     GameMessage message;
     uint32_t socketindex = *(SOCKET *)userData;
+    printf("function %s start, socketindex is %d\n", __FUNCTION__, socketindex);
     do{
         g_OnLine.RecvFromClient(socketindex, &message, sizeof(message));
-        // printf("in function %s:recv event %d\n", __FUNCTION__, message.event);
         g_OnLine.SendToAllClient(&message, sizeof(message));
+        if(message.event == PLAYER_EXIT_GAME_EVENT && socketindex == message.clientIndex)break;
     } while (message.event != GAME_OVER_GAME_EVENT);
-    printf("function %s end\n", __FUNCTION__);
+    printf("function %s end, socketindex is %d\n", __FUNCTION__, socketindex);
     return nullptr;
 }
 void *server_start(void *userData){
@@ -196,60 +197,6 @@ void *server_start(void *userData){
     g_OnLine.SendToAllClient(&message, sizeof(message));
     return nullptr;
 }
-#else
-std::mutex g_Mutex;
-void *process_server(void *userData){
-    GameMessage message;
-    uint32_t socketindex = *(SOCKET *)userData;
-    g_Mutex.lock();
-    if(INVALID_SOCKET != g_Server.AcceptClient(socketindex, &message, sizeof(message))){
-        printf("in function %s:socket index %d, accept count:%d\n", __FUNCTION__, socketindex, socketindex);
-        if(message.event == AI_JOIN_GAME_GAME_EVENT){
-            g_Players[socketindex].ai = true;
-            strcpy(message.player.name, "ai");
-            g_Server.ShutdownClient(socketindex);
-            // if(socketindex == 1)DeleteCountryItem(g_Players[0].country, g_CountryItems[1]);
-        }
-        else{
-            sprintf(message.player.name, "player%d", socketindex + 1);
-        }
-        g_Players[socketindex].index = socketindex;
-        strcpy(g_Players[socketindex].name, message.player.name);
-
-        SendClientInfoation();
-    }
-    g_Mutex.unlock();
-    //为了防止最后加ai, 所以即使该线程是ai也需要做下面的事
-    if(socketindex == g_DefaultCountryCount){
-        RandomCountry();
-        SendCurrentCountry();
-        SendPlayersInfoation();
-        //游戏开始, 发消息告诉所有客户端游戏开始
-        message.event = GAME_START_GAME_EVENT;
-        g_Server.SendToAllClient(&message, sizeof(message));
-        //因为最多只有1个ai, 所以可以直接循环里面判断和创建线程
-        for (auto it = g_Players.begin(); it != g_Players.end(); ++it){
-            if(it->ai){
-                g_Ai.CreatePthread(&g_Game);
-                break;
-            }
-        }
-    }
-    if(message.event == AI_JOIN_GAME_GAME_EVENT){
-        return nullptr;//ai和服务端用同一个客户端
-    }
-    // int32_t aiIndex = GetAiPlayerIndex();
-    // if(aiIndex != INVALID_PLAYER_INDEX && aiIndex == socketindex){
-    //     printf("客户端索引%d为ai, 但前函数socket index %d。所以退出函数%s\n", aiIndex, socketindex, __FUNCTION__);
-    //     return nullptr;//ai不需要收发消息
-    // }
-    do{
-        g_Server.RecvFromClient(socketindex, &message, sizeof(message));
-        g_Server.SendToAllClient(&message, sizeof(message));
-    } while (message.event != GAME_OVER_GAME_EVENT);
-    return nullptr;
-}
-#endif
 void InitJiangPos(){
     const Chessboard *pBoard = g_Game.GetChessboard();
     const Chess *pChess = pBoard->GetChess(WEI_COUNTRY_INDEX)[Chess::Type::Jiang_Chess];
@@ -340,7 +287,7 @@ void *process_client(void *userData){
             }
             g_Game.StartGame();
             const uint32_t clientIndex = g_OnLine.GetClientIndex();
-            printf("game start, you country index is %d\n", g_Players[clientIndex].uCountry);
+            printf("game start, current country is %d, you country index is %d\n", g_Game.GetCurrentCountry(), g_Players[clientIndex].uCountry);
             g_Game.NewGame(g_Players[clientIndex].uCountry, g_Game.GetCurrentCountry());
             InitJiangPos();
         }
@@ -350,9 +297,9 @@ void *process_client(void *userData){
         else if(message.event == JOINS_GAME_GAME_EVENT){
             const uint32_t clientIndex = message.clientIndex;
             memcpy(&g_Players[clientIndex], &message.player, sizeof(Player));
-            // if(clientIndex != clientIndex){//该条件永远不成立，查明这样写的原因前先注释
-            //     PlayerChangeCountry(clientIndex, message.player.country);
-            // }
+            if(clientIndex != g_OnLine.GetClientIndex()){
+                PlayerChangeCountry(clientIndex, message.player.country);
+            }
             printf("player joins game:name %s, country %s\n", g_Players[clientIndex].name, g_Players[clientIndex].country);
         }
         else if(message.event == CURRENT_COUNTRY_GAME_EVENT){
@@ -395,16 +342,53 @@ void *process_client(void *userData){
             }
         }
         else if(message.event == PLAYER_EXIT_GAME_EVENT){
-            printf("in function %s:player exit\n", __FUNCTION__);
+            printf("player exit, client index %d\n", message.clientIndex);
+            if(g_OnLine.IsServer()){
+                g_OnLine.ShutdownClient(message.clientIndex);
+                const uint32_t playerCount = g_OnLine.GetPlayerCount();
+                if(playerCount > 1){//因为服务端本身还创建了一个客户端
+                    message.event = CHANGE_PLAYER_INFORMATION_GAME_EVENT;
+                    message.player.ai = true;
+                    strcpy(message.player.name, "ai");
+                    message.player.uCountry = g_Players[message.clientIndex].uCountry;
+                    strcpy(message.player.country, g_Players[message.clientIndex].country);
+                }
+                else{
+                    message.event = GAME_OVER_GAME_EVENT;
+                }
+                g_OnLine.SendToAllClient(&message, sizeof(message));
+                message.event = INVALID_GAMER_EVENT;
+            }
+            else if(message.clientIndex == g_OnLine.GetClientIndex()){
+                g_Ai.End();
+                g_OnLine.Cleanup();
+                g_ImGuiInput.Init();
+                g_Game.EndGame();
+                for (uint32_t i = 0; i < g_Players.size(); ++i){
+                    g_Players[i].ai = false;
+                    memset(g_Players[i].name, 0, strlen(g_Players[i].name));
+                    memset(g_Players[i].country, 0, strlen(g_Players[i].country));
+                }        
+                break;
+            }
         }
         else if(message.event == GAME_OVER_GAME_EVENT){
-            printf("in function %s:game over\n", __FUNCTION__);
-            break;
+            printf("game over, client indec is %d\n", message.clientIndex);
+            g_Ai.End();
+            g_OnLine.Cleanup();
+            g_ImGuiInput.Init();
+            g_Game.EndGame();
+            for (uint32_t i = 0; i < g_Players.size(); ++i){
+                g_Players[i].ai = false;
+                memset(g_Players[i].name, 0, strlen(g_Players[i].name));
+                memset(g_Players[i].country, 0, strlen(g_Players[i].country));
+            }
         }
         else{
             printf("invalid event:%d\n", message.event);
         }
     }while(message.event != GAME_OVER_GAME_EVENT);
+    printf("function %s end\n", __FUNCTION__);
     return nullptr;
 }
 void CreateClient(const char *serverIp){
@@ -417,14 +401,7 @@ void CreateServer(){
     static const uint32_t countryCount = g_Game.GetCountryCount();
     if(g_OnLine.CeateServer(countryCount)){
         //必须用静态变量, 局部变量在函数结束后就销毁, 会导致传餐错误
-#ifdef PROCESS_SERVER_RELAY
         CreateThread(server_start, nullptr);
-#else
-        static uint32_t socketIndex[] = { 0, 1, 2 };
-        for (size_t i = 0; i < countryCount; ++i){
-            CreateThread(process_server, &socketIndex[i]);
-        }
-#endif
         CreateClient(g_OnLine.GetLocalIp().c_str());
     }
 }
@@ -460,7 +437,39 @@ void ShowPlayerCountryCombo(uint32_t comboIndex, const char *country){
         }
     }
 }
+void ShowGameWidget(){
+    const char *countryName[MAX_COUNTRY_INDEX];
+    countryName[WU_COUNTRY_INDEX] = "吴";
+    countryName[WEI_COUNTRY_INDEX] = "魏";
+    countryName[SHU_COUNTRY_INDEX] = "蜀";
+    countryName[HAN_COUNTRY_INDEX] = "汉";
+    if(g_OnLine.IsServer()){
+        if(ImGui::Checkbox("启用AI", &g_ImGuiInput.enableAi)){
+            if(g_Game.IsGameStart()){
+                if(g_ImGuiInput.enableAi){
+                    if(!g_Ai.IsEnd()){
+                        g_Ai.End();
+                    }
+                    g_Ai.CreatePthread(&g_Game, &g_OnLine);
+                }
+                else{
+                    g_Ai.End();
+                }
+            }
+        }
+    }
+    const uint32_t currentCountry = g_Game.GetCurrentCountry(), clientIndex = g_OnLine.GetClientIndex();
+    if(currentCountry != INVALID_COUNTRY_INDEX && clientIndex < g_Game.GetCountryCount()){
+        ImGui::Text("你是%s, 该%s下棋\n", countryName[g_Players[clientIndex].uCountry], g_Players[clientIndex].uCountry == currentCountry?"你":countryName[currentCountry]);
+    }
+    if(ImGui::Button("返回主菜单")){
+        g_OnLine.ExitGame();
+    }
+}
 void ShowClientWidget(){
+    if(g_Game.IsGameStart()){
+        ShowGameWidget();
+    }
     if(ImGui::BeginTable("player information", 2)){
         ImGui::TableNextColumn();
         ImGui::Text("名字");
@@ -478,53 +487,30 @@ void ShowClientWidget(){
             }
         }
         ImGui::EndTable();
-    }
+    }    
 }
-void ShowGameWidget(){
-    if(ImGui::Begin("三国象棋")){
-        const char *countryName[MAX_COUNTRY_INDEX];
-        countryName[WU_COUNTRY_INDEX] = "吴";
-        countryName[WEI_COUNTRY_INDEX] = "魏";
-        countryName[SHU_COUNTRY_INDEX] = "蜀";
-        countryName[HAN_COUNTRY_INDEX] = "汉";
-        const uint32_t currentCountry = g_Game.GetCurrentCountry(), clientIndex = g_OnLine.GetClientIndex();
-        if(currentCountry != INVALID_COUNTRY_INDEX){
-            ImGui::Text("你是%s, 该%s下棋\n", countryName[g_Players[clientIndex].uCountry], g_Players[clientIndex].uCountry == currentCountry?"你":countryName[currentCountry]);
+uint32_t GetAiCount(){
+    uint32_t aiCount = 0;
+    for (auto it = g_Players.begin(); it != g_Players.end(); ++it){
+        if(it->ai){
+            ++aiCount;
+            break;
         }
     }
-    ImGui::End();
+    return aiCount;
 }
 void ShowServerWidget(){
     //在非广播模式下，直接显示本机ip。(或许广播模式下也可以显示)
-    static std::string localIp = g_OnLine.GetLocalIp();
-    ImGui::Text("本机ip:%s", localIp.c_str());
-    if(ImGui::Checkbox("启用AI", &g_ImGuiInput.enableAi)){
-        if(g_Game.IsGameStart()){
-            if(g_ImGuiInput.enableAi){
-                if(!g_Ai.IsEnd()){
-                    g_Ai.End();
-                }
-                g_Ai.CreatePthread(&g_Game, &g_OnLine);
-            }
-            else{
-                g_Ai.End();
-            }
-        }
-    }
-    ShowClientWidget();
     if(!g_Game.IsGameStart()){
-        if(ImGui::Button("添加电脑")){
-            uint32_t aiCount = 0;
-            for (auto it = g_Players.begin(); it != g_Players.end(); it++){
-                if(!strcmp(it->name, "ai")){
-                    ++aiCount;
-                    break;
-                }
-            }
+        static std::string localIp = g_OnLine.GetLocalIp();
+        ImGui::Text("本机ip:%s", localIp.c_str());    
+            if(ImGui::Button("添加电脑")){
+            const uint32_t aiCount = GetAiCount();
             //减掉一个服务端玩家和一个客户端玩家
             if(aiCount < g_Game.GetCountryCount() - 2)g_OnLine.AddAi(localIp.c_str());
         }
     }
+    ShowClientWidget();
 }
 bool ShowConnectServerInterface(){
     bool show = true;
@@ -589,6 +575,7 @@ bool ShowOnlineModeMainInterface(bool *mainInterface){
         if(ImGui::Button("返回")){
             ret = true;
             *mainInterface = true;
+            if(g_Game.IsGameStart())g_Game.EndGame();
         }
     }
     ImGui::End();
@@ -608,6 +595,9 @@ bool ShowSinglePlayerModeMainInterface(bool *mainInterface){
     if(ImGui::Begin("单人模式")){
         if(currentCountry != INVALID_COUNTRY_INDEX && player != INVALID_COUNTRY_INDEX){
             ImGui::Text("你是%s, 该%s下棋\n", countryName[player], player == currentCountry?"你":countryName[currentCountry]);
+        }
+        if(ImGui::Button("新游戏")){
+            g_Game.NewGame();
         }
         if(g_Game.IsGameStart()){
             if(ImGui::Checkbox("启用AI", &g_ImGuiInput.enableAi)){
@@ -641,18 +631,13 @@ bool ShowSinglePlayerModeMainInterface(bool *mainInterface){
             }
             ImGui::EndTable();
         }
-        if(ImGui::BeginTable("单人模式-按钮表格", 1)){
-            ImGui::TableNextColumn();
-            if(ImGui::Button("新游戏")){
-                g_Game.NewGame();
-            }
-            ImGui::EndTable();
-        }
         ShowPlayerCountryCombo();
         if(ImGui::Button("返回")){
             *mainInterface = true;
             ret = true;
-            g_Game.EndGame();
+            g_Ai.End();
+            g_ImGuiInput.Init();
+            if(g_Game.IsGameStart())g_Game.EndGame();
         }
     }
     ImGui::End();
@@ -679,16 +664,18 @@ void UpdateImgui(VkCommandBuffer command){
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
     
-    static bool bMainInterface = true, bSinglePlayerInterface, bOnlineInterface;
-    if(bMainInterface){
-        bMainInterface = MainInterface(&bSinglePlayerInterface, &bOnlineInterface);
+    if(g_ImGuiInput.interface.bMain){
+        g_ImGuiInput.interface.bMain = MainInterface(&g_ImGuiInput.interface.bSinglePlayer, &g_ImGuiInput.interface.bOnline);
     }
-    else if(bSinglePlayerInterface){
-        bSinglePlayerInterface = ShowSinglePlayerModeMainInterface(&bMainInterface);
+    else if(g_ImGuiInput.interface.bSinglePlayer){
+        g_ImGuiInput.interface.bSinglePlayer = ShowSinglePlayerModeMainInterface(&g_ImGuiInput.interface.bMain);
     }
-    else if(bOnlineInterface){
-        bOnlineInterface = ShowOnlineModeMainInterface(&bMainInterface);
+    else if(g_ImGuiInput.interface.bOnline){
+        g_ImGuiInput.interface.bOnline = ShowOnlineModeMainInterface(&g_ImGuiInput.interface.bMain);
     }
+    // if(g_Game.IsGameStart() && g_Game.IsOnline()){
+    //     ShowGameWidget();
+    // }
 
     ImGui::Render();
     ImDrawData *draw_data = ImGui::GetDrawData();
@@ -747,7 +734,7 @@ const Chess *g_Select;
 bool SelectChess(const glm::vec2 &mousePos){
     auto pBoard = g_Game.GetChessboard();
     const uint32_t currentCountry = g_Game.GetCurrentCountry(), playerCountry = g_Game.GetPlayerCountry();
-    if((!g_Ai.IsEnd() || (g_Game.IsOnline() && !g_OnLine.IsServer())) && currentCountry != playerCountry)return false;
+    if((!g_Ai.IsEnd() || g_Game.IsOnline()) && currentCountry != playerCountry)return false;
     if(g_Select){
         g_Game.UnSelectChess();
         static glm::vec4 info;
@@ -939,6 +926,7 @@ void Cleanup(VkDevice device){
     Pipeline::DestroyPipelineCache(device, "GraphicsPipelineCache", g_PipelineCache);
     g_VulkanImGui.Cleanup(device);
     g_Game.Cleanup(device);
+    g_OnLine.ExitGame();
     g_OnLine.Cleanup();
 }
 void RecreateSwapchain(void *userData){

@@ -57,3 +57,11 @@ void Server::RecvFromClient(uint32_t client, void *__buf, size_t __n)const{
 void Server::SendToClient(uint32_t client, const void *__buf, size_t __n)const{
     mClients[client].SendTo(__buf, __n);
 }
+
+uint32_t Server::GetValidClientCount(){
+    uint32_t validClientCount = 0;
+    for (auto&it:mClients){
+        if(it.IsValidClieck())++validClientCount;
+    }
+    return validClientCount;
+}

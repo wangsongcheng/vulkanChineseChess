@@ -306,6 +306,20 @@ void Game::DrawWireframe(VkCommandBuffer command, VkPipelineLayout layout){
     vulkan.select.Draw(command, layout);
 }
 
+void Game::EndGame(){
+    mMaxCountryCount = 3;
+    state.isOnline = false;
+    state.isGameStart = false;
+    state.isControllable = false;
+    player.country = INVALID_COUNTRY_INDEX;
+    mCurrentCountry = INVALID_COUNTRY_INDEX;
+    mNotAllianceCountry = INVALID_COUNTRY_INDEX;
+    for (uint32_t uiCountry = 0; uiCountry < MAX_COUNTRY_INDEX; uiCountry++){
+        mChessboard.DestroyCountry(uiCountry);
+    }
+    UpdateChessUniform(vulkan.device.device);
+}
+
 void Game::Setup(VulkanDevice device, VkDescriptorSetLayout layout, VkQueue graphics, VulkanPool pool){
     vulkan.device = device;
     vulkan.chess.Setup(device, layout, graphics, pool);

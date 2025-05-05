@@ -73,10 +73,8 @@ bool Client::CreateClient(const char *serverIp){
     return true;
 }
 void Client::RecvFrom(void *__buf, size_t __n)const{
-    if(mSocket != INVALID_SOCKET)
-        Recv(mSocket, __buf, __n, 0);
+    if(mSocket != INVALID_SOCKET)Recv(mSocket, __buf, __n, 0);
 }
 void Client::SendTo(const void *__buf, size_t __n)const{
-    if(mSocket != INVALID_SOCKET)
-        Send(mSocket, __buf, __n, 0);
+    if(mSocket != INVALID_SOCKET)Send(mSocket, __buf, __n, 0);
 }

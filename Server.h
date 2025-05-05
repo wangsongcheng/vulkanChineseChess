@@ -14,7 +14,7 @@ public:
     void SendToAllClient(const void *__buf, size_t __n)const;
     void RecvFromClient(uint32_t client, void *__buf, size_t __n)const;
     void SendToClient(uint32_t client, const void *__buf, size_t __n)const;
-
+    uint32_t GetValidClientCount();
     inline auto GetClientInfo()const{
         return mClients;
     }

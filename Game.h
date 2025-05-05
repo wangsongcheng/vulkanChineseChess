@@ -64,6 +64,8 @@ public:
     void DrawFont(VkCommandBuffer command, VkPipelineLayout layout);
     void DrawWireframe(VkCommandBuffer command, VkPipelineLayout layout);
 
+    void EndGame();
+
     void Setup(VulkanDevice device, VkDescriptorSetLayout setLayout, VkQueue graphics, VulkanPool pool);
 
     void UpdateUniform(VkDevice device, uint32_t windowWidth);
@@ -73,9 +75,6 @@ public:
     }
     inline void DiscardHan(){
         state.isControllable = false;
-    }
-    inline void EndGame(){
-        state.isGameStart = false;
     }
     inline void EnableHan(){
         state.isControllable = true;

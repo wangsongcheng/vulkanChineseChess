@@ -20,8 +20,8 @@ typedef unsigned long long SOCKET;
 #ifndef MAX_BYTE
 #define MAX_BYTE 0xff
 #endif
-#define INVALID_SOCKET 10000
 #define INTERNET_PORT 10086
+#define INVALID_SOCKET 1000000
 #define INVALID_PLAYER_INDEX 10
 class Client{
     SOCKET mSocket;
@@ -37,6 +37,9 @@ public:
 
     inline void SetScoket(SOCKET s){
         mSocket = s;
+    }
+    inline bool IsValidClieck()const{
+        return mSocket != INVALID_SOCKET;
     }
     inline void Shutdown(){
         shutdown(mSocket, SHUT_RDWR);
