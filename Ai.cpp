@@ -17,10 +17,10 @@ void aiPlay(Ai *pAi){
         }
     }
     else{
-        pAi->SelectChess(pSelect);
+        // pAi->SelectChess(pSelect);
         pAi->PlayChess(pSelect, dstRow, dstColumn);
         pAi->SyncBoardCopy(pSelect, dstRow, dstColumn);
-        pAi->UnSelectChess();
+        // pAi->UnSelectChess();
         //下完棋要调用下面的函数
         pAi->EnableNextCountry(g_ImGuiInput.enableAutoPlay);
     }
@@ -696,19 +696,41 @@ Chess *Ai::GetCannonScreenPiece(const Chess *pPao, const Chess *pTarget)const{
     return pChess;
 }
 //返回走后能避免pTarget被吃的棋子
-Chess *Ai::ResolveCheck_Pao(uint32_t country, const Chess *pCheck, const Chess *pTarget){
+Chess *Ai::GetResolveCheck_Pao(uint32_t country, const Chess *pCheck, const Chess *pTarget){
     Chess *pSelect = nullptr;
     auto pBoard = mGame->GetChessboard();
     //找出炮是通过哪个棋子吃将的
     Chess *pCannonScreen = GetCannonScreenPiece(pCheck, pTarget);
+    const glm::vec2 pao = glm::vec2(pCheck->GetColumn(), pCheck->GetRow()), jiang = glm::vec2(pTarget->GetColumn(), pTarget->GetRow());
+    const glm::vec2 dir = glm::normalize(pao - jiang) * -1.0f, side = glm::cross(glm::vec3(dir, 0), glm::vec3(0, 0, 1));
     //不需要判空，pCannonScreen不能为空，为空说明程序有问题
     if(pCannonScreen->GetCountry() == country){
         //如果炮架是自己的棋子, 那么就走开
-        pSelect = pCannonScreen;
+        std::vector<glm::vec2>canplays;
+        pCannonScreen->Select(pBoard, canplays);
+        if((pCannonScreen->GetChess() == Chess::Type::Xiang_Chess || pCannonScreen->GetChess() == Chess::Type::Shi_Chess)&& !canplays.empty()){
+            pSelect = pCannonScreen;
+        }
+        if(!pSelect){
+            for (auto&it:canplays){
+                glm::vec2 pos = jiang + side;
+                if(it.x == pos.x && it.y == pos.y){
+                    pSelect = pCannonScreen;
+                    break;
+                }
+            }    
+        }
+        if(!pSelect){
+            for (auto&it:canplays){
+                glm::vec2 pos = jiang + side * -1.0f;
+                if(it.x == pos.x && it.y == pos.y){
+                    pSelect = pCannonScreen;
+                    break;
+                }
+            }
+        }
     }
-    else{
-        const glm::vec2 pao = glm::vec2(pCheck->GetColumn(), pCheck->GetRow()), jiang = glm::vec2(pTarget->GetColumn(), pTarget->GetRow());
-        const glm::vec2 dir = glm::normalize(pao - jiang) * -1.0f, side = glm::cross(glm::vec3(dir, 0), glm::vec3(0, 0, 1));
+    if(!pSelect){
         std::vector<glm::vec2>canplays;
         pTarget->Select(pBoard, canplays);
         for (auto&it:canplays){
@@ -727,7 +749,6 @@ Chess *Ai::ResolveCheck_Pao(uint32_t country, const Chess *pCheck, const Chess *
                 }
             }    
         }
-
     }
     return pSelect;
 }
@@ -738,8 +759,9 @@ Chess *Ai::ResolveCheck(uint32_t country, const Chess *pCheck){
     Chess *pSelect = GetSelect(country, pCheck), *pJiang = pBoard->GetChess(country)[Chess::Type::Jiang_Chess];
     if(!pSelect){
         //就目前而言，能将的只有车、马、炮、兵。
+        //特别是士，经常因为炮而移动到和非法位置
         if(pCheck->GetChess() == Chess::Type::Pao_Chess){
-            pSelect = ResolveCheck_Pao(country, pCheck, pJiang);
+            pSelect = GetResolveCheck_Pao(country, pCheck, pJiang);
         }
         //马不能通过蹩马脚解将
         else if(pCheck->GetChess() == Chess::Type::Ma_Chess){
@@ -748,49 +770,55 @@ Chess *Ai::ResolveCheck(uint32_t country, const Chess *pCheck){
         }
         else{
             //兵一般情况下，都能直接吃掉,所以只处理车
-            //只需要判断哪个棋子能走到车的路径上即可
-            std::vector<glm::vec2>canplays, checanplays;
-            pCheck->Select(pBoard, checanplays);
-            Chess *pChess = nullptr;
-            for (size_t i = 0; i < SHI_CHESS_COUNT; i++){
-                pChess = pBoard->GetChess(country)[Chess::Type::Shi_Chess + i];
-                if(pChess){
-                    canplays.clear();
-                    pChess->Select(pBoard,canplays);
-                    for (auto it = canplays.begin(); it != canplays.end(); ++it){
-                        for (auto cheit:checanplays){
-                            if(it->x == cheit.x && it->y == cheit.y){
-                                pSelect = pChess;
-                                i = SHI_CHESS_COUNT;
-                                break;
-                            }
-                        }
-                        if(pSelect)break;
-                    }
-                }
-            }
-            if(!pSelect){
-                for (size_t i = 0; i < XIANG_CHESS_COUNT; i++){
-                    pChess = pBoard->GetChess(country)[Chess::Type::Xiang_Chess + i];
-                    if(pChess){
-                        pChess->Select(pBoard,canplays);
-                        for (auto it = canplays.begin(); it != canplays.end(); ++it){
-                            for (auto cheit:checanplays){
-                                if(it->x == cheit.x && it->y == cheit.y){
-                                    pSelect = pChess;
-                                    i = XIANG_CHESS_COUNT;
-                                    break;
-                                }
-                            }
-                            if(pSelect)break;
-                        }
-                    }
-                }                    
-            }
+            pSelect = GetResolveCheck_Che(country, pCheck);
         }
     }
     if(!pSelect){
         pSelect = pJiang;
+    }
+    return pSelect;
+}
+Chess *Ai::GetResolveCheck_Che(uint32_t country, const Chess *pCheck){
+    //只需要判断哪个棋子能走到车的路径上即可
+    Chess *pSelect = nullptr;
+    std::vector<glm::vec2>canplays, checanplays;
+    auto pBoard = mGame->GetChessboard();
+    pCheck->Select(pBoard, checanplays);
+    Chess *pChess = nullptr;
+    for (size_t i = 0; i < SHI_CHESS_COUNT; i++){
+        pChess = pBoard->GetChess(country)[Chess::Type::Shi_Chess + i];
+        if(pChess){
+            canplays.clear();
+            pChess->Select(pBoard,canplays);
+            for (auto it = canplays.begin(); it != canplays.end(); ++it){
+                for (auto cheit:checanplays){
+                    if(it->x == cheit.x && it->y == cheit.y){
+                        pSelect = pChess;
+                        i = SHI_CHESS_COUNT;
+                        break;
+                    }
+                }
+                if(pSelect)break;
+            }
+        }
+    }
+    if(!pSelect){
+        for (size_t i = 0; i < XIANG_CHESS_COUNT; i++){
+            pChess = pBoard->GetChess(country)[Chess::Type::Xiang_Chess + i];
+            if(pChess){
+                pChess->Select(pBoard,canplays);
+                for (auto it = canplays.begin(); it != canplays.end(); ++it){
+                    for (auto cheit:checanplays){
+                        if(it->x == cheit.x && it->y == cheit.y){
+                            pSelect = pChess;
+                            i = XIANG_CHESS_COUNT;
+                            break;
+                        }
+                    }
+                    if(pSelect)break;
+                }
+            }
+        }
     }
     return pSelect;
 }
@@ -847,14 +875,24 @@ const Chess *Ai::GetTarget(const Chess *pSelect, uint32_t *row, uint32_t *column
                 Chess * pJiang = pBoard->GetChess(country)[Chess::Type::Jiang_Chess];
                 const glm::vec2 pao = glm::vec2(pCheck->GetColumn(), pCheck->GetRow()), jiang = glm::vec2(pJiang->GetColumn(), pJiang->GetRow()), select = glm::vec2(pSelect->GetColumn(), pSelect->GetRow());
                 const glm::vec2 dir = glm::normalize(pao - jiang) * -1.0f, side = glm::cross(glm::vec3(dir, 0), glm::vec3(0, 0, 1));
-                glm::vec2 pos = select + side;
-                if(IsBoundary(pos.y, pos.x)){
-                    pos = select - side;
+                for (auto&it:canplays){
+                    glm::vec2 pos = select + side;
+                    if(it.x == pos.x && it.y == pos.y){
+                        *row = pos.y;
+                        *column = pos.x;
+                        break;
+                    }
                 }
-                if(!IsBoundary(pos.y, pos.x)){
-                    *row = pos.y;
-                    *column = pos.x;
-                }
+                // if(*row >= MAX_CHESSBOARD_LINE){
+                //     for (auto&it:canplays){
+                //         glm::vec2 pos = select + side * -1.0f;
+                //         if(it.x == pos.x && it.y == pos.y){
+                //             *row = pos.y;
+                //             *column = pos.x;    
+                //             break;
+                //         }
+                //     }    
+                // }
             }
             else{
                 //说明该棋子走的位置必须能挡住车

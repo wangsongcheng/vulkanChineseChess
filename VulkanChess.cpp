@@ -71,7 +71,7 @@ void VulkanChess::CreateChessResource(VulkanDevice device, VulkanPool pool, VkQu
         circularIndices.push_back(i + 1);
         circularIndices.push_back(0);
     }
-    GetCircularVertex(glm::vec3(1), circularVertices);
+    GetCircularVertex(glm::vec3(.8), circularVertices);
 
     // //这里得准备4*2种颜色的棋子
     // std::vector<Vertex> circularVertices;
@@ -199,7 +199,7 @@ void VulkanChess::DrawFont(VkCommandBuffer command, VkPipelineLayout layout){
         mFont.Draw(command);
     }
 }
-void VulkanChess::DrawChess(VkCommandBuffer command, VkPipelineLayout layout, uint32_t currentCountry){
+void VulkanChess::DrawChess(VkCommandBuffer command, VkPipelineLayout layout){
     mChess.Bind(command);
     uint32_t dynamicOffsets = 0;
     for (size_t uiCountry = 0; uiCountry < MAX_COUNTRY_INDEX; ++uiCountry){

@@ -175,32 +175,33 @@ void VulkanChessboard::Cleanup(VkDevice device){
     fonts.uniforms.alliance.Destroy(device);
     vkDestroySampler(device, fonts.sampler, VK_NULL_HANDLE);
 }
-// uint32_t GetTerritoryIndex(uint32_t row, uint32_t column){
-//     if(row <= CHESSBOARD_ROW - CHESSBOARD_BING_GRID_DENSITY && row >= CHESSBOARD_BING_GRID_DENSITY){
-//         if(column >= CHESSBOARD_COLUMN - CHESSBOARD_BING_GRID_DENSITY){
-//             return WU_TERRITORY_INDEX;
-//         }
-//         else if(column <= CHESSBOARD_BING_GRID_DENSITY + 1){
-//             return HAN_TERRITORY_INDEX;
-//         }
-//         else{
-//             return CENTER_TERRITORY_INDEX;
-//         }
-//     }
-//     else if(column > CHESSBOARD_BING_GRID_DENSITY && column <= CHESSBOARD_COLUMN - CHESSBOARD_BING_GRID_DENSITY){
-//         //魏或蜀
-//         if(row > CHESSBOARD_ROW - CHESSBOARD_BING_GRID_DENSITY){
-//             return SHU_TERRITORY_INDEX;
-//         }
-//         else if(row < CHESSBOARD_BING_GRID_DENSITY + 1){
-//             return WEI_TERRITORY_INDEX;
-//         }
-//         else{
-//             return CENTER_TERRITORY_INDEX;
-//         }
-//     }
-//     return INVALID_TERRITORY_INDEX;
-// }
+uint32_t GetTerritoryIndex(uint32_t row, uint32_t column){
+    if(row >= CHESSBOARD_BING_GRID_DENSITY && row < CHESSBOARD_ROW - CHESSBOARD_BING_GRID_DENSITY){
+        //汉和吴的地盘
+        if(column < CHESSBOARD_BING_GRID_DENSITY){
+            return HAN_TERRITORY_INDEX;
+        }
+        else if(column >= CHESSBOARD_COLUMN - CHESSBOARD_BING_GRID_DENSITY){
+            return WU_TERRITORY_INDEX;
+        }
+        else{
+            return CENTER_TERRITORY_INDEX;
+        }
+    }
+    else if(column >= CHESSBOARD_BING_GRID_DENSITY && column < CHESSBOARD_COLUMN - CHESSBOARD_BING_GRID_DENSITY){
+        //魏和蜀的地盘
+        if(row < CHESSBOARD_BING_GRID_DENSITY){
+            return SHU_TERRITORY_INDEX;
+        }
+        else if(row >= CHESSBOARD_ROW - CHESSBOARD_BING_GRID_DENSITY){
+            return WEI_TERRITORY_INDEX;
+        }
+        else{
+            return CENTER_TERRITORY_INDEX;
+        }
+    }
+    return INVALID_TERRITORY_INDEX;
+}
 void VulkanChessboard::Draw(VkCommandBuffer command, VkPipelineLayout layout){
     uint32_t dynamicOffsets;
     mRect.Bind(command);

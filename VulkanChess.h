@@ -71,6 +71,6 @@ public:
     void UpdateUniform(VkDevice device, uint32_t fontIndex, uint32_t country, const glm::vec2&pos, uint32_t width, uint32_t height, uint32_t dynamicOffsets);
     //应该拆成独立函数，供外部调用
     void DrawFont(VkCommandBuffer command, VkPipelineLayout layout);
-    void DrawChess(VkCommandBuffer command, VkPipelineLayout layout, uint32_t currentCountry);
+    void DrawChess(VkCommandBuffer command, VkPipelineLayout layout);
 };
 #endif

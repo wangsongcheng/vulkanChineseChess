@@ -43,7 +43,8 @@ class Ai{
     //返回的棋子肯定有位置可以下
     Chess *RandChess(uint32_t country)const;
     Chess *ResolveCheck(uint32_t country, const Chess *pCheck);
-    Chess *ResolveCheck_Pao(uint32_t country, const Chess *pCheck, const Chess *pTarget);
+    Chess *GetResolveCheck_Che(uint32_t country, const Chess *pCheck);
+    Chess *GetResolveCheck_Pao(uint32_t country, const Chess *pCheck, const Chess *pTarget);
     Chess *RandTarget(uint32_t country, const std::vector<glm::vec2>&canplays, uint32_t *row, uint32_t *column)const;
 
     void SetNotAllianceCountry(uint32_t country, uint32_t row, uint32_t column);

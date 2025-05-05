@@ -1062,12 +1062,10 @@ int main(){
         double elapsedTime = std::chrono::duration<double>(currentTime - previousTime).count();
 
         if (elapsedTime < targetFrameTime) {
-            // 计算剩余需要等待的时间
-            double sleepTime = (targetFrameTime - elapsedTime) * 1000; // 转换为毫秒
+            double sleepTime = (targetFrameTime - elapsedTime) * 1000;
             std::this_thread::sleep_for(std::chrono::milliseconds((int)sleepTime));
         }
 
-        // 更新前一帧时间
         previousTime = std::chrono::high_resolution_clock::now();
 
         display(window);

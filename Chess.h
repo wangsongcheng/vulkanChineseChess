@@ -19,7 +19,9 @@ public:
         Che_Chess = Pao_Chess + PAO_CHESS_COUNT,
         Shi_Chess = Che_Chess + CHE_CHESS_COUNT,
         Xiang_Chess = Shi_Chess + SHI_CHESS_COUNT,
-        Bing_Chess = Xiang_Chess + XIANG_CHESS_COUNT
+        Bing_Chess = Xiang_Chess + XIANG_CHESS_COUNT,
+        // Han_Pao_Chess = COUNTRY_CHESS_COUNT,
+        // Han_Che_Chess = COUNTRY_CHESS_COUNT + 1,
     };
 protected:
     Type mChess;
@@ -31,7 +33,6 @@ protected:
     uint32_t GetTerritoryIndex()const;
     uint32_t GetTerritoryIndex(uint32_t row, uint32_t column)const;
     void RemoveInvalidChess(const void *pBoard, std::vector<glm::vec2>&canplays)const;
-    virtual void InPalaceMove(const void *pBoard, std::vector<glm::vec2>&canplays)const;
 public:
     Chess(/* args */);
     Chess(uint32_t country, Type chess, uint32_t fontIndex, bool hasExitPermission);
@@ -123,7 +124,7 @@ public:
     virtual void Select(const void *pBoard, std::vector<glm::vec2>&canplays)const;
 };
 class Pao:public Chess{
-    virtual void InPalaceMove(const void *pBoard, std::vector<glm::vec2>&canplays)const;
+    // virtual void InPalaceMove(const void *pBoard, std::vector<glm::vec2>&canplays)const;
 public:
     Pao();
     Pao(uint32_t country);
@@ -163,7 +164,8 @@ public:
     virtual void Select(const void *pBoard, std::vector<glm::vec2>&canplays)const;
 };
 class Shi:public Chess{
-public:
+    void InPalaceMove(const void *pBoard, std::vector<glm::vec2>&canplays)const;
+    public:
     Shi();
     Shi(uint32_t country);
     Shi(uint32_t country, uint32_t row, uint32_t column);

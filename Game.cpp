@@ -295,7 +295,7 @@ void Game::Cleanup(VkDevice device){
 
 void Game::Draw(VkCommandBuffer command, VkPipelineLayout layout){
     vulkan.chessboard.Draw(command,layout);
-    vulkan.chess.DrawChess(command, layout, mCurrentCountry);
+    vulkan.chess.DrawChess(command, layout);
 }
 void Game::DrawFont(VkCommandBuffer command, VkPipelineLayout layout){
     vulkan.chessboard.DrawAllianceFont(command, layout);

@@ -9,6 +9,7 @@ Chess *Chessboard::CreateChess(uint32_t country, Chess::Type chess, uint32_t row
     }
     case Chess::Type::Ma_Chess:return new Ma(country, row, column);
     case Chess::Type::Pao_Chess:return new Pao(country, row, column);
+    //改用if判断
 #ifndef ENABLE_BATTLE_FAN_GUANYU
     case Chess::Type::Che_Chess:return new Che(country, row, column);
     case Chess::Type::Xiang_Chess:return new Xiang(country, row, column);
@@ -36,6 +37,10 @@ void Chessboard::InitWuChessRowAndColumn(std::array<Chess *, DRAW_CHESS_COUNT> &
         if(pChess[Chess::Type::Shi_Chess + i])pChess[Chess::Type::Shi_Chess + i]->SetPos(pChess[Chess::Type::Jiang_Chess]->GetRow() + shiOffset[i], pChess[Chess::Type::Jiang_Chess]->GetColumn());
     }
 #ifdef ENABLE_BATTLE_FAN_GUANYU
+    std::array<int32_t, PAO_CHESS_COUNT>paoOffset = { -2, 2 };
+    for (size_t i = 0; i < PAO_CHESS_COUNT; i++){
+        if(pChess[Chess::Type::Pao_Chess + i])pChess[Chess::Type::Pao_Chess + i]->SetPos(pChess[Chess::Type::Jiang_Chess]->GetRow() + paoOffset[i], pChess[Chess::Type::Jiang_Chess]->GetColumn());
+    }
     // std::array<int32_t, Chess::Type::Bing_Chess>bingOffset = { -2, 2 };
     if(pChess[Chess::Type::Bing_Chess])pChess[Chess::Type::Bing_Chess]->SetPos(CHESSBOARD_ROW - CHESSBOARD_BING_GRID_DENSITY - 1, CHESSBOARD_COLUMN - 3);
     for (size_t i = 1; i < BING_CHESS_COUNT; ++i){

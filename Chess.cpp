@@ -7,24 +7,25 @@ uint32_t Chess::GetTerritoryIndex()const{
     return GetTerritoryIndex(mRow, mColumn);
 }
 uint32_t Chess::GetTerritoryIndex(uint32_t row, uint32_t column)const{
-    if(row <= CHESSBOARD_ROW - CHESSBOARD_BING_GRID_DENSITY && row > CHESSBOARD_BING_GRID_DENSITY - 1){
-        if(column >= CHESSBOARD_COLUMN - CHESSBOARD_BING_GRID_DENSITY){
-            return WU_TERRITORY_INDEX;
-        }
-        else if(column < CHESSBOARD_BING_GRID_DENSITY + 1){
+    if(row > CHESSBOARD_BING_GRID_DENSITY && row < CHESSBOARD_ROW - CHESSBOARD_BING_GRID_DENSITY){
+        //汉和吴的地盘
+        if(column <= CHESSBOARD_BING_GRID_DENSITY){
             return HAN_TERRITORY_INDEX;
+        }
+        else if(column >= CHESSBOARD_COLUMN - CHESSBOARD_BING_GRID_DENSITY){
+            return WU_TERRITORY_INDEX;
         }
         else{
             return CENTER_TERRITORY_INDEX;
         }
     }
-    else if(column > CHESSBOARD_BING_GRID_DENSITY - 1 && column <= CHESSBOARD_COLUMN - CHESSBOARD_BING_GRID_DENSITY){
-        //魏或蜀
-        if(row > CHESSBOARD_ROW - CHESSBOARD_BING_GRID_DENSITY){
-            return SHU_TERRITORY_INDEX;
-        }
-        else if(row < CHESSBOARD_BING_GRID_DENSITY + 1){
+    else if(column > CHESSBOARD_BING_GRID_DENSITY && column < CHESSBOARD_COLUMN - CHESSBOARD_BING_GRID_DENSITY){
+        //魏和蜀的地盘
+        if(row <= CHESSBOARD_BING_GRID_DENSITY){
             return WEI_TERRITORY_INDEX;
+        }
+        else if(row >= CHESSBOARD_ROW - CHESSBOARD_BING_GRID_DENSITY){
+            return SHU_TERRITORY_INDEX;
         }
         else{
             return CENTER_TERRITORY_INDEX;
@@ -53,29 +54,6 @@ void Chess::RemoveInvalidChess(const void *pBoard, std::vector<glm::vec2> &canpl
         }
         else
             ++it;
-    }
-}
-
-void Chess::InPalaceMove(const void *pBoard, std::vector<glm::vec2> &canplays) const{
-    const Chessboard *board = (const Chessboard *)pBoard;
-    int32_t territory = board->IsInPalace(mRow, mColumn);
-    if(territory != INVALID_TERRITORY_INDEX && territory != CENTER_TERRITORY_INDEX){
-        const auto center = board->GetPalacesCenter(territory);
-        if(mRow == center.y && mColumn == center.x){
-            const glm::vec2 pos[] = {
-                glm::vec2(center.x - 1, center.y - 1),
-                glm::vec2(center.x - 1, center.y + 1),
-                glm::vec2(center.x + 1, center.y - 1),
-                glm::vec2(center.x + 1, center.y + 1)
-            };
-            //除馬、相外, 其他棋子在中心点时，能走的肯定就是斜线边的点
-            for (size_t i = 0; i < sizeof(pos) / sizeof(glm::vec2); ++i){
-                canplays.push_back(pos[i]);
-            }
-        }
-        else{
-            canplays.push_back(center);
-        }    
     }
 }
 
@@ -128,7 +106,6 @@ void Wei::Select(const void *pBoard, std::vector<glm::vec2>&canplays)const{
             canplays.push_back(glm::vec2(cInfo[i].x, cInfo[i].y));
         }
     }
-    InPalaceMove(pBoard, canplays);
     RemoveInvalidChess(pBoard, canplays);}
 
 Shu::Shu():Chess(SHU_COUNTRY_INDEX, Jiang_Chess, FONT_INDEX_SHU, false){
@@ -148,7 +125,6 @@ void Shu::Select(const void *pBoard, std::vector<glm::vec2>&canplays) const{
             canplays.push_back(glm::vec2(cInfo[i].x, cInfo[i].y));
         }
     }
-    InPalaceMove(pBoard, canplays);
     RemoveInvalidChess(pBoard, canplays);
 }
 
@@ -169,7 +145,6 @@ void Wu::Select(const void *pBoard, std::vector<glm::vec2>&canplays) const{
             canplays.push_back(glm::vec2(cInfo[i].x, cInfo[i].y));
         }
     }
-    InPalaceMove(pBoard, canplays);
     RemoveInvalidChess(pBoard, canplays);
 }
 
@@ -190,7 +165,6 @@ void Han::Select(const void *pBoard, std::vector<glm::vec2>&canplays) const{
             canplays.push_back(glm::vec2(cInfo[i].x, cInfo[i].y));
         }
     }
-    InPalaceMove(pBoard, canplays);
     RemoveInvalidChess(pBoard, canplays);
 }
 
@@ -240,42 +214,41 @@ void Bing::Select(const void *pBoard, std::vector<glm::vec2>&canplays) const{
             canplays.push_back(currentPos);
         }
     }
-    InPalaceMove(pBoard, canplays);
     RemoveInvalidChess(pBoard, canplays);
 }
 
-void Pao::InPalaceMove(const void *pBoard, std::vector<glm::vec2> &canplays) const{
-    const Chessboard *board = (const Chessboard *)pBoard;
-    const int32_t territory = board->IsInPalace(mRow, mColumn);
-    if(territory != INVALID_TERRITORY_INDEX && territory != CENTER_TERRITORY_INDEX){
-        const auto&center = board->GetPalacesCenter(territory);
-        if(mRow == center.y && mColumn == center.x){
-            const glm::vec2 pos[] = {
-                glm::vec2(center.x - 1, center.y - 1),
-                glm::vec2(center.x - 1, center.y + 1),
-                glm::vec2(center.x + 1, center.y - 1),
-                glm::vec2(center.x + 1, center.y + 1)
-            };
-            for (size_t i = 0; i < sizeof(pos) / sizeof(glm::vec2); ++i){
-                //在中心的话,炮就丧失吃子能力//这里只处理斜边, 其他位置在函数外获得
-                if(!board->GetChess(pos[i].y, pos[i].x))canplays.push_back(pos[i]);
-            }
-        }
-        else{
-            //炮不一样的地方在于:不在中心也有可能直接跳到斜对面
-            if(board->GetChess(center.y, center.x)){
-                const glm::vec2 pao = glm::vec2(mColumn, mRow);
-                const glm::vec2 dir = center - pao;
-                const glm::vec2 pos = pao + dir * 2.0f;
-                const Chess *pChess = board->GetChess(pos.y, pos.x);
-                if(pChess && pChess->GetCountry() != mCountry)canplays.push_back(pos);
-            }
-            else{
-                canplays.push_back(center);
-            }
-        }
-    }
-}
+// void Pao::InPalaceMove(const void *pBoard, std::vector<glm::vec2> &canplays) const{
+//     const Chessboard *board = (const Chessboard *)pBoard;
+//     const int32_t territory = board->IsInPalace(mRow, mColumn);
+//     if(territory != INVALID_TERRITORY_INDEX && territory != CENTER_TERRITORY_INDEX){
+//         const auto&center = board->GetPalacesCenter(territory);
+//         if(mRow == center.y && mColumn == center.x){
+//             const glm::vec2 pos[] = {
+//                 glm::vec2(center.x - 1, center.y - 1),
+//                 glm::vec2(center.x - 1, center.y + 1),
+//                 glm::vec2(center.x + 1, center.y - 1),
+//                 glm::vec2(center.x + 1, center.y + 1)
+//             };
+//             for (size_t i = 0; i < sizeof(pos) / sizeof(glm::vec2); ++i){
+//                 //在中心的话,炮就丧失吃子能力//这里只处理斜边, 其他位置在函数外获得
+//                 if(!board->GetChess(pos[i].y, pos[i].x))canplays.push_back(pos[i]);
+//             }
+//         }
+//         else{
+//             //炮不一样的地方在于:不在中心也有可能直接跳到斜对面
+//             if(board->GetChess(center.y, center.x)){
+//                 const glm::vec2 pao = glm::vec2(mColumn, mRow);
+//                 const glm::vec2 dir = center - pao;
+//                 const glm::vec2 pos = pao + dir * 2.0f;
+//                 const Chess *pChess = board->GetChess(pos.y, pos.x);
+//                 if(pChess && pChess->GetCountry() != mCountry)canplays.push_back(pos);
+//             }
+//             else{
+//                 canplays.push_back(center);
+//             }
+//         }
+//     }
+// }
 
 Pao::Pao(){
 }
@@ -315,7 +288,7 @@ void Pao::Select(const void *pBoard, std::vector<glm::vec2>&canplays) const{
             pos += direction[i];
         }
     }
-    InPalaceMove(pBoard, canplays);
+    // InPalaceMove(pBoard, canplays);
     RemoveInvalidChess(pBoard, canplays);
 }
 
@@ -402,7 +375,6 @@ void Che::Select(const void *pBoard, std::vector<glm::vec2>&canplays) const{
             pos += direction[i];
         }
     }
-    InPalaceMove(pBoard, canplays);
     RemoveInvalidChess(pBoard, canplays);
 }
 
@@ -462,7 +434,28 @@ void Xiang::Select(const void *pBoard, std::vector<glm::vec2>&canplays) const{
         }
     }
 }
-
+void Shi::InPalaceMove(const void *pBoard, std::vector<glm::vec2> &canplays) const{
+    const Chessboard *board = (const Chessboard *)pBoard;
+    int32_t territory = board->IsInPalace(mRow, mColumn);
+    if(territory != INVALID_TERRITORY_INDEX && territory != CENTER_TERRITORY_INDEX){
+        const auto center = board->GetPalacesCenter(territory);
+        if(mRow == center.y && mColumn == center.x){
+            const glm::vec2 pos[] = {
+                glm::vec2(center.x - 1, center.y - 1),
+                glm::vec2(center.x - 1, center.y + 1),
+                glm::vec2(center.x + 1, center.y - 1),
+                glm::vec2(center.x + 1, center.y + 1)
+            };
+            //除馬、相外, 其他棋子在中心点时，能走的肯定就是斜线边的点
+            for (size_t i = 0; i < sizeof(pos) / sizeof(glm::vec2); ++i){
+                canplays.push_back(pos[i]);
+            }
+        }
+        else{
+            canplays.push_back(center);
+        }    
+    }
+}
 Shi::Shi(){
 }
 
