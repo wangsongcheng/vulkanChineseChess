@@ -1005,7 +1005,7 @@ void SetupVulkan(GLFWwindow *window){
     g_VulkanWindow.swapchain.CreateSwapchain(g_VulkanDevice, g_VulkanWindow.surface);
     g_VulkanWindow.CreateRenderPass(g_VulkanDevice.device);
     g_VulkanWindow.CreateFrameBuffer(g_VulkanDevice);
-    g_VulkanPool.CreatePool(g_VulkanDevice, 10);
+    g_VulkanPool.CreatePool(g_VulkanDevice, 20);
     g_VulkanSynchronize.CreateSynchronize(g_VulkanDevice.device, g_VulkanWindow.swapchain.images.size());
     //显示设备信息
     const char *deviceType;

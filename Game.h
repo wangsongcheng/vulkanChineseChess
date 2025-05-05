@@ -42,7 +42,7 @@ public:
 
     void InitinalizeGame(int32_t playerCountry = INVALID_COUNTRY_INDEX, int32_t currentCountry = INVALID_COUNTRY_INDEX);
 
-    void MoveChess(const glm::vec2&start, const glm::vec2&end, uint32_t fontIndex, uint32_t dynamicOffsets);
+    void MoveChess(const glm::vec2&start, const glm::vec2&end, uint32_t fontIndex, uint32_t country, uint32_t dynamicOffsets);
 
     void PlayChess(Chess *pChess, uint32_t dstRow, uint32_t dstColumn);
     glm::vec4 PrepareChess(const Chess *pSelect, const glm::vec2&mousePos);

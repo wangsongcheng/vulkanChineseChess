@@ -4,11 +4,15 @@
 #include "stdafx.h"
 
 #include "BaseGraphic.hpp"
+#define INDEX_TO_ROW(INDEX, COLUMN)(INDEX / COLUMN)
+#define INDEX_TO_COLUMN(INDEX, COLUMN)(INDEX % COLUMN)
+
 #define WIREFRAME_COLUMN_TO_X(COLUMN)CHESS_COLUMN_TO_X(COLUMN)
 #define WIREFRAME_ROW_TO_Y(ROW)WIREFRAME_COLUMN_TO_X(ROW)
 class VulkanChessboard{
     struct FontUniform{
         glm::mat4 model;
+        glm::vec3 color;
         float imageIndex;
     };
     struct{

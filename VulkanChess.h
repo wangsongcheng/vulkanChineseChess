@@ -3,10 +3,15 @@
 #include "stdafx.h"
 #include "BaseGraphic.hpp"
 
-#define WU_CHESS_COUNTRY_COLOR glm::vec3(0, .8, 0)
-#define WEI_CHESS_COUNTRY_COLOR glm::vec3(0, 0, .8)
-#define SHU_CHESS_COUNTRY_COLOR glm::vec3(.8, 0, 0)
-#define HAN_CHESS_COUNTRY_COLOR glm::vec3(.8, .8, 0)
+#define WU_COUNTRY_COLOR glm::vec3(0, 1, 0)
+#define WEI_COUNTRY_COLOR glm::vec3(0, 0, 1)
+#define SHU_COUNTRY_COLOR glm::vec3(1, 0, 0)
+#define HAN_COUNTRY_COLOR glm::vec3(.5, .5, 0)
+
+//字体宏一般情况下需要修改
+//字体大小不一定要和棋子大小一样
+#define FONT_WIDTH 70
+#define FONT_HEIGHT FONT_WIDTH
 
 class VulkanChess{
     struct Vertex {
@@ -21,15 +26,26 @@ class VulkanChess{
     };
     struct FontUniform{
         glm::mat4 model;
+        glm::vec3 color;
         float imageIndex;
     };
     struct{
         VkDescriptorSet font;
-        VkDescriptorSet chess;
+        struct{
+            VkDescriptorSet basewhite;
+            VkDescriptorSet white;
+            VkDescriptorSet black;
+        }chess;
+        // VkDescriptorSet chess;
     }descriptorSet;
     struct{
         VulkanBuffer font;
-        VulkanBuffer chess;
+        struct{
+            VulkanBuffer basewhite;
+            VulkanBuffer white;
+            VulkanBuffer black;
+        }chess;
+        // VulkanBuffer chess;
     }uniform;
     // struct{
     //     GraphicsPipeline font;
@@ -51,8 +67,8 @@ public:
     void Cleanup(VkDevice device);
     void Setup(VulkanDevice device, VkDescriptorSetLayout layout, VkQueue graphics, VulkanPool pool);
 
-    void UpdateUniform(VkDevice device, uint32_t fontIndex, const glm::vec2&pos, uint32_t dynamicOffsets);
-    void UpdateUniform(VkDevice device, uint32_t fontIndex, const glm::vec2&pos, uint32_t width, uint32_t height, uint32_t dynamicOffsets);
+    void UpdateUniform(VkDevice device, uint32_t fontIndex, uint32_t country, const glm::vec2&pos, uint32_t dynamicOffsets);
+    void UpdateUniform(VkDevice device, uint32_t fontIndex, uint32_t country, const glm::vec2&pos, uint32_t width, uint32_t height, uint32_t dynamicOffsets);
     //应该拆成独立函数，供外部调用
     void DrawFont(VkCommandBuffer command, VkPipelineLayout layout);
     void DrawChess(VkCommandBuffer command, VkPipelineLayout layout, uint32_t currentCountry);

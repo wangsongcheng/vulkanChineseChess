@@ -695,6 +695,42 @@ Chess *Ai::GetCannonScreenPiece(const Chess *pPao, const Chess *pTarget)const{
     }while (!pChess && !IsBoundary(pos.y, pos.x));
     return pChess;
 }
+//返回走后能避免pTarget被吃的棋子
+Chess *Ai::ResolveCheck_Pao(uint32_t country, const Chess *pCheck, const Chess *pTarget){
+    Chess *pSelect = nullptr;
+    auto pBoard = mGame->GetChessboard();
+    //找出炮是通过哪个棋子吃将的
+    Chess *pCannonScreen = GetCannonScreenPiece(pCheck, pTarget);
+    //不需要判空，pCannonScreen不能为空，为空说明程序有问题
+    if(pCannonScreen->GetCountry() == country){
+        //如果炮架是自己的棋子, 那么就走开
+        pSelect = pCannonScreen;
+    }
+    else{
+        const glm::vec2 pao = glm::vec2(pCheck->GetColumn(), pCheck->GetRow()), jiang = glm::vec2(pTarget->GetColumn(), pTarget->GetRow());
+        const glm::vec2 dir = glm::normalize(pao - jiang) * -1.0f, side = glm::cross(glm::vec3(dir, 0), glm::vec3(0, 0, 1));
+        std::vector<glm::vec2>canplays;
+        pTarget->Select(pBoard, canplays);
+        for (auto&it:canplays){
+            glm::vec2 pos = jiang + side;
+            if(it.x == pos.x && it.y == pos.y){
+                pSelect = pBoard->GetChess(pTarget->GetRow(), pTarget->GetColumn());
+                break;
+            }
+        }
+        if(!pSelect){
+            for (auto&it:canplays){
+                glm::vec2 pos = jiang + side * -1.0f;
+                if(it.x == pos.x && it.y == pos.y){
+                    pSelect = pBoard->GetChess(pTarget->GetRow(), pTarget->GetColumn());
+                    break;
+                }
+            }    
+        }
+
+    }
+    return pSelect;
+}
 //被将的国家和造成将的棋子;返回能解将的棋子
 Chess *Ai::ResolveCheck(uint32_t country, const Chess *pCheck){
     auto pBoard = mGame->GetChessboard();
@@ -703,16 +739,7 @@ Chess *Ai::ResolveCheck(uint32_t country, const Chess *pCheck){
     if(!pSelect){
         //就目前而言，能将的只有车、马、炮、兵。
         if(pCheck->GetChess() == Chess::Type::Pao_Chess){
-            //找出炮是通过哪个棋子吃将的
-            Chess *pCannonScreen = GetCannonScreenPiece(pCheck, pJiang);
-            //不需要判空，pCannonScreen不能为空，为空说明程序有问题
-            if(pCannonScreen->GetCountry() == country){
-                //如果炮架是自己的棋子, 那么就走开
-                pSelect = pCannonScreen;
-            }
-            else{
-                pSelect = pJiang;
-            }
+            pSelect = ResolveCheck_Pao(country, pCheck, pJiang);
         }
         //马不能通过蹩马脚解将
         else if(pCheck->GetChess() == Chess::Type::Ma_Chess){

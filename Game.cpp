@@ -62,11 +62,11 @@ void Game::UpdateChessUniform(VkDevice device){
             const Chess *pc = pChess[uiChess];
             const uint32_t dynamicOffsets = uiCoutry * DRAW_CHESS_COUNT + uiChess;
             if(pc){
-                vulkan.chess.UpdateUniform(device, pc->GetFontIndex(), pc->GetPos(),dynamicOffsets);
+                vulkan.chess.UpdateUniform(device, pc->GetFontIndex(), uiCoutry, pc->GetPos(),dynamicOffsets);
             }
             else{
                 const glm::vec3 pos = glm::vec3(CHESS_COLUMN_TO_X(CHESSBOARD_ROW + 10), CHESS_ROW_TO_Y(CHESSBOARD_COLUMN + 10), 0);
-                vulkan.chess.UpdateUniform(device, FONT_INDEX_HAN, pos, dynamicOffsets);
+                vulkan.chess.UpdateUniform(device, FONT_INDEX_HAN, uiCoutry, pos, dynamicOffsets);
             }
         }
     }
@@ -77,7 +77,7 @@ void Game::SelectChess(const Chess *pChess){
         pChess->Select(&mChessboard, canplays);
         RemoveInvalidTarget(pChess, canplays);
         UpdateSelectChessUniform(vulkan.device.device, canplays);
-        vulkan.chess.UpdateUniform(vulkan.device.device, pChess->GetFontIndex(), pChess->GetPos(), CHESS_WIDTH * 1.2, CHESS_HEIGHT * 1.2, ROW_COLUMN_TO_INDEX(pChess->GetCountry(), pChess->GetChessOffset(), DRAW_CHESS_COUNT));
+        vulkan.chess.UpdateUniform(vulkan.device.device, pChess->GetFontIndex(), pChess->GetCountry(), pChess->GetPos(), CHESS_WIDTH * 1.2, CHESS_HEIGHT * 1.2, ROW_COLUMN_TO_INDEX(pChess->GetCountry(), pChess->GetChessOffset(), DRAW_CHESS_COUNT));
     }
 }
 glm::vec4 Game::PrepareChess(const Chess *pSelect, const glm::vec2 &mousePos){
@@ -182,11 +182,11 @@ void Game::InitinalizeGame(int32_t playerCountry, int32_t currentCountry){
 glm::vec2 lerp(const glm::vec2&p0, const glm::vec2&p1, float t){
     return (1 - t) * p0 + t * p1;
 }
-void Game::MoveChess(const glm::vec2&start, const glm::vec2&end, uint32_t fontIndex, uint32_t dynamicOffsets){
+void Game::MoveChess(const glm::vec2&start, const glm::vec2&end, uint32_t fontIndex, uint32_t country, uint32_t dynamicOffsets){
     for (float t = 0; t < 1; t += .01){
         const glm::vec2 pos = lerp(start, end, t);
         // vulkan.chess.UpdateUniform(vulkan.device.device, fontIndex, pos, dynamicOffsets);
-        vulkan.chess.UpdateUniform(vulkan.device.device, fontIndex, pos, CHESS_WIDTH * 1.2, CHESS_HEIGHT * 1.2, dynamicOffsets);
+        vulkan.chess.UpdateUniform(vulkan.device.device, fontIndex, country, pos, CHESS_WIDTH * 1.2, CHESS_HEIGHT * 1.2, dynamicOffsets);
 #ifdef WIN32
         Sleep(1);
 #else
@@ -200,7 +200,7 @@ void Game::PlayChess(Chess *pChess, uint32_t dstRow, uint32_t dstColumn){
     const uint32_t dynamicOffsets = ROW_COLUMN_TO_INDEX(pChess->GetCountry(), pChess->GetChessOffset(), DRAW_CHESS_COUNT);
     const glm::vec2 start = glm::vec2(CHESS_COLUMN_TO_X(pChess->GetColumn()), CHESS_ROW_TO_Y(pChess->GetRow())), end = glm::vec2(CHESS_COLUMN_TO_X(dstColumn), CHESS_ROW_TO_Y(dstRow));
     //为什么不能正确移动原偏移的棋子，导致移动的时候，原位的棋子位置不变
-    MoveChess(start, end, pChess->GetFontIndex(), dynamicOffsets);
+    MoveChess(start, end, pChess->GetFontIndex(), pChess->GetCountry(), dynamicOffsets);
     if(pTarget){
         uint32_t targetCountry = pTarget->GetCountry();
         mChessboard.CaptureChess(pChess, pTarget);

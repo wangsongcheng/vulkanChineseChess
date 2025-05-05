@@ -122,13 +122,16 @@ void VulkanChessboard::CreateFontResource(VulkanDevice device, VkQueue graphics,
     free(fontBuffer);
 }
 void VulkanChessboard::CreateRectResource(VulkanDevice device, VulkanPool pool, VkQueue graphics){
-    float vertices[2 * 4 * 6];
+    float vertices[3 * 4 * 6];
     const uint16_t indices[] = {
         0, 1, 2, 0, 3, 1,//.../
-        0, 2, 3, 2, 3, 1
+        0, 2, 3, 2, 3, 1,
+
+        8, 9, 10, 8, 11, 9,
     };
     GetRectVertices(glm::vec3(.7, .5, .3), vertices);
     GetRectVertices(glm::vec3(0), vertices + 4 * 6);
+    GetRectVertices(glm::vec3(.8, .6, .4), vertices + 8 * 6);
     mRect.indexCount = 6;
     mRect.vertexCount = 4;
     mRect.CreateVertexBuffer(device, vertices, sizeof(vertices), mRect.vertexCount, graphics, pool);
@@ -172,7 +175,32 @@ void VulkanChessboard::Cleanup(VkDevice device){
     fonts.uniforms.alliance.Destroy(device);
     vkDestroySampler(device, fonts.sampler, VK_NULL_HANDLE);
 }
-
+// uint32_t GetTerritoryIndex(uint32_t row, uint32_t column){
+//     if(row <= CHESSBOARD_ROW - CHESSBOARD_BING_GRID_DENSITY && row >= CHESSBOARD_BING_GRID_DENSITY){
+//         if(column >= CHESSBOARD_COLUMN - CHESSBOARD_BING_GRID_DENSITY){
+//             return WU_TERRITORY_INDEX;
+//         }
+//         else if(column <= CHESSBOARD_BING_GRID_DENSITY + 1){
+//             return HAN_TERRITORY_INDEX;
+//         }
+//         else{
+//             return CENTER_TERRITORY_INDEX;
+//         }
+//     }
+//     else if(column > CHESSBOARD_BING_GRID_DENSITY && column <= CHESSBOARD_COLUMN - CHESSBOARD_BING_GRID_DENSITY){
+//         //魏或蜀
+//         if(row > CHESSBOARD_ROW - CHESSBOARD_BING_GRID_DENSITY){
+//             return SHU_TERRITORY_INDEX;
+//         }
+//         else if(row < CHESSBOARD_BING_GRID_DENSITY + 1){
+//             return WEI_TERRITORY_INDEX;
+//         }
+//         else{
+//             return CENTER_TERRITORY_INDEX;
+//         }
+//     }
+//     return INVALID_TERRITORY_INDEX;
+// }
 void VulkanChessboard::Draw(VkCommandBuffer command, VkPipelineLayout layout){
     uint32_t dynamicOffsets;
     mRect.Bind(command);
@@ -183,21 +211,25 @@ void VulkanChessboard::Draw(VkCommandBuffer command, VkPipelineLayout layout){
     }
     for (size_t i = 0; i < CHESSBOARD_RECT_COUNT * CHESSBOARD_RECT_COUNT; ++i){
         dynamicOffsets = i * uniforms.grid.size;
+        // const uint32_t row = INDEX_TO_ROW(i, CHESSBOARD_RECT_COUNT), column = INDEX_TO_COLUMN(i, CHESSBOARD_RECT_COUNT);
         vkCmdBindDescriptorSets(command, VK_PIPELINE_BIND_POINT_GRAPHICS, layout, 0, 1, &descriptorSet.grid, 1, &dynamicOffsets);
+        // const uint32_t territory = GetTerritoryIndex(row, column);
+        // if(territory == CENTER_TERRITORY_INDEX)
+        //     mRect.Draw(command, 0, mRect.indexCount * 2);
+        // else
         mRect.Draw(command);
     }
     for (size_t i = 0; i < CHESSBOARD_BIG_GRID_COUNT; ++i){
         dynamicOffsets = i * uniforms.grid.size;
         vkCmdBindDescriptorSets(command, VK_PIPELINE_BIND_POINT_GRAPHICS, layout, 0, 1, &descriptorSet.bigGrid, 1, &dynamicOffsets);
-        mRect.Draw(command);
+        mRect.Draw(command, 0, mRect.indexCount * 2);
     }
     mCircle.Bind(command);
     for (size_t i = 0; i < MAX_COUNTRY_INDEX - 1; ++i){
         dynamicOffsets = i * uniforms.alliance.size;
         vkCmdBindDescriptorSets(command, VK_PIPELINE_BIND_POINT_GRAPHICS, layout, 0, 1, &descriptorSet.alliance, 1, &dynamicOffsets);
-        mCircle.Draw(command);        
+        mCircle.Draw(command);
     }
-
 }
 
 void VulkanChessboard::DrawWireframe(VkCommandBuffer command, VkPipelineLayout layout){
@@ -324,6 +356,7 @@ void VulkanChessboard::UpdateFontUniform(VkDevice device, int32_t playerCountry)
     for (size_t i = 0; i < sizeof(model) / sizeof(glm::mat4); ++i){
         model[i] = glm::scale(glm::translate(glm::mat4(1), glm::vec3(pos[i].x, pos[i].y, 0)), glm::vec3(ALLIANCE_POINT_WIDTH, ALLIANCE_POINT_HEIGHT, 1));
         fUbo[i].imageIndex = i;
+        fUbo[i].color = glm::vec3(1);
         fUbo[i].model = glm::scale(glm::translate(glm::mat4(1), glm::vec3(pos[i].x - ALLIANCE_POINT_FONT_WIDTH * .45, pos[i].y - ALLIANCE_POINT_FONT_HEIGHT * .5, 0)), glm::vec3(ALLIANCE_POINT_FONT_WIDTH, ALLIANCE_POINT_FONT_HEIGHT, 1));
     }
     uniforms.alliance.UpdateData(device, sizeof(model), model);

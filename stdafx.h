@@ -85,10 +85,6 @@ struct ImGuiInput{
 
 #define CHESS_WIDTH 20
 #define CHESS_HEIGHT CHESS_WIDTH
-//字体宏一般情况下需要修改
-//字体大小不一定要和棋子大小一样
-#define FONT_WIDTH 40
-#define FONT_HEIGHT FONT_WIDTH
 
 #define FONT_INDEX_MA 7
 #define FONT_INDEX_PAO 5
@@ -96,7 +92,7 @@ struct ImGuiInput{
 #define FONT_INDEX_SHI 9
 #define FONT_INDEX_BING 4
 #define FONT_INDEX_XIANG 8
-
+//
 #define FONT_INDEX_WU WU_COUNTRY_INDEX
 #define FONT_INDEX_SHU SHU_COUNTRY_INDEX
 #define FONT_INDEX_WEI WEI_COUNTRY_INDEX
@@ -130,6 +126,13 @@ struct ImGuiInput{
 #define DRAW_CHESS_COUNT (COUNTRY_CHESS_COUNT * 3)
 //每个国家需要绘制4个矩形
 #define CHESSBOARD_PALACE_COUNT (MAX_COUNTRY_INDEX * 4)
+
+#define WU_TERRITORY_INDEX WU_COUNTRY_INDEX
+#define WEI_TERRITORY_INDEX WEI_COUNTRY_INDEX
+#define SHU_TERRITORY_INDEX SHU_COUNTRY_INDEX
+#define HAN_TERRITORY_INDEX HAN_COUNTRY_INDEX
+#define CENTER_TERRITORY_INDEX (HAN_TERRITORY_INDEX + 1)
+#define INVALID_TERRITORY_INDEX (CENTER_TERRITORY_INDEX + 1)
 
 //vulkan专用，无特殊情况不要修改
 //如果val比alignment小，则返回alignment，否则如果val大于alignment但小于alignment*2则返回alignment*2以此类推
