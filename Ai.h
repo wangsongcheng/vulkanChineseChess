@@ -59,7 +59,11 @@ public:
     void SyncBoardCopy(Chess *pChess, uint32_t dstRow, uint32_t dstColumn);
 
     inline void End(){
+        const bool end = mEnd;
         mEnd = true;
+        if(!end){
+            Enable();
+        }
     }
     inline bool IsEnd()const{
         return mEnd;

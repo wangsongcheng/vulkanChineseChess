@@ -164,7 +164,7 @@ void Chessboard::InitHanChessRowAndColumn(std::array<Chess *, DRAW_CHESS_COUNT>&
         if(pChess[Chess::Type::Ma_Chess + i])pChess[Chess::Type::Ma_Chess + i]->SetPos(pChess[Chess::Type::Jiang_Chess]->GetRow() + maOffset[i], i == MA_CHESS_COUNT - 1?2:pChess[Chess::Type::Jiang_Chess]->GetColumn());
     }
 #else
-    std::array<int32_t, MA_CHESS_COUNT>maOffset = { 3, -3 };
+    std::array<int32_t, MA_CHESS_COUNT>maOffset = { -3, 3 };
     for (size_t i = 0; i < MA_CHESS_COUNT; i++){
         if(pChess[Chess::Type::Ma_Chess + i])pChess[Chess::Type::Ma_Chess + i]->SetPos(pChess[Chess::Type::Jiang_Chess]->GetRow() + maOffset[i], pChess[Chess::Type::Jiang_Chess]->GetColumn());
     }
@@ -183,11 +183,11 @@ void Chessboard::InitHanChessRowAndColumn(std::array<Chess *, DRAW_CHESS_COUNT>&
         if(pChess[i + Chess::Type::Bing_Chess])pChess[i + Chess::Type::Bing_Chess]->SetPos(pChess[i + Chess::Type::Bing_Chess - 1]->GetRow() + 2, pChess[Chess::Type::Bing_Chess]->GetColumn());
     }
 #else
-    std::array<int32_t, CHE_CHESS_COUNT>cheOffset = { 4, -4 };
+    std::array<int32_t, CHE_CHESS_COUNT>cheOffset = { -4, 4 };
     for (size_t i = 0; i < CHE_CHESS_COUNT; i++){
         if(pChess[Chess::Type::Che_Chess + i])pChess[Chess::Type::Che_Chess + i]->SetPos(pChess[Chess::Type::Jiang_Chess]->GetRow() + cheOffset[i], pChess[Chess::Type::Jiang_Chess]->GetColumn());
     }
-    std::array<int32_t, XIANG_CHESS_COUNT>xiangOffset = { 2, -2 };
+    std::array<int32_t, XIANG_CHESS_COUNT>xiangOffset = { -2, 2 };
     for (size_t i = 0; i < XIANG_CHESS_COUNT; i++){
         if(pChess[Chess::Type::Xiang_Chess + i])pChess[Chess::Type::Xiang_Chess + i]->SetPos(pChess[Chess::Type::Jiang_Chess]->GetRow() + xiangOffset[i], pChess[Chess::Type::Jiang_Chess]->GetColumn());
     }
