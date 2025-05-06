@@ -8,6 +8,18 @@
 #define SHU_COUNTRY_COLOR glm::vec3(1, 0, 0)
 #define HAN_COUNTRY_COLOR glm::vec3(.5, .5, 0)
 
+#define FONT_INDEX_MA 7
+#define FONT_INDEX_PAO 5
+#define FONT_INDEX_CHE 6
+#define FONT_INDEX_SHI 9
+#define FONT_INDEX_BING 4
+#define FONT_INDEX_XIANG 8
+
+#define FONT_INDEX_WU WU_COUNTRY_INDEX
+#define FONT_INDEX_SHU SHU_COUNTRY_INDEX
+#define FONT_INDEX_WEI WEI_COUNTRY_INDEX
+#define FONT_INDEX_HAN HAN_COUNTRY_INDEX
+
 //字体宏一般情况下需要修改
 //字体大小不一定要和棋子大小一样
 #define FONT_WIDTH 70

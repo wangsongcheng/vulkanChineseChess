@@ -12,6 +12,8 @@ class Chessboard{
     std::array<glm::vec2, MAX_COUNTRY_INDEX>mPalacesCenter;
     std::array<Chess *, DRAW_CHESS_COUNT>mChess[MAX_COUNTRY_INDEX];
 
+    uint32_t GetCountryCount();
+
     void InitWuChessRowAndColumn(std::array<Chess *, DRAW_CHESS_COUNT>&pChess);
     void InitShuChessRowAndColumn(std::array<Chess *, DRAW_CHESS_COUNT>&pChess);
     void InitWeiChessRowAndColumn(std::array<Chess *, DRAW_CHESS_COUNT>&pChess);
@@ -36,6 +38,7 @@ public:
 
     uint32_t GetChessCount(uint32_t country)const;
     Chess *GetChess(uint32_t row, uint32_t column)const;
+    Chess *GetChess(uint32_t country, Chess::Type chess)const;
     Chess *GetChess(uint32_t country, const glm::vec2&mousePos)const;
     Chess *GetChess(uint32_t country, uint32_t row, uint32_t column)const;
 

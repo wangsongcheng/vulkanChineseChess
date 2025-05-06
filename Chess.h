@@ -14,12 +14,12 @@ public:
     //一般情况不需要修改。添加新棋的话，应该从最后加索引, 也就是目前的兵
     enum Type{
         Jiang_Chess = 0,
-        Ma_Chess = Jiang_Chess + 1,
-        Pao_Chess = Ma_Chess + MA_CHESS_COUNT,
-        Che_Chess = Pao_Chess + PAO_CHESS_COUNT,
-        Shi_Chess = Che_Chess + CHE_CHESS_COUNT,
-        Xiang_Chess = Shi_Chess + SHI_CHESS_COUNT,
-        Bing_Chess = Xiang_Chess + XIANG_CHESS_COUNT,
+        Ma_Chess,
+        Pao_Chess,
+        Che_Chess,
+        Shi_Chess,
+        Xiang_Chess,
+        Bing_Chess,
         // Han_Pao_Chess = COUNTRY_CHESS_COUNT,
         // Han_Che_Chess = COUNTRY_CHESS_COUNT + 1,
     };

@@ -37,6 +37,7 @@ glm::vec2 g_JiangPos[MAX_COUNTRY_INDEX];//目前只用于RotateChess
 std::array<Player, MAX_COUNTRY_INDEX>g_Players;
 //用数组是为了在联机模式下显示和控制其他玩家的国籍;目前只能选择ai的国籍
 std::array<std::vector<std::string>, MAX_COUNTRY_INDEX>g_CountryItems;
+
 void ResetCountryItem(std::vector<std::string>&countryItems){
     std::vector<std::string>country = { "?", "魏", "蜀", "吴" };
     if(g_Game.IsControllable()){
@@ -47,6 +48,18 @@ void ResetCountryItem(std::vector<std::string>&countryItems){
         countryItems[i] = country[i];
     }
 }
+void NewGame(int32_t playerCountry = 4, int32_t currentCountry = 4){
+    if(g_ImGuiInput.enableAi){
+        if(!g_Ai.IsEnd()){
+            g_Ai.End();
+        }
+        g_Ai.CreatePthread(&g_Game, &g_OnLine);
+    }
+    else{
+        g_Ai.End();
+    }
+    g_Game.NewGame(playerCountry, currentCountry);
+}
 void ShowPlayerCountryCombo(){
     static std::string currentCountryItem = g_CountryItems[0][0];
     if(ImGui::BeginCombo("自选势力", currentCountryItem.c_str())){
@@ -55,19 +68,19 @@ void ShowPlayerCountryCombo(){
             if (ImGui::Selectable(countryIt->c_str(), is_selected)){
                 currentCountryItem = *countryIt;
                 if(currentCountryItem == "?"){
-                    g_Game.NewGame();
+                    NewGame();
                 }
                 else if(currentCountryItem == "魏"){
-                    g_Game.NewGame(WEI_COUNTRY_INDEX);
+                    NewGame(WEI_COUNTRY_INDEX);
                 }
                 else if(currentCountryItem == "蜀"){
-                    g_Game.NewGame(SHU_COUNTRY_INDEX);
+                    NewGame(SHU_COUNTRY_INDEX);
                 }
                 else if(currentCountryItem == "吴"){
-                    g_Game.NewGame(WU_COUNTRY_INDEX);
+                    NewGame(WU_COUNTRY_INDEX);
                 }
                 else if(currentCountryItem == "汉"){
-                    g_Game.NewGame(HAN_COUNTRY_INDEX);
+                    NewGame(HAN_COUNTRY_INDEX);
                 }
                 break;
             }
@@ -292,7 +305,7 @@ void *process_client(void *userData){
             g_Game.StartGame();
             const uint32_t clientIndex = g_OnLine.GetClientIndex();
             printf("game start, current country is %d, you country index is %d\n", g_Game.GetCurrentCountry(), g_Players[clientIndex].uCountry);
-            g_Game.NewGame(g_Players[clientIndex].uCountry, g_Game.GetCurrentCountry());
+            NewGame(g_Players[clientIndex].uCountry, g_Game.GetCurrentCountry());
             InitJiangPos();
         }
         else if(message.event == ENABLE_HANG_GAME_EVENT){
@@ -340,7 +353,7 @@ void *process_client(void *userData){
                     g_Ai.End();
                 }
                 g_Ai.EnableNextCountry(g_ImGuiInput.enableAutoPlay);
-                g_Ai.SyncBoardCopy(pStart, dstRow, dstColumn);    
+                // g_Ai.SyncBoardCopy(pStart, dstRow, dstColumn);
             }
         }
         else if(message.event == PLAYER_EXIT_GAME_EVENT){
@@ -599,7 +612,7 @@ bool ShowSinglePlayerModeMainInterface(bool *mainInterface){
             ImGui::Text("你是%s, 该%s下棋\n", countryName[player], player == currentCountry?"你":countryName[currentCountry]);
         }
         if(ImGui::Button("新游戏")){
-            g_Game.NewGame();
+            NewGame();
         }
         if(g_Game.IsGameStart()){
             if(ImGui::Checkbox("启用AI", &g_ImGuiInput.enableAi)){
@@ -724,7 +737,7 @@ void *PlayChessFun(void *userData){
     Chess *pStart = pBoard->GetChess(info.y, info.x);
     g_Game.PlayChess(pStart, info.w, info.z);
     if(g_ImGuiInput.enableAi){
-        g_Ai.SyncBoardCopy(pStart, info.w, info.z);
+        // g_Ai.SyncBoardCopy(pStart, info.w, info.z);
         if(g_Game.GameOver()){
             g_Ai.End();
         }
@@ -735,8 +748,8 @@ void *PlayChessFun(void *userData){
 const Chess *g_Select;
 bool SelectChess(const glm::vec2 &mousePos){
     auto pBoard = g_Game.GetChessboard();
-    const uint32_t currentCountry = g_Game.GetCurrentCountry(), playerCountry = g_Game.GetPlayerCountry();
-    if((!g_Ai.IsEnd() || g_Game.IsOnline()) && currentCountry != playerCountry)return false;
+    const uint32_t currentCountry = g_Game.GetCurrentCountry();
+    if((!g_Ai.IsEnd() || g_Game.IsOnline()) && currentCountry != g_Game.GetPlayerCountry())return false;
     if(g_Select){
         g_Game.UnSelectChess();
         static glm::vec4 info;
@@ -904,21 +917,6 @@ void Setup(GLFWwindow *window){
     for (size_t i = 0; i < MAX_COUNTRY_INDEX - 1; i++){
         ResetCountryItem(g_CountryItems[i]);
     }
-    // if(g_Ai.IsEnd()){
-    //     if(g_Game.IsOnline()){
-    //         if(g_OnLine.IsServer()){
-    //             for (auto it = g_Players.begin(); it != g_Players.end(); ++it){
-    //                 if(it->ai){
-    //                     g_Ai.CreatePthread(&g_Game, &g_OnLine);
-    //                     break;
-    //                 }
-    //             }
-    //         }
-    //     }
-    //     else{
-    //         g_Ai.CreatePthread(&g_Game, &g_OnLine);
-    //     }
-    // }
 }
 
 void Cleanup(VkDevice device){

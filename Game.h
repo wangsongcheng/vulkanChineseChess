@@ -1,5 +1,6 @@
 #ifndef GAME_H
 #define GAME_H
+#include <mutex>
 #include "Chessboard.h"
 #include "VulkanChess.h"
 #include "VulkanWireframe.h"
@@ -22,6 +23,7 @@ class Game{
     struct{
         uint32_t country = INVALID_COUNTRY_INDEX;
     }player;
+    std::mutex mMutex;
     Chessboard mChessboard;
     uint32_t mCurrentCountry;
     uint32_t mNotAllianceCountry;

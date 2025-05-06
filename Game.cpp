@@ -26,7 +26,7 @@ void Game::RemoveInvalidTarget(const Chess *pChess, std::vector<glm::vec2>&canpl
     }
 }
 uint32_t Game::GetCanPlay(const glm::vec2&mousePos, const std::vector<glm::vec2>&canplays){
-    uint32_t index = INVALID_COUNTRY_INDEX;
+    uint32_t index = canplays.size();
     for (size_t i = 0; i < canplays.size(); ++i){
         const uint32_t chessY = CHESS_ROW_TO_Y(canplays[i].y) - CHESSBOARD_RECT_SIZE * .5;
         const uint32_t chessX = CHESS_COLUMN_TO_X(canplays[i].x) - CHESSBOARD_RECT_SIZE * .5;
@@ -84,9 +84,9 @@ glm::vec4 Game::PrepareChess(const Chess *pSelect, const glm::vec2 &mousePos){
     // const uint32_t clientIndex = g_OnLine.GetClientIndex();
     std::vector<glm::vec2>canplays;
     pSelect->Select(&mChessboard, canplays);
-    int32_t index = GetCanPlay(mousePos, canplays);
+    uint32_t index = GetCanPlay(mousePos, canplays);
     glm::vec4 info = glm::vec4(0);
-    if(index != INVALID_COUNTRY_INDEX){
+    if(index != canplays.size()){
         info.z = canplays[index].x;
         info.w = canplays[index].y;
         info.y = pSelect->GetRow();
@@ -102,7 +102,7 @@ Game::~Game(){
 void Game::areKingsFacing(){
     for (uint32_t srcCountry = 0; srcCountry < mMaxCountryCount; srcCountry++){
         for (uint32_t dstountry = 0; dstountry < mMaxCountryCount; dstountry++){
-            if(srcCountry != dstountry){
+            if(srcCountry != dstountry && (INVALID_COUNTRY_INDEX == mNotAllianceCountry || dstountry != GET_ALLIANCE_COUNTRY(srcCountry, mNotAllianceCountry))){
                 if(mChessboard.areKingsFacing(srcCountry, dstountry)){
                     mChessboard.DestroyCountry(srcCountry);
                     mChessboard.DestroyCountry(dstountry);
@@ -200,6 +200,7 @@ void Game::PlayChess(Chess *pChess, uint32_t dstRow, uint32_t dstColumn){
     const uint32_t dynamicOffsets = ROW_COLUMN_TO_INDEX(pChess->GetCountry(), pChess->GetChessOffset(), DRAW_CHESS_COUNT);
     const glm::vec2 start = glm::vec2(CHESS_COLUMN_TO_X(pChess->GetColumn()), CHESS_ROW_TO_Y(pChess->GetRow())), end = glm::vec2(CHESS_COLUMN_TO_X(dstColumn), CHESS_ROW_TO_Y(dstRow));
     //为什么不能正确移动原偏移的棋子，导致移动的时候，原位的棋子位置不变
+    mMutex.lock();
     MoveChess(start, end, pChess->GetFontIndex(), pChess->GetCountry(), dynamicOffsets);
     if(pTarget){
         uint32_t targetCountry = pTarget->GetCountry();
@@ -208,11 +209,13 @@ void Game::PlayChess(Chess *pChess, uint32_t dstRow, uint32_t dstColumn){
         if(mChessboard.IsDeath(targetCountry)){
             printf("%s国被%s国消灭\n", county[targetCountry], county[pChess->GetCountry()]);
             mChessboard.DestroyCountry(targetCountry);
+            mNotAllianceCountry = INVALID_COUNTRY_INDEX;
         }
     }
     pChess->SetPos(dstRow, dstColumn);
     areKingsFacing();
     UpdateChessUniform(vulkan.device.device);
+    mMutex.unlock();
     if(!state.isControllable && pChess->GetChess() == Chess::Type::Ma_Chess){
         //不用提示了。因为结盟后，汉的棋子会归另一方
         SetNotAllianceCountry(pChess->GetCountry(), pChess->GetRow(), pChess->GetColumn());
@@ -283,7 +286,9 @@ void Game::NextCountry(){
 }
 void Game::NewGame(int32_t playerCountry, int32_t currentCountry){
     InitinalizeGame(playerCountry, currentCountry);
+    mMutex.lock();
     UpdateChessUniform(vulkan.device.device);
+    mMutex.unlock();
     vulkan.chessboard.UpdateFontUniform(vulkan.device.device, player.country);
 }
 
