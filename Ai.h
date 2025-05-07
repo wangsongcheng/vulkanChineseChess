@@ -49,7 +49,6 @@ class Ai{
     Chess *GetResolveCheck_Che(const Chess *pCheck, const Chess *pTarget, glm::vec2&pos);
     Chess *GetResolveCheck_Pao(const Chess *pCheck, const Chess *pTarget, glm::vec2&pos);
 
-    void RemoveHanTarget(std::vector<glm::vec2>&canplays);
     Chess *RandTarget(uint32_t country, const std::vector<glm::vec2>&canplays, glm::vec2&pos)const;
 
     // void SetNotAllianceCountry(uint32_t country, uint32_t row, uint32_t column);

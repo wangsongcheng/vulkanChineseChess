@@ -7,7 +7,7 @@ uint32_t Chess::GetTerritoryIndex()const{
     return GetTerritoryIndex(mRow, mColumn);
 }
 uint32_t Chess::GetTerritoryIndex(uint32_t row, uint32_t column)const{
-    if(row > CHESSBOARD_BING_GRID_DENSITY && row < CHESSBOARD_ROW - CHESSBOARD_BING_GRID_DENSITY){
+    if(row > CHESSBOARD_BING_GRID_DENSITY - 1 && row < CHESSBOARD_ROW - CHESSBOARD_BING_GRID_DENSITY + 1){
         //汉和吴的地盘
         if(column <= CHESSBOARD_BING_GRID_DENSITY){
             return HAN_TERRITORY_INDEX;
@@ -19,7 +19,7 @@ uint32_t Chess::GetTerritoryIndex(uint32_t row, uint32_t column)const{
             return CENTER_TERRITORY_INDEX;
         }
     }
-    else if(column > CHESSBOARD_BING_GRID_DENSITY && column < CHESSBOARD_COLUMN - CHESSBOARD_BING_GRID_DENSITY){
+        else if(column > CHESSBOARD_BING_GRID_DENSITY - 1 && column < CHESSBOARD_COLUMN - CHESSBOARD_BING_GRID_DENSITY + 1){
         //魏和蜀的地盘
         if(row <= CHESSBOARD_BING_GRID_DENSITY){
             return WEI_TERRITORY_INDEX;

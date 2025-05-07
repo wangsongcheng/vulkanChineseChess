@@ -3,7 +3,7 @@ void Game::RemoveInvalidTarget(const Chess *pChess, std::vector<glm::vec2>&canpl
     if(!state.isControllable){
         for (auto it = canplays.begin(); it != canplays.end();){
             const Chess *pc = mChessboard.GetChess(it->y, it->x);
-            if(pc && pc->GetChess() == Chess::Type::Jiang_Chess && pc->GetCountry() == HAN_CHE_CHESS_COUNT && pChess->GetChess() != Chess::Type::Ma_Chess){
+            if(pc && pc->GetCountry() == HAN_CHE_CHESS_COUNT && (pc->GetChess() != Chess::Type::Jiang_Chess || pChess->GetChess() != Chess::Type::Ma_Chess)){
                 it = canplays.erase(it);
             }
             else{
@@ -209,7 +209,15 @@ void Game::PlayChess(Chess *pChess, uint32_t dstRow, uint32_t dstColumn){
         if(mChessboard.IsDeath(targetCountry)){
             printf("%s国被%s国消灭\n", county[targetCountry], county[pChess->GetCountry()]);
             mChessboard.DestroyCountry(targetCountry);
-            mNotAllianceCountry = INVALID_COUNTRY_INDEX;
+            if(!state.isControllable){
+                if(targetCountry == HAN_CHE_CHESS_COUNT){
+                    //另外两个结盟
+                    mNotAllianceCountry = pChess->GetCountry();
+                }
+                else{
+                    mNotAllianceCountry = INVALID_COUNTRY_INDEX;
+                }    
+            }
         }
     }
     pChess->SetPos(dstRow, dstColumn);

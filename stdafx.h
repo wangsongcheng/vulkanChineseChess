@@ -31,7 +31,7 @@ struct ImGuiInput{
 #define MAX_BYTE 0xff
 #endif
 //定义该宏启用襄樊战役
-#define ENABLE_BATTLE_FAN_GUANYU
+// #define ENABLE_BATTLE_FAN_GUANYU
 
 #define CHESSBOARD_LINE_WIDTH 1
 
@@ -85,8 +85,16 @@ struct ImGuiInput{
 
 #define CHESS_WIDTH 20
 #define CHESS_HEIGHT CHESS_WIDTH
-
-//仅修改数量不够, 还需设置它们的位置
+/*
+    增加、减少棋子步骤
+    1.修改下边的宏
+    2.在Chessboard.cpp文件内(关键词InitializeChess)修改棋子信息,具体看Chessboard.cpp文件说明
+    添加新棋子
+    1.在Chess.h实现派生类
+    2.添加棋子数量宏
+    3.添加棋子偏移宏
+    4.goto"增加、减少棋子步骤"
+*/
 #ifdef ENABLE_BATTLE_FAN_GUANYU
 #define SHI_CHESS_COUNT 2
 #define MA_CHESS_COUNT 3

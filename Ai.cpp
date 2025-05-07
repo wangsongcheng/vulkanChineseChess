@@ -645,20 +645,6 @@ Chess *Ai::GetResolveCheck_Che(const Chess *pCheck, const Chess *pTarget, glm::v
     }
     return pSelect;
 }
-void Ai::RemoveHanTarget(std::vector<glm::vec2>&canplays){
-    if(!mGame->IsControllable()){
-        auto pBoard = mGame->GetChessboard();
-        for (auto it = canplays.begin(); it != canplays.end();){
-            const Chess *pc = pBoard->GetChess(it->y, it->x);
-            if(pc && pc->GetChess() != Chess::Type::Jiang_Chess && pc->GetCountry() == HAN_CHE_CHESS_COUNT){
-                it = canplays.erase(it);
-            }
-            else{
-                ++it;
-            }
-        }
-    }
-}
 Chess *Ai::GetSelect(uint32_t country, glm::vec2&pos){
     //计谋篇
     //驱虎吞狼:强制和棋多的一方结盟
@@ -694,7 +680,6 @@ Chess *Ai::GetSelect(uint32_t country, glm::vec2&pos){
         pSelect = GetTarget(country);
         if(pSelect){
             pSelect->Select(pBoard, canplays);
-            RemoveHanTarget(canplays);
             mGame->RemoveInvalidTarget(pSelect, canplays);
             auto pTarget = GetTarget(pSelect, canplays);
             if(pTarget){
@@ -722,7 +707,6 @@ Chess *Ai::GetSelect(uint32_t country, glm::vec2&pos){
         canplays.clear();
         pSelect = RandChess(country);
         pSelect->Select(pBoard, canplays);
-        RemoveHanTarget(canplays);
         mGame->RemoveInvalidTarget(pSelect, canplays);
         RandTarget(country, canplays, pos);
     }

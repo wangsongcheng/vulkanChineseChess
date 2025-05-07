@@ -51,13 +51,13 @@ void Chessboard::InitWuChessRowAndColumn(std::array<Chess *, DRAW_CHESS_COUNT> &
         if(pChess[i + BING_CHESS_OFFSET])pChess[i + BING_CHESS_OFFSET]->SetPos(pChess[i + BING_CHESS_OFFSET - 1]->GetRow() - 2, pChess[BING_CHESS_OFFSET]->GetColumn());
     }
 #else
-    std::array<int32_t, CHE_CHESS_COUNT>cheOffset = { 4, -4 };
+    std::array<int32_t, CHE_CHESS_COUNT>cheOffset = { -4, 4 };
     for (size_t i = 0; i < CHE_CHESS_COUNT; i++){
         if(pChess[CHE_CHESS_OFFSET + i])pChess[CHE_CHESS_OFFSET + i]->SetPos(pChess[JIANG_CHESS_OFFSET]->GetRow() + cheOffset[i], pChess[JIANG_CHESS_OFFSET]->GetColumn());
     }
-    std::array<int32_t, XIANG_CHESS_COUNT>xiangOffset = { 2, -2 };
+    std::array<int32_t, XIANG_CHESS_COUNT>xiangOffset = { -2, 2 };
     for (size_t i = 0; i < XIANG_CHESS_COUNT; i++){
-        if(pChess[Chess::Type::Xiang_Chess + i])pChess[Chess::Type::Xiang_Chess + i]->SetPos(pChess[JIANG_CHESS_OFFSET]->GetRow() + xiangOffset[i], pChess[JIANG_CHESS_OFFSET]->GetColumn());
+        if(pChess[XIANG_CHESS_OFFSET + i])pChess[XIANG_CHESS_OFFSET + i]->SetPos(pChess[JIANG_CHESS_OFFSET]->GetRow() + xiangOffset[i], pChess[JIANG_CHESS_OFFSET]->GetColumn());
     }
     // std::array<int32_t, PAO_CHESS_COUNT>paoOffset = { 2, -2 };
     for (size_t i = 0; i < PAO_CHESS_COUNT; i++){
@@ -105,7 +105,7 @@ void Chessboard::InitShuChessRowAndColumn(std::array<Chess *, DRAW_CHESS_COUNT>&
     }
     std::array<int32_t, XIANG_CHESS_COUNT>xiangOffset = { -2, 2 };
     for (size_t i = 0; i < XIANG_CHESS_COUNT; i++){
-        if(pChess[Chess::Type::Xiang_Chess + i])pChess[Chess::Type::Xiang_Chess + i]->SetPos(pChess[JIANG_CHESS_OFFSET]->GetRow(), pChess[JIANG_CHESS_OFFSET]->GetColumn() + xiangOffset[i]);
+        if(pChess[XIANG_CHESS_OFFSET + i])pChess[XIANG_CHESS_OFFSET + i]->SetPos(pChess[JIANG_CHESS_OFFSET]->GetRow(), pChess[JIANG_CHESS_OFFSET]->GetColumn() + xiangOffset[i]);
     }
     // std::array<int32_t, PAO_CHESS_COUNT>paoOffset = { -2, 2 };
     for (size_t i = 0; i < PAO_CHESS_COUNT; i++){
@@ -146,13 +146,13 @@ void Chessboard::InitWeiChessRowAndColumn(std::array<Chess *, DRAW_CHESS_COUNT>&
         if(pChess[i + BING_CHESS_OFFSET])pChess[i + BING_CHESS_OFFSET]->SetPos(pChess[BING_CHESS_OFFSET]->GetRow(), pChess[i + BING_CHESS_OFFSET - 1]->GetColumn() - 2);
     }
 #else
-    std::array<int32_t, CHE_CHESS_COUNT>cheOffset = { 4, -4 };
+    std::array<int32_t, CHE_CHESS_COUNT>cheOffset = { -4, 4 };
     for (size_t i = 0; i < CHE_CHESS_COUNT; i++){
         if(pChess[CHE_CHESS_OFFSET + i])pChess[CHE_CHESS_OFFSET + i]->SetPos(pChess[JIANG_CHESS_OFFSET]->GetRow(), pChess[JIANG_CHESS_OFFSET]->GetColumn() + cheOffset[i]);
     }
-    std::array<int32_t, XIANG_CHESS_COUNT>xiangOffset = { 2, -2 };
+    std::array<int32_t, XIANG_CHESS_COUNT>xiangOffset = { -2, 2 };
     for (size_t i = 0; i < XIANG_CHESS_COUNT; i++){
-        if(pChess[Chess::Type::Xiang_Chess + i])pChess[Chess::Type::Xiang_Chess + i]->SetPos(pChess[JIANG_CHESS_OFFSET]->GetRow(), pChess[JIANG_CHESS_OFFSET]->GetColumn() + xiangOffset[i]);
+        if(pChess[XIANG_CHESS_OFFSET + i])pChess[XIANG_CHESS_OFFSET + i]->SetPos(pChess[JIANG_CHESS_OFFSET]->GetRow(), pChess[JIANG_CHESS_OFFSET]->GetColumn() + xiangOffset[i]);
     }
     // std::array<int32_t, PAO_CHESS_COUNT>paoOffset = { -2, 2 };
     for (size_t i = 0; i < PAO_CHESS_COUNT; i++){
@@ -198,7 +198,7 @@ void Chessboard::InitHanChessRowAndColumn(std::array<Chess *, DRAW_CHESS_COUNT>&
     }
     std::array<int32_t, XIANG_CHESS_COUNT>xiangOffset = { -2, 2 };
     for (size_t i = 0; i < XIANG_CHESS_COUNT; i++){
-        if(pChess[Chess::Type::Xiang_Chess + i])pChess[Chess::Type::Xiang_Chess + i]->SetPos(pChess[JIANG_CHESS_OFFSET]->GetRow() + xiangOffset[i], pChess[JIANG_CHESS_OFFSET]->GetColumn());
+        if(pChess[XIANG_CHESS_OFFSET + i])pChess[XIANG_CHESS_OFFSET + i]->SetPos(pChess[JIANG_CHESS_OFFSET]->GetRow() + xiangOffset[i], pChess[JIANG_CHESS_OFFSET]->GetColumn());
     }
     // std::array<int32_t, PAO_CHESS_COUNT>paoOffset = { 2, -2 };
     for (size_t i = 0; i < PAO_CHESS_COUNT; i++){
@@ -321,64 +321,48 @@ void Chessboard::InitializeChess(uint32_t playerCountry, bool isControllable, ui
     for (uint32_t uiCountry = 0; uiCountry < MAX_COUNTRY_INDEX; ++uiCountry){
         DestroyCountry(uiCountry);
     }
+    //初始化棋子信息
     mChess[WU_COUNTRY_INDEX][JIANG_CHESS_OFFSET] = new Wu();
     mChess[WEI_COUNTRY_INDEX][JIANG_CHESS_OFFSET] = new Wei();
     mChess[SHU_COUNTRY_INDEX][JIANG_CHESS_OFFSET] = new Shu();
     mChess[HAN_COUNTRY_INDEX][JIANG_CHESS_OFFSET] = new Han();
+    auto CrerateCountryChess = [](uint32_t country, std::array<Chess *, DRAW_CHESS_COUNT>&pChess){
+        for (uint32_t uiChess = 1; uiChess < COUNTRY_CHESS_COUNT; ++uiChess){
+            if(uiChess >= MA_CHESS_OFFSET && uiChess < MA_CHESS_OFFSET + MA_CHESS_COUNT){
+                pChess[uiChess] = new Ma(country);
+            }
+            else if(uiChess >= PAO_CHESS_OFFSET && uiChess < PAO_CHESS_OFFSET + PAO_CHESS_COUNT){
+                pChess[uiChess] = new Pao(country);
+            }
+            else if(uiChess >= CHE_CHESS_OFFSET && uiChess < CHE_CHESS_OFFSET + CHE_CHESS_COUNT){
+                pChess[uiChess] = new Che(country);
+            }
+            else if(uiChess >= SHI_CHESS_OFFSET && uiChess < SHI_CHESS_OFFSET + SHI_CHESS_COUNT){
+                pChess[uiChess] = new Shi(country);
+            }
+            else if(uiChess >= XIANG_CHESS_OFFSET && uiChess < XIANG_CHESS_OFFSET + XIANG_CHESS_COUNT){
+                pChess[uiChess] = new Xiang(country);
+            }
+            else if(uiChess >= BING_CHESS_OFFSET && uiChess < BING_CHESS_OFFSET + BING_CHESS_COUNT){
+                pChess[uiChess] = new Bing(country);
+            }
+            pChess[uiChess]->SetChessOffset(uiChess);
+        }
+    };
     if(isControllable){
         for (uint32_t uiCountry = 0; uiCountry < MAX_COUNTRY_INDEX; ++uiCountry){
-            for (uint32_t uiChess = 1; uiChess < COUNTRY_CHESS_COUNT; ++uiChess){
-                if(uiChess >= MA_CHESS_OFFSET && uiChess < MA_CHESS_OFFSET + MA_CHESS_COUNT){
-                    mChess[uiCountry][uiChess] = new Ma(uiCountry);
-                }
-                else if(uiChess >= PAO_CHESS_OFFSET && uiChess < PAO_CHESS_OFFSET + PAO_CHESS_COUNT){
-                    mChess[uiCountry][uiChess] = new Pao(uiCountry);
-                }
-                else if(uiChess >= CHE_CHESS_OFFSET && uiChess < CHE_CHESS_OFFSET + CHE_CHESS_COUNT){
-                    mChess[uiCountry][uiChess] = new Che(uiCountry);
-                }
-                else if(uiChess >= SHI_CHESS_OFFSET && uiChess < SHI_CHESS_OFFSET + SHI_CHESS_COUNT){
-                    mChess[uiCountry][uiChess] = new Shi(uiCountry);
-                }
-                else if(uiChess >= XIANG_CHESS_OFFSET && uiChess < XIANG_CHESS_OFFSET + XIANG_CHESS_COUNT){
-                    mChess[uiCountry][uiChess] = new Xiang(uiCountry);
-                }
-                else if(uiChess >= BING_CHESS_OFFSET && uiChess < BING_CHESS_OFFSET + BING_CHESS_COUNT){
-                    mChess[uiCountry][uiChess] = new Bing(uiCountry);
-                }
-                mChess[uiCountry][uiChess]->SetChessOffset(uiChess);
-            }
+            CrerateCountryChess(uiCountry, mChess[uiCountry]);
         }
     }
     else{
         for (uint32_t uiCountry = 0; uiCountry < MAX_COUNTRY_INDEX; ++uiCountry){
             if(uiCountry != HAN_COUNTRY_INDEX){
-                for (uint32_t offset = 1; offset < COUNTRY_CHESS_COUNT; ++offset){
-                    if(offset >= MA_CHESS_OFFSET && offset < MA_CHESS_OFFSET + MA_CHESS_COUNT){
-                        mChess[uiCountry][offset] = new Ma(uiCountry);
-                    }
-                    else if(offset >= PAO_CHESS_OFFSET && offset < PAO_CHESS_OFFSET + PAO_CHESS_COUNT){
-                        mChess[uiCountry][offset] = new Pao(uiCountry);
-                    }
-                    else if(offset >= CHE_CHESS_OFFSET && offset < CHE_CHESS_OFFSET + CHE_CHESS_COUNT){
-                        mChess[uiCountry][offset] = new Che(uiCountry);
-                    }
-                    else if(offset >= SHI_CHESS_OFFSET && offset < SHI_CHESS_OFFSET + SHI_CHESS_COUNT){
-                        mChess[uiCountry][offset] = new Shi(uiCountry);
-                    }
-                    else if(offset >= XIANG_CHESS_OFFSET && offset < XIANG_CHESS_OFFSET + XIANG_CHESS_COUNT){
-                        mChess[uiCountry][offset] = new Xiang(uiCountry);
-                    }
-                    else if(offset >= BING_CHESS_OFFSET && offset < BING_CHESS_OFFSET + BING_CHESS_COUNT){
-                        mChess[uiCountry][offset] = new Bing(uiCountry);
-                    }
-                    mChess[uiCountry][offset]->SetChessOffset(offset);
-                }
+                CrerateCountryChess(uiCountry, mChess[uiCountry]);
             }
             else{
-                    for (size_t i = 0; i < HAN_PAO_CHESS_COUNT; i++){
-                        mChess[uiCountry][HAN_PAO_CHESS_OFFSET + i] = new Pao(uiCountry);
-                        mChess[uiCountry][HAN_PAO_CHESS_OFFSET + i]->SetChessOffset(HAN_PAO_CHESS_OFFSET + i);
+                    for (size_t uiChess = HAN_PAO_CHESS_OFFSET; uiChess < HAN_PAO_CHESS_OFFSET + HAN_PAO_CHESS_COUNT; uiChess++){
+                        mChess[uiCountry][uiChess] = new Pao(uiCountry);
+                        mChess[uiCountry][uiChess]->SetChessOffset(uiChess);
                     }
                     for (uint32_t uiChess = HAN_CHE_CHESS_OFFSET; uiChess < HAN_CHE_CHESS_OFFSET + HAN_CHE_CHESS_COUNT; ++uiChess){
                         mChess[uiCountry][uiChess] = new Che(uiCountry);
@@ -388,13 +372,14 @@ void Chessboard::InitializeChess(uint32_t playerCountry, bool isControllable, ui
         }
     }
     /*
-        以蜀为参照
         上魏下蜀，左汉右吴
+        势力地盘是固定的，因此, 无论玩家什么势力，都固定在蜀的地盘，其他的类似
     */
     //把函数名中的国家坐标复制给chessInfo[playerCountry]
     InitShuChessRowAndColumn(mChess[playerCountry]);
     if(!isControllable)InitHanChessRowAndColumn(playerCountry, mChess[HAN_COUNTRY_INDEX]);
     if(WU_COUNTRY_INDEX == playerCountry){
+        //如果玩家的势力是吴，那么魏在吴的地盘上，蜀在汉的地盘上, 下边同理
         InitWuChessRowAndColumn(mChess[WEI_COUNTRY_INDEX]);
         InitHanChessRowAndColumn(mChess[SHU_COUNTRY_INDEX]);
         if(isControllable)InitWeiChessRowAndColumn(mChess[HAN_COUNTRY_INDEX]);

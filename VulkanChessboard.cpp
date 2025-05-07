@@ -212,13 +212,13 @@ void VulkanChessboard::Draw(VkCommandBuffer command, VkPipelineLayout layout){
     }
     for (size_t i = 0; i < CHESSBOARD_RECT_COUNT * CHESSBOARD_RECT_COUNT; ++i){
         dynamicOffsets = i * uniforms.grid.size;
-        // const uint32_t row = INDEX_TO_ROW(i, CHESSBOARD_RECT_COUNT), column = INDEX_TO_COLUMN(i, CHESSBOARD_RECT_COUNT);
+        const uint32_t row = INDEX_TO_ROW(i, CHESSBOARD_RECT_COUNT), column = INDEX_TO_COLUMN(i, CHESSBOARD_RECT_COUNT);
         vkCmdBindDescriptorSets(command, VK_PIPELINE_BIND_POINT_GRAPHICS, layout, 0, 1, &descriptorSet.grid, 1, &dynamicOffsets);
-        // const uint32_t territory = GetTerritoryIndex(row, column);
-        // if(territory == CENTER_TERRITORY_INDEX)
-        //     mRect.Draw(command, 0, mRect.indexCount * 2);
-        // else
-        mRect.Draw(command);
+        const uint32_t territory = GetTerritoryIndex(row, column);
+        if(territory == CENTER_TERRITORY_INDEX)
+            mRect.Draw(command, 0, mRect.indexCount * 2);
+        else
+            mRect.Draw(command);
     }
     for (size_t i = 0; i < CHESSBOARD_BIG_GRID_COUNT; ++i){
         dynamicOffsets = i * uniforms.grid.size;
