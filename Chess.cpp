@@ -49,7 +49,7 @@ void Chess::RemoveInvalidChess(const void *pBoard, std::vector<glm::vec2> &canpl
     const Chessboard *board = (const Chessboard *)pBoard;
     for (auto it = canplays.begin(); it != canplays.end();){
         const Chess *pChess = board->GetChess(it->y, it->x);
-        if(pChess && pChess->GetCountry() == mCountry){
+        if(pChess && (pChess->GetCountry() == mCountry || pChess->GetCountry() == HAN_COUNTRY_INDEX)){
             it = canplays.erase(it);
         }
         else
@@ -377,7 +377,17 @@ void Che::Select(const void *pBoard, std::vector<glm::vec2>&canplays) const{
     }
     RemoveInvalidChess(pBoard, canplays);
 }
-
+void Ma::RemoveInvalidChess(const void *pBoard, std::vector<glm::vec2>&canplays)const{
+    const Chessboard *board = (const Chessboard *)pBoard;
+    for (auto it = canplays.begin(); it != canplays.end();){
+        const Chess *pChess = board->GetChess(it->y, it->x);
+        if(pChess && (pChess->GetCountry() == mCountry || (pChess->GetCountry() == HAN_COUNTRY_INDEX && pChess->GetChess() != Chess::Type::Jiang_Chess))){
+            it = canplays.erase(it);
+        }
+        else
+            ++it;
+    }
+}
 Ma::Ma(){
 }
 
@@ -395,14 +405,12 @@ void Ma::Select(const void *pBoard, std::vector<glm::vec2>&canplays) const{
         glm::vec2(mColumn - 1, mRow - 2), glm::vec2(mColumn - 2, mRow - 1), glm::vec2(mColumn - 2, mRow + 1), glm::vec2(mColumn - 1, mRow + 2),
         glm::vec2(mColumn + 1, mRow + 2), glm::vec2(mColumn + 2, mRow + 1), glm::vec2(mColumn + 2, mRow - 1), glm::vec2(mColumn + 1, mRow - 2)
     };
-    const Chessboard *board = (const Chessboard *)pBoard;
     for(uint32_t i = 0; i < sizeof(cInfo) / sizeof(glm::vec2); ++i){
         if(!IsBoundary(cInfo[i].y, cInfo[i].x)){//这里的马和相不会被"蹩马腿",所以不需要判断
-            const Chess *pc = board->GetChess(cInfo[i].y, cInfo[i].x);
-            if(!pc || pc->GetCountry() != GetCountry())
-                canplays.push_back(cInfo[i]);
+            canplays.push_back(cInfo[i]);
         }
     }
+    RemoveInvalidChess(pBoard, canplays);
 }
 
 Xiang::Xiang(){
@@ -423,16 +431,13 @@ Xiang::~Xiang(){
 }
 
 void Xiang::Select(const void *pBoard, std::vector<glm::vec2>&canplays) const{
-    const Chessboard *board = (const Chessboard *)pBoard;
     const glm::vec2 cInfo[] = { glm::vec2(mColumn + 2, mRow + 2), glm::vec2(mColumn - 2, mRow - 2), glm::vec2(mColumn + 2, mRow - 2), glm::vec2(mColumn - 2,mRow + 2) };
     for(uint32_t i = 0; i < sizeof(cInfo) / sizeof(glm::vec2); ++i){
         if(!IsBoundary(cInfo[i].y, cInfo[i].x) && !IsAbroad(cInfo[i].y, cInfo[i].x)){
-            const Chess *pc = board->GetChess(cInfo[i].y, cInfo[i].x);
-            if(!pc || pc->GetCountry() != mCountry){
-                canplays.push_back(cInfo[i]);
-            }
+            canplays.push_back(cInfo[i]);
         }
     }
+    RemoveInvalidChess(pBoard, canplays);
 }
 void Shi::InPalaceMove(const void *pBoard, std::vector<glm::vec2> &canplays) const{
     const Chessboard *board = (const Chessboard *)pBoard;

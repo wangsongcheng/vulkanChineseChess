@@ -49,16 +49,15 @@ void ResetCountryItem(std::vector<std::string>&countryItems){
     }
 }
 void NewGame(int32_t playerCountry = 4, int32_t currentCountry = 4){
+    // g_Game.EndGame();
     if(g_ImGuiInput.enableAi){
-        if(!g_Ai.IsEnd()){
-            g_Ai.End();
-        }
-        g_Ai.CreatePthread(&g_Game, &g_OnLine);
-    }
-    else{
         g_Ai.End();
+        g_Ai.WaitThread();
     }
     g_Game.NewGame(playerCountry, currentCountry);
+    if(g_ImGuiInput.enableAi){
+        g_Ai.CreatePthread(&g_Game, &g_OnLine);
+    }
 }
 void ShowPlayerCountryCombo(){
     static std::string currentCountryItem = g_CountryItems[0][0];
@@ -619,6 +618,7 @@ bool ShowSinglePlayerModeMainInterface(bool *mainInterface){
                 if(g_ImGuiInput.enableAi){
                     if(!g_Ai.IsEnd()){
                         g_Ai.End();
+                        g_Ai.WaitThread();
                     }
                     g_Ai.CreatePthread(&g_Game, &g_OnLine);
                 }
@@ -1038,7 +1038,7 @@ void CleanupVulkan(){
     g_VulkanDevice.Cleanup();
 }
 int main(){
-    srandom(time(nullptr));
+    // srandom(time(nullptr));
     if (GLFW_FALSE == glfwInit()) {
         printf("initialize glfw error");
         return 1;

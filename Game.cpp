@@ -1,15 +1,6 @@
 #include "Game.h"
-void Game::RemoveInvalidTarget(const Chess *pChess, std::vector<glm::vec2>&canplays){
+void Game::RemoveInvalidTarget(std::vector<glm::vec2>&canplays){
     if(!state.isControllable){
-        for (auto it = canplays.begin(); it != canplays.end();){
-            const Chess *pc = mChessboard.GetChess(it->y, it->x);
-            if(pc && pc->GetCountry() == HAN_CHE_CHESS_COUNT && (pc->GetChess() != Chess::Type::Jiang_Chess || pChess->GetChess() != Chess::Type::Ma_Chess)){
-                it = canplays.erase(it);
-            }
-            else{
-                ++it;
-            }
-        }
         const int32_t notAllianceCountry = mNotAllianceCountry;
         if(notAllianceCountry != INVALID_COUNTRY_INDEX){
             const uint32_t allianceCountry = GET_ALLIANCE_COUNTRY(mCurrentCountry, notAllianceCountry);
@@ -75,7 +66,7 @@ void Game::SelectChess(const Chess *pChess){
     if(pChess){
         std::vector<glm::vec2>canplays;
         pChess->Select(&mChessboard, canplays);
-        RemoveInvalidTarget(pChess, canplays);
+        RemoveInvalidTarget(canplays);
         UpdateSelectChessUniform(vulkan.device.device, canplays);
         vulkan.chess.UpdateUniform(vulkan.device.device, pChess->GetFontIndex(), pChess->GetCountry(), pChess->GetPos(), CHESS_WIDTH * 1.2, CHESS_HEIGHT * 1.2, ROW_COLUMN_TO_INDEX(pChess->GetCountry(), pChess->GetChessOffset(), DRAW_CHESS_COUNT));
     }
@@ -99,7 +90,8 @@ Game::Game(/* args */){
 
 Game::~Game(){
 }
-void Game::areKingsFacing(){
+bool Game::areKingsFacing(){
+    bool facing = false;
     for (uint32_t srcCountry = 0; srcCountry < mMaxCountryCount; srcCountry++){
         for (uint32_t dstountry = 0; dstountry < mMaxCountryCount; dstountry++){
             if(srcCountry != dstountry && (INVALID_COUNTRY_INDEX == mNotAllianceCountry || dstountry != GET_ALLIANCE_COUNTRY(srcCountry, mNotAllianceCountry))){
@@ -107,11 +99,13 @@ void Game::areKingsFacing(){
                     mChessboard.DestroyCountry(srcCountry);
                     mChessboard.DestroyCountry(dstountry);
                     srcCountry = mMaxCountryCount;
+                    facing = true;
                     break;
                 }
             }
         }
     }
+    return facing;
 }
 const Chess *Game::Check(uint32_t *sCountry) const{
     const Chess *pChess = nullptr;
@@ -195,6 +189,7 @@ void Game::MoveChess(const glm::vec2&start, const glm::vec2&end, uint32_t fontIn
     }
 }
 void Game::PlayChess(Chess *pChess, uint32_t dstRow, uint32_t dstColumn){
+    const char county[][MAX_BYTE] = { "蜀", "吴", "魏", "汉" };
     mChessboard.SaveStep(pChess->GetRow(), pChess->GetColumn(), dstRow, dstColumn);
     const Chess *pTarget = mChessboard.GetChess(dstRow, dstColumn);
     const uint32_t dynamicOffsets = ROW_COLUMN_TO_INDEX(pChess->GetCountry(), pChess->GetChessOffset(), DRAW_CHESS_COUNT);
@@ -205,7 +200,6 @@ void Game::PlayChess(Chess *pChess, uint32_t dstRow, uint32_t dstColumn){
     if(pTarget){
         uint32_t targetCountry = pTarget->GetCountry();
         mChessboard.CaptureChess(pChess, pTarget);
-        const char county[][MAX_BYTE] = { "蜀", "吴", "魏", "汉" };
         if(mChessboard.IsDeath(targetCountry)){
             printf("%s国被%s国消灭\n", county[targetCountry], county[pChess->GetCountry()]);
             mChessboard.DestroyCountry(targetCountry);
@@ -221,7 +215,9 @@ void Game::PlayChess(Chess *pChess, uint32_t dstRow, uint32_t dstColumn){
         }
     }
     pChess->SetPos(dstRow, dstColumn);
-    areKingsFacing();
+    if(areKingsFacing()){
+        printf("两将见面了\n");
+    }
     UpdateChessUniform(vulkan.device.device);
     mMutex.unlock();
     if(!state.isControllable && pChess->GetChess() == Chess::Type::Ma_Chess){
@@ -293,8 +289,8 @@ void Game::NextCountry(){
     mCurrentCountry = GetNextCountry(mCurrentCountry);
 }
 void Game::NewGame(int32_t playerCountry, int32_t currentCountry){
-    InitinalizeGame(playerCountry, currentCountry);
     mMutex.lock();
+    InitinalizeGame(playerCountry, currentCountry);
     UpdateChessUniform(vulkan.device.device);
     mMutex.unlock();
     vulkan.chessboard.UpdateFontUniform(vulkan.device.device, player.country);

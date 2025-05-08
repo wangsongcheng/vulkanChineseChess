@@ -34,7 +34,7 @@ class Game{
 public:
     Game(/* args */);
     ~Game();
-    void areKingsFacing();
+    bool areKingsFacing();
     //返回被将的棋子
     const Chess *Check(uint32_t *srcCountry)const;
 
@@ -49,7 +49,7 @@ public:
     void PlayChess(Chess *pChess, uint32_t dstRow, uint32_t dstColumn);
     glm::vec4 PrepareChess(const Chess *pSelect, const glm::vec2&mousePos);
 
-    void RemoveInvalidTarget(const Chess *pChess, std::vector<glm::vec2>&canplays);
+    void RemoveInvalidTarget(std::vector<glm::vec2>&canplays);
 
     void SelectChess(const Chess *pChess);
 

@@ -13,10 +13,12 @@
 #include "Chessboard.h"
 class Ai{
 #ifdef __linux
+    pthread_t pthreadId;
     sem_t mAiSemaphore;
     // pthread_t mPthreadId = 0;
 #endif
 #ifdef WIN32
+    DWORD  pthreadId;
     // HANDLE mHandle;
     HANDLE mAiSemaphore;
 #endif
@@ -28,7 +30,7 @@ class Ai{
     // //用来推演的，这样就能判断吃子后是否被吃，并可以根据分数决定是否可以互换棋子，例如一开始就用炮吃马，可能是亏本行为
     // Chessboard mChessboard;
     
-    const Chess *Check(uint32_t country, Chess::Type chess) const;
+    const Chess *Check(uint32_t country) const;
     const Chess *Check(uint32_t country, const glm::vec2&pos)const;
     int32_t CanPlay(uint32_t country, const std::vector<glm::vec2>&canplays)const;
     
@@ -40,8 +42,8 @@ class Ai{
     Chess *GetTarget(const Chess *pSelect, const std::vector<glm::vec2>&canplays)const;
 
     bool IsBoundary(int32_t row, int32_t column)const;
-
-    glm::vec2 GetPathBetween(const Chess *pChess, const Chess *pTarget)const;
+    //获得车到目标那个方向所有能下的位置
+    std::vector<glm::vec2>GetPathBetween(const Chess *pChess, const Chess *pTarget)const;
     
     //返回的棋子肯定有位置可以下
     Chess *RandChess(uint32_t country)const;
@@ -60,6 +62,8 @@ public:
     void EnableNextCountry(bool autoPlay);
     void CreatePthread(Game *pGame, OnLine *pOnline);
     Chess *GetSelect(uint32_t country, glm::vec2&pos);
+
+    void WaitThread();
     // const Chess *GetTarget(const Chess *pSelect, uint32_t *row, uint32_t *column)const;
     
     // void SyncBoardCopy(Chess *pChess, uint32_t dstRow, uint32_t dstColumn);
@@ -103,7 +107,7 @@ public:
         return mGame->GetPlayerCountry();
     }
     inline uint32_t GetCurrentCountry()const{
-        return mGame->GetCurrentCountry();        
+        return mGame->GetCurrentCountry();
     }
     inline bool IsServer()const{
         return mOnline->IsServer();

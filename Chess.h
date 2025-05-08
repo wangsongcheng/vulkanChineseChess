@@ -32,7 +32,7 @@ protected:
     uint32_t mTerritory = INVALID_TERRITORY_INDEX;
     uint32_t GetTerritoryIndex()const;
     uint32_t GetTerritoryIndex(uint32_t row, uint32_t column)const;
-    void RemoveInvalidChess(const void *pBoard, std::vector<glm::vec2>&canplays)const;
+    virtual void RemoveInvalidChess(const void *pBoard, std::vector<glm::vec2>&canplays)const;
 public:
     Chess(/* args */);
     Chess(uint32_t country, Type chess, uint32_t fontIndex, bool hasExitPermission);
@@ -147,6 +147,7 @@ public:
     virtual void Select(const void *pBoard, std::vector<glm::vec2>&canplays)const;
 };
 class Ma:public Chess{
+    virtual void RemoveInvalidChess(const void *pBoard, std::vector<glm::vec2>&canplays)const;
 public:
     Ma();
     Ma(uint32_t country);
