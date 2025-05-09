@@ -435,7 +435,7 @@ void Chessboard::UndoStep(uint32_t step){
     for (size_t i = 0; i < step; i++){
         auto last = mRecord.back();
         //走的棋子也可能被吃
-        const uint selectCountry = last.chess.GetCountry(), capturechess = last.captured.GetCountry();
+        const uint32_t selectCountry = last.chess.GetCountry(), capturechess = last.captured.GetCountry();
         if(mChess[selectCountry][selectCountry]){
             mChess[selectCountry][last.chess.GetChessOffset()]->SetPos(last.chess.GetRow(), last.chess.GetColumn());
         }

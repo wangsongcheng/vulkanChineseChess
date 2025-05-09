@@ -722,13 +722,19 @@ void keybutton(GLFWwindow *window, int key, int scancode, int action, int mods){
     if(action == GLFW_RELEASE){
         if(key == GLFW_KEY_Z){
             if(GLFW_PRESS == glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) || GLFW_PRESS == glfwGetKey(window, GLFW_KEY_LEFT_CONTROL)){
-                auto pBoard = g_Game.GetChessboard();
-                const uint32_t step = 1;
-                pBoard->UndoStep(step);
-                for (size_t i = 0; i < step; i++){
-                    g_Game.LastCountry();//没退一步，下棋的玩家也需要跟着退一步
+                if(g_Game.IsOnline()){
+                    //联机模式需要所有人类投票决定
                 }
-                g_Game.UpdateUniform(g_VulkanDevice.device, g_WindowWidth);
+                else if(g_Game.GetCurrentCountry() == g_Game.GetPlayerCountry()){
+                    //只在玩家回合支持撤回。另外，回放功能下不能启动ai
+                    auto pBoard = g_Game.GetChessboard();
+                    const uint32_t step = 1;
+                    pBoard->UndoStep(step);
+                    for (size_t i = 0; i < step; i++){
+                        g_Game.LastCountry();//每退一步，下棋的玩家也需要跟着退一步
+                    }
+                    g_Game.UpdateUniform(g_VulkanDevice.device, g_WindowWidth);
+                }
             }
         }
     }
