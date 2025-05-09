@@ -42,8 +42,10 @@ public:
         return mSocket != INVALID_SOCKET;
     }
     inline void Shutdown(){
-        shutdown(mSocket, SHUT_RDWR);
-        mSocket = INVALID_SOCKET;
+        if(mSocket != INVALID_SOCKET){
+            shutdown(mSocket, SHUT_RDWR);
+            mSocket = INVALID_SOCKET;    
+        }
     }
 };
 #endif

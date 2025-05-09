@@ -17,6 +17,12 @@ VkResult VulkanBuffer::CreateBuffer(VulkanDevice device, VkDeviceSize size, VkBu
     return result;
 }
 
+VkResult VulkanBuffer::CreateBuffer(VulkanDevice device, VkDeviceSize minUniformBufferOffset, uint32_t count, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties){
+    auto r = CreateBuffer(device, minUniformBufferOffset * count, usage, properties);
+    size = minUniformBufferOffset;
+    return r;
+}
+
 void VulkanBuffer::UpdateData(VulkanDevice device, const void *pData, VkQueue graphics, VulkanPool pool){
     if(!pData || buffer == VK_NULL_HANDLE)return;
     VulkanBuffer temporary;

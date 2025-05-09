@@ -275,15 +275,13 @@ void VulkanChessboard::Setup(VulkanDevice device, VkDescriptorSetLayout setLayou
 
     uniforms.bigGrid.CreateBuffer(device, minUniformBufferOffset * CHESSBOARD_BIG_GRID_COUNT, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
     uniforms.bigGrid.size = minUniformBufferOffset;
-    
     uniforms.wireframe.jiugongge.CreateBuffer(device, minUniformBufferOffset * CHESSBOARD_PALACE_COUNT, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
     uniforms.wireframe.jiugongge.size = minUniformBufferOffset;
 
     uniforms.alliance.CreateBuffer(device, minUniformBufferOffset * 3, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
     uniforms.alliance.size = minUniformBufferOffset;
 
-    fonts.uniforms.alliance.CreateBuffer(device, minFontUniformBufferOffset * 3, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-    fonts.uniforms.alliance.size = minFontUniformBufferOffset;
+    fonts.uniforms.alliance.CreateBuffer(device, minFontUniformBufferOffset, 3, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 
     uniforms.background.CreateBuffer(device, minUniformBufferOffset * 2, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
     uniforms.background.size = minUniformBufferOffset;
@@ -359,7 +357,8 @@ void VulkanChessboard::UpdateFontUniform(VkDevice device, int32_t playerCountry)
         fUbo[i].imageIndex = i;
         fUbo[i].color = glm::vec3(1);
         fUbo[i].model = glm::scale(glm::translate(glm::mat4(1), glm::vec3(pos[i].x - ALLIANCE_POINT_FONT_WIDTH * .45, pos[i].y - ALLIANCE_POINT_FONT_HEIGHT * .5, 0)), glm::vec3(ALLIANCE_POINT_FONT_WIDTH, ALLIANCE_POINT_FONT_HEIGHT, 1));
+        //由于不同设备的最小动态偏移不同，所以用这种方式更新最保险
+        fonts.uniforms.alliance.UpdateData(device, fonts.uniforms.alliance.size, &fUbo[i], i * fonts.uniforms.alliance.size);
     }
     uniforms.alliance.UpdateData(device, sizeof(model), model);
-    fonts.uniforms.alliance.UpdateData(device, sizeof(fUbo), fUbo);
 }

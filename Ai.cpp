@@ -27,7 +27,6 @@ void aiPlay(Ai *pAi){
 }
 void *AiPlayChess(void *userData){
     Ai *pAi = (Ai *)userData;
-#ifdef __linux
     if(pAi->IsOnline()){
         // auto aiClientIndex = pAi->GetAiClientIndex();
         for (auto&it:g_Players){
@@ -40,7 +39,6 @@ void *AiPlayChess(void *userData){
     else if(pAi->GetCurrentCountry() != pAi->GetPlayer()){
         pAi->Enable();
     }
-#endif
     printf("function %s start\n", __FUNCTION__);
     while(!pAi->GameOver() && !pAi->IsEnd()){
         pAi->Wait();

@@ -41,7 +41,7 @@ void Chessboard::InitWuChessRowAndColumn(std::array<Chess *, DRAW_CHESS_COUNT> &
         if(pChess[SHI_CHESS_OFFSET + i])pChess[SHI_CHESS_OFFSET + i]->SetPos(pChess[JIANG_CHESS_OFFSET]->GetRow() + shiOffset[i], pChess[JIANG_CHESS_OFFSET]->GetColumn());
     }
 #ifdef ENABLE_BATTLE_FAN_GUANYU
-    std::array<int32_t, PAO_CHESS_COUNT>paoOffset = { -2, 2 };
+    std::array<int32_t, PAO_CHESS_COUNT>paoOffset = { 2, -2 };
     for (size_t i = 0; i < PAO_CHESS_COUNT; i++){
         if(pChess[PAO_CHESS_OFFSET + i])pChess[PAO_CHESS_OFFSET + i]->SetPos(pChess[JIANG_CHESS_OFFSET]->GetRow() + paoOffset[i], pChess[JIANG_CHESS_OFFSET]->GetColumn());
     }
@@ -73,6 +73,7 @@ void Chessboard::InitWuChessRowAndColumn(std::array<Chess *, DRAW_CHESS_COUNT> &
 void Chessboard::InitShuChessRowAndColumn(std::array<Chess *, DRAW_CHESS_COUNT>&pChess){
     pChess[JIANG_CHESS_OFFSET]->SetPos(CHESSBOARD_ROW, CHESSBOARD_COLUMN / 2);
     // 偏移也偏移变量(offset)不能共用,因为每个棋子的数量可能不同，也可能被修改
+    //棋子的位置也需要一致, 蜀炮0号的索引小，吴炮0号的索引大，以此类推，除非不用网络模式
 #ifdef ENABLE_BATTLE_FAN_GUANYU
     std::array<int32_t, MA_CHESS_COUNT>maOffset = { -3, 3, 0 };
     for (size_t i = 0; i < MA_CHESS_COUNT; i++){
@@ -93,7 +94,7 @@ void Chessboard::InitShuChessRowAndColumn(std::array<Chess *, DRAW_CHESS_COUNT>&
     for (size_t i = 0; i < PAO_CHESS_COUNT; i++){
         if(pChess[PAO_CHESS_OFFSET + i])pChess[PAO_CHESS_OFFSET + i]->SetPos(pChess[JIANG_CHESS_OFFSET]->GetRow(), pChess[JIANG_CHESS_OFFSET]->GetColumn() + paoOffset[i]);
     }
-    std::array<int32_t, BING_CHESS_OFFSET>bingOffset = { -2, 2 };
+    // std::array<int32_t, BING_CHESS_OFFSET>bingOffset = { -2, 2 };
     if(pChess[BING_CHESS_OFFSET])pChess[BING_CHESS_OFFSET]->SetPos(CHESSBOARD_ROW - 3, CHESSBOARD_BING_GRID_DENSITY + 1);
     for (size_t i = 1; i < BING_CHESS_COUNT; ++i){
         if(pChess[i + BING_CHESS_OFFSET])pChess[i + BING_CHESS_OFFSET]->SetPos(pChess[BING_CHESS_OFFSET]->GetRow(), pChess[i + BING_CHESS_OFFSET - 1]->GetColumn() + 2);
@@ -140,7 +141,7 @@ void Chessboard::InitWeiChessRowAndColumn(std::array<Chess *, DRAW_CHESS_COUNT>&
     for (size_t i = 0; i < PAO_CHESS_COUNT; i++){
         if(pChess[PAO_CHESS_OFFSET + i])pChess[PAO_CHESS_OFFSET + i]->SetPos(pChess[JIANG_CHESS_OFFSET]->GetRow(), pChess[JIANG_CHESS_OFFSET]->GetColumn() + paoOffset[i]);
     }
-    std::array<int32_t, BING_CHESS_OFFSET>bingOffset = { -2, 2 };
+    // std::array<int32_t, BING_CHESS_OFFSET>bingOffset = { 2, -2 };
     if(pChess[BING_CHESS_OFFSET])pChess[BING_CHESS_OFFSET]->SetPos(3, CHESSBOARD_COLUMN - CHESSBOARD_BING_GRID_DENSITY - 1);
     for (size_t i = 1; i < BING_CHESS_COUNT; ++i){
         if(pChess[i + BING_CHESS_OFFSET])pChess[i + BING_CHESS_OFFSET]->SetPos(pChess[BING_CHESS_OFFSET]->GetRow(), pChess[i + BING_CHESS_OFFSET - 1]->GetColumn() - 2);
@@ -230,7 +231,7 @@ void Chessboard::InitHanChessRowAndColumn(uint32_t country, std::array<Chess *, 
     }
     else if(country == WEI_COUNTRY_INDEX){
         pChess[JIANG_CHESS_OFFSET]->SetPos(CHESSBOARD_ROW / 2, CHESSBOARD_COLUMN);
-        std::array<int32_t, HAN_CHE_CHESS_COUNT> offset = { -2, 0, 2 };
+        std::array<int32_t, HAN_CHE_CHESS_COUNT> offset = { 2, 0, 2 };
 #ifdef ENABLE_BATTLE_FAN_GUANYU
         for (size_t i = 0; i < HAN_CHE_CHESS_COUNT; i++){
             pChess[HAN_CHE_CHESS_OFFSET + i]->SetPos(pChess[JIANG_CHESS_OFFSET]->GetRow() + offset[i], pChess[JIANG_CHESS_OFFSET]->GetColumn() - 2);
@@ -263,7 +264,7 @@ void Chessboard::InitHanChessRowAndColumn(uint32_t country, std::array<Chess *, 
     else{
         //那就是蜀了
         pChess[JIANG_CHESS_OFFSET]->SetPos(CHESSBOARD_ROW / 2, 0);
-        std::array<int32_t, HAN_CHE_CHESS_COUNT> offset = { 2, 0, -2 };
+        std::array<int32_t, HAN_CHE_CHESS_COUNT> offset = { -2, 0, 2 };
 #ifdef ENABLE_BATTLE_FAN_GUANYU
         for (size_t i = 0; i < HAN_CHE_CHESS_COUNT; i++){
             pChess[HAN_CHE_CHESS_OFFSET + i]->SetPos(pChess[JIANG_CHESS_OFFSET]->GetRow() + offset[i], pChess[JIANG_CHESS_OFFSET]->GetColumn() + 2);
@@ -482,8 +483,9 @@ void Chessboard::CaptureChess(const Chess *srcChess, const Chess *dstChess){
         DestroyCountry(dstCountry);
     }
     else{
-        delete mChess[dstCountry][dstChess->GetChessOffset()];
-        mChess[dstCountry][dstChess->GetChessOffset()] = nullptr;    
+        const uint32_t offset = dstChess->GetChessOffset();
+        delete mChess[dstCountry][offset];
+        mChess[dstCountry][offset] = nullptr;    
     }
 }
 void Chessboard::GetCountryChess(uint32_t srcCountry, uint32_t dstCountry){

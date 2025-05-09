@@ -78,7 +78,7 @@ void Game::SaveStep(Chess *pChess, uint32_t dstRow, uint32_t dstColumn){
         Facing facing;//如果因为见面被销毁或被灭亡后，棋子可以记这里
     */
     const Chess *pTarget = mChessboard.GetChess(dstRow, dstColumn);
-    ChessMove move;
+    ChessMove move = {};
     move.chess = *pChess;
     move.is_capture = pTarget;
     if(move.is_capture){

@@ -173,9 +173,11 @@ void *process_server(void *userData){
     printf("function %s start, socketindex is %d\n", __FUNCTION__, socketindex);
     do{
         g_OnLine.RecvFromClient(socketindex, &message, sizeof(message));
+        if(message.event == PLAYER_EXIT_GAME_EVENT && socketindex == message.clientIndex){
+            g_OnLine.ShutdownClient(socketindex);
+        }
         g_OnLine.SendToAllClient(&message, sizeof(message));
-        if(message.event == PLAYER_EXIT_GAME_EVENT && socketindex == message.clientIndex)break;
-    } while (message.event != GAME_OVER_GAME_EVENT);
+    } while (message.event != GAME_OVER_GAME_EVENT && (message.event != PLAYER_EXIT_GAME_EVENT || socketindex != message.clientIndex));
     printf("function %s end, socketindex is %d\n", __FUNCTION__, socketindex);
     return nullptr;
 }

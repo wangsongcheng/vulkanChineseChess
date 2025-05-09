@@ -7,6 +7,7 @@ struct VulkanBuffer{
     VkBuffer buffer = VK_NULL_HANDLE;
     VkDeviceMemory memory = VK_NULL_HANDLE;
     VkResult CreateBuffer(VulkanDevice device, VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties);
+    VkResult CreateBuffer(VulkanDevice device, VkDeviceSize minUniformBufferOffset, uint32_t count, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties);
 
     void UpdateData(VulkanDevice device, const void *pData, VkQueue graphics, VulkanPool pool);
 
