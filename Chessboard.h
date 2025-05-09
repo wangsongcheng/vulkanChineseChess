@@ -4,13 +4,26 @@
 #include "Chess.h"
 #include "stdafx.h"
 
-#define MAX_UNDO_STEP 100
-
+#define MAX_UNDO_STEP 500
+typedef struct {
+    uint32_t country;
+    //保存被销毁的棋子信息
+    std::vector<Chess>chess;
+}Facing;
+typedef struct {
+    Chess chess;
+    Chess captured;
+    bool is_capture;
+    int move_number;
+    bool is_facing, is_death, is_check;
+    std::array<Facing, 2>facing;//如果因为见面被销毁或被灭亡后，棋子可以记这里
+    char notation[8];            // 棋步记录(如"炮二平五")
+} ChessMove;
 class Chessboard{
     uint32_t mCountryCount;
-    std::vector<std::array<Chess, 2>>mRecord;
+    std::vector<ChessMove>mRecord;
     std::array<glm::vec2, MAX_COUNTRY_INDEX>mPalacesCenter;
-    std::array<Chess *, DRAW_CHESS_COUNT>mChess[MAX_COUNTRY_INDEX];
+    std::array<std::array<Chess *, DRAW_CHESS_COUNT>, MAX_COUNTRY_INDEX>mChess;
 
     uint32_t GetCountryCount();
 
@@ -52,7 +65,7 @@ public:
     // void Select(uint32_t country, uint32_t chess, std::vector<glm::vec2>&canplays);
     bool IsHasExitPermission(uint32_t country);
     //单步下没问题，但如果是调用destroycountry销毁的呢
-    void SaveStep(uint32_t srcRow, uint32_t srcColumn, uint32_t dstRow, uint32_t dstColumn);
+    void SaveStep(const ChessMove&dStep);
     //注意:想实现联网下的撤销功能时, 发出撤销请求后需要所有人投票同意后才能撤销
     void UndoStep(uint32_t step = 1);
     // inline auto GetChess()const{

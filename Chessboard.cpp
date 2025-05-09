@@ -423,30 +423,42 @@ bool Chessboard::IsHasExitPermission(uint32_t country){
     }
     return has;
 }
-void Chessboard::SaveStep(uint32_t srcRow, uint32_t srcColumn, uint32_t dstRow, uint32_t dstColumn){
-    //如果实在没办法，干脆直接保存整个棋盘
+void Chessboard::SaveStep(const ChessMove&dStep){
     if(mRecord.size() >= MAX_UNDO_STEP){
         mRecord.erase(mRecord.begin());
     }
-    std::array<Chess, 2>chess;
-    chess[1].SetCountry(MAX_COUNTRY_INDEX);
-    const Chess *pSelect = GetChess(srcRow, srcColumn), *pTarget = GetChess(dstRow, dstColumn);
-    chess[0] = *pSelect;
-    if(pTarget)chess[1] = *pTarget;
-    mRecord.push_back(chess);
+    mRecord.push_back(dStep);
 }
 void Chessboard::UndoStep(uint32_t step){
     //撤回的步数等于sterp
     if(mRecord.empty())return;
     for (size_t i = 0; i < step; i++){
         auto last = mRecord.back();
-        mChess[last[0].GetCountry()][last[0].GetChessOffset()]->SetPos(last[0].GetRow(), last[0].GetColumn());
-        const uint32_t country = last[1].GetCountry();
-        if(country < MAX_COUNTRY_INDEX){
+        //走的棋子也可能被吃
+        const uint selectCountry = last.chess.GetCountry(), capturechess = last.captured.GetCountry();
+        if(mChess[selectCountry][selectCountry]){
+            mChess[selectCountry][last.chess.GetChessOffset()]->SetPos(last.chess.GetRow(), last.chess.GetColumn());
+        }
+        else{
+            mChess[selectCountry][last.chess.GetChessOffset()] = CreateChess(selectCountry, last.chess.GetChess(), last.chess.GetRow(), last.chess.GetColumn());
+        }
+        if(last.is_capture){
             //说明这一步吃子了
-            const uint32_t offset = last[1].GetChessOffset();
-            mChess[country][offset] = CreateChess(country, last[1].GetChess(), last[1].GetRow(), last[1].GetColumn());
-            mChess[country][offset]->SetChessOffset(offset);
+            const uint32_t offset = last.captured.GetChessOffset();
+            mChess[capturechess][offset] = CreateChess(capturechess, last.captured.GetChess(), last.captured.GetRow(), last.captured.GetColumn());
+            mChess[capturechess][offset]->SetChessOffset(offset);
+        }
+        if(last.is_facing){
+            for (auto&it:last.facing){
+                for (auto&cit:it.chess){
+                    if(mChess[it.country][cit.GetChessOffset()]){
+                        mChess[it.country][cit.GetChessOffset()]->SetPos(cit.GetRow(), cit.GetColumn());
+                    }
+                    else{
+                        mChess[selectCountry][selectCountry] = CreateChess(selectCountry, last.chess.GetChess(), last.chess.GetRow(), last.chess.GetColumn());
+                    }                                
+                }
+            }
         }
         mRecord.pop_back();
     }    

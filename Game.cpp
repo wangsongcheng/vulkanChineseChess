@@ -71,6 +71,45 @@ void Game::SelectChess(const Chess *pChess){
         vulkan.chess.UpdateUniform(vulkan.device.device, pChess->GetFontIndex(), pChess->GetCountry(), pChess->GetPos(), CHESS_WIDTH * 1.2, CHESS_HEIGHT * 1.2, ROW_COLUMN_TO_INDEX(pChess->GetCountry(), pChess->GetChessOffset(), DRAW_CHESS_COUNT));
     }
 }
+void Game::SaveStep(Chess *pChess, uint32_t dstRow, uint32_t dstColumn){
+    /*
+        int move_number;
+        bool is_facing, is_death;
+        Facing facing;//如果因为见面被销毁或被灭亡后，棋子可以记这里
+    */
+    const Chess *pTarget = mChessboard.GetChess(dstRow, dstColumn);
+    ChessMove move;
+    move.chess = *pChess;
+    move.is_capture = pTarget;
+    if(move.is_capture){
+        move.captured = *pTarget;
+    }
+    move.is_check = Check(nullptr);
+    for (uint32_t srcCountry = 0; srcCountry < mMaxCountryCount; srcCountry++){
+        for (uint32_t dstountry = 0; dstountry < mMaxCountryCount; dstountry++){
+            if(srcCountry != dstountry){
+                if(mChessboard.areKingsFacing(srcCountry, dstountry)){
+                    move.is_facing = true;
+                    srcCountry = mMaxCountryCount;
+                    move.facing[1].country = dstountry;
+                    move.facing[0].country = srcCountry;
+                    break;
+                }
+            }
+        }
+    }
+    if(move.is_facing){
+        for (uint32_t i = 0; i < move.facing.size(); ++i){
+            auto pCountryChess = mChessboard.GetChess(move.facing[i].country);
+            for (size_t uiChess = 0; uiChess < DRAW_CHESS_COUNT; uiChess++){
+                if(pCountryChess[uiChess]){
+                    move.facing[i].chess.push_back(*pCountryChess[uiChess]);
+                }   
+            }        
+        }
+    }
+    mChessboard.SaveStep(move);
+}
 glm::vec4 Game::PrepareChess(const Chess *pSelect, const glm::vec2 &mousePos){
     // const uint32_t clientIndex = g_OnLine.GetClientIndex();
     std::vector<glm::vec2>canplays;
@@ -118,7 +157,7 @@ const Chess *Game::Check(uint32_t *sCountry) const{
                 if(!pJiang)break;
                 pChess = mChessboard.Check(srcCountry, pJiang->GetRow(), pJiang->GetColumn());
                 if(pChess){
-                    *sCountry = srcCountry;
+                    if(sCountry)*sCountry = srcCountry;
                     return pJiang;
                 }
                 dstCountry = GetNextCountry(dstCountry);
@@ -147,7 +186,14 @@ bool Game::GameOver(){
 uint32_t Game::GetNextCountry()const{
     return GetNextCountry(mCurrentCountry);
 }
-uint32_t Game::GetNextCountry(uint32_t country)const{
+uint32_t Game::GetLastCountry() const{
+    uint32_t country = mCurrentCountry;
+    do{
+        country = (country - 1 + mMaxCountryCount) % mMaxCountryCount;
+    } while (mChessboard.IsDeath(country));
+    return country;
+}
+uint32_t Game::GetNextCountry(uint32_t country) const{
     do{
         country = (country + 1) % mMaxCountryCount;
     } while (mChessboard.IsDeath(country));
@@ -190,12 +236,12 @@ void Game::MoveChess(const glm::vec2&start, const glm::vec2&end, uint32_t fontIn
 }
 void Game::PlayChess(Chess *pChess, uint32_t dstRow, uint32_t dstColumn){
     const char county[][MAX_BYTE] = { "蜀", "吴", "魏", "汉" };
-    mChessboard.SaveStep(pChess->GetRow(), pChess->GetColumn(), dstRow, dstColumn);
     const Chess *pTarget = mChessboard.GetChess(dstRow, dstColumn);
     const uint32_t dynamicOffsets = ROW_COLUMN_TO_INDEX(pChess->GetCountry(), pChess->GetChessOffset(), DRAW_CHESS_COUNT);
     const glm::vec2 start = glm::vec2(CHESS_COLUMN_TO_X(pChess->GetColumn()), CHESS_ROW_TO_Y(pChess->GetRow())), end = glm::vec2(CHESS_COLUMN_TO_X(dstColumn), CHESS_ROW_TO_Y(dstRow));
     //为什么不能正确移动原偏移的棋子，导致移动的时候，原位的棋子位置不变
     mMutex.lock();
+    SaveStep(pChess, dstRow, dstColumn);
     MoveChess(start, end, pChess->GetFontIndex(), pChess->GetCountry(), dynamicOffsets);
     if(pTarget){
         uint32_t targetCountry = pTarget->GetCountry();
@@ -287,6 +333,9 @@ void Game::SetNotAllianceCountry(uint32_t country, uint32_t row, uint32_t column
 }
 void Game::NextCountry(){
     mCurrentCountry = GetNextCountry(mCurrentCountry);
+}
+void Game::LastCountry(){
+    mCurrentCountry = GetLastCountry();
 }
 void Game::NewGame(int32_t playerCountry, int32_t currentCountry){
     mMutex.lock();

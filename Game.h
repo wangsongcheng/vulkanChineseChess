@@ -40,6 +40,7 @@ public:
 
     bool GameOver();
     uint32_t GetNextCountry()const;
+    uint32_t GetLastCountry()const;
     uint32_t GetNextCountry(uint32_t country)const;
 
     void InitinalizeGame(int32_t playerCountry = INVALID_COUNTRY_INDEX, int32_t currentCountry = INVALID_COUNTRY_INDEX);
@@ -52,11 +53,12 @@ public:
     void RemoveInvalidTarget(std::vector<glm::vec2>&canplays);
 
     void SelectChess(const Chess *pChess);
-
+    void SaveStep(Chess *pChess, uint32_t dstRow, uint32_t dstColumn);
     void SetNotAllianceCountry(uint32_t country, uint32_t row, uint32_t column);
 
     void UnSelectChess();
 
+    void LastCountry();
     void NextCountry();
     void NewGame(int32_t playerCountry = INVALID_COUNTRY_INDEX, int32_t currentCountry = INVALID_COUNTRY_INDEX);
     //绘图方面的函数
