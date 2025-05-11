@@ -179,28 +179,28 @@ uint32_t GetTerritoryIndex(uint32_t row, uint32_t column){
     if(row >= CHESSBOARD_BING_GRID_DENSITY && row < CHESSBOARD_ROW - CHESSBOARD_BING_GRID_DENSITY){
         //汉和吴的地盘
         if(column < CHESSBOARD_BING_GRID_DENSITY){
-            return HAN_TERRITORY_INDEX;
+            return Han_Territory;
         }
         else if(column >= CHESSBOARD_COLUMN - CHESSBOARD_BING_GRID_DENSITY){
-            return WU_TERRITORY_INDEX;
+            return Wu_Territory;
         }
         else{
-            return CENTER_TERRITORY_INDEX;
+            return Center_Territory;
         }
     }
     else if(column >= CHESSBOARD_BING_GRID_DENSITY && column < CHESSBOARD_COLUMN - CHESSBOARD_BING_GRID_DENSITY){
         //魏和蜀的地盘
         if(row < CHESSBOARD_BING_GRID_DENSITY){
-            return SHU_TERRITORY_INDEX;
+            return Shu_Territory;
         }
         else if(row >= CHESSBOARD_ROW - CHESSBOARD_BING_GRID_DENSITY){
-            return WEI_TERRITORY_INDEX;
+            return Wei_Territory;
         }
         else{
-            return CENTER_TERRITORY_INDEX;
+            return Center_Territory;
         }
     }
-    return INVALID_TERRITORY_INDEX;
+    return Invald_Territory;
 }
 void VulkanChessboard::Draw(VkCommandBuffer command, VkPipelineLayout layout){
     uint32_t dynamicOffsets;
@@ -215,7 +215,7 @@ void VulkanChessboard::Draw(VkCommandBuffer command, VkPipelineLayout layout){
         const uint32_t row = INDEX_TO_ROW(i, CHESSBOARD_RECT_COUNT), column = INDEX_TO_COLUMN(i, CHESSBOARD_RECT_COUNT);
         vkCmdBindDescriptorSets(command, VK_PIPELINE_BIND_POINT_GRAPHICS, layout, 0, 1, &descriptorSet.grid, 1, &dynamicOffsets);
         const uint32_t territory = GetTerritoryIndex(row, column);
-        if(territory == CENTER_TERRITORY_INDEX)
+        if(territory == Center_Territory)
             mRect.Draw(command, 0, mRect.indexCount * 2);
         else
             mRect.Draw(command);
@@ -296,7 +296,7 @@ void VulkanChessboard::Setup(VulkanDevice device, VkDescriptorSetLayout setLayou
     UpdateDescriptorSet(device.device);
 }
 
-void VulkanChessboard::UpdateUniform(VkDevice device, uint32_t windowWidth, uint32_t playerCountry){
+void VulkanChessboard::UpdateUniform(VkDevice device, uint32_t windowWidth, Country player){
     //因为棋盘里面的坐标都是固定的, 所以可以直接在类里全画出来
     //但棋子位置不固定...
     UpdateBigGridUniform(device);
@@ -308,46 +308,46 @@ void VulkanChessboard::UpdateUniform(VkDevice device, uint32_t windowWidth, uint
     UpdateBackgroundUniform(device, windowWidth);
 
     //在确定位置前，绝对不能看出来在哪里
-    UpdateFontUniform(device, playerCountry);
+    UpdateFontUniform(device, player);
 }
 
-void VulkanChessboard::UpdateFontUniform(VkDevice device, int32_t playerCountry){
+void VulkanChessboard::UpdateFontUniform(VkDevice device, Country player){
     glm::vec2 center;
-    if(playerCountry == WU_COUNTRY_INDEX){
+    if(player == Wu_Country){
         center =glm::vec2(CHESSBOARD_COLUMN / 2, 1);
     }
-    else if(playerCountry == WEI_COUNTRY_INDEX){
+    else if(player == Wei_Country){
         center = glm::vec2(CHESSBOARD_COLUMN - 1, CHESSBOARD_ROW / 2);
     }
-    else if(playerCountry == SHU_COUNTRY_INDEX){
+    else if(player == Shu_Country){
         center = glm::vec2(1, CHESSBOARD_COLUMN / 2);
     }
-    else if(playerCountry == HAN_COUNTRY_INDEX){
+    else if(player == Han_Country){
         center = glm::vec2(CHESSBOARD_COLUMN / 2, CHESSBOARD_ROW - 1);
     }
     std::array<glm::vec2, 3>pos = { glm::vec2(1000, 1000), glm::vec2(1000, 1000), glm::vec2(1000, 1000) };
-    if(playerCountry != INVALID_COUNTRY_INDEX){
+    if(player != Invald_Country){
         //吴在九宫格的中心点
-        pos[WU_COUNTRY_INDEX] = glm::vec2(CHESS_COLUMN_TO_X(center.x), CHESS_ROW_TO_Y(center.y));
+        pos[Wu_Country] = glm::vec2(CHESS_COLUMN_TO_X(center.x), CHESS_ROW_TO_Y(center.y));
         if(center.x == 1){
             //汉在汉的位置上
-            pos[WEI_COUNTRY_INDEX] = glm::vec2(CHESS_COLUMN_TO_X(center.x - 1), CHESS_ROW_TO_Y(center.y + 1));
-            pos[SHU_COUNTRY_INDEX] = glm::vec2(CHESS_COLUMN_TO_X(center.x - 1), CHESS_ROW_TO_Y(center.y - 1));
+            pos[Wei_Country] = glm::vec2(CHESS_COLUMN_TO_X(center.x - 1), CHESS_ROW_TO_Y(center.y + 1));
+            pos[Shu_Country] = glm::vec2(CHESS_COLUMN_TO_X(center.x - 1), CHESS_ROW_TO_Y(center.y - 1));
         }
         else if(center.y == 1){
             //汉在魏的位置上
-            pos[WEI_COUNTRY_INDEX] = glm::vec2(CHESS_COLUMN_TO_X(center.x - 1), CHESS_ROW_TO_Y(center.y - 1));
-            pos[SHU_COUNTRY_INDEX] = glm::vec2(CHESS_COLUMN_TO_X(center.x + 1), CHESS_ROW_TO_Y(center.y - 1));
+            pos[Wei_Country] = glm::vec2(CHESS_COLUMN_TO_X(center.x - 1), CHESS_ROW_TO_Y(center.y - 1));
+            pos[Shu_Country] = glm::vec2(CHESS_COLUMN_TO_X(center.x + 1), CHESS_ROW_TO_Y(center.y - 1));
         }
         else if(center.y == CHESSBOARD_ROW - 1){
             //汉在蜀的位置上....理论上不可能，但算了，还是写上吧
-            pos[WEI_COUNTRY_INDEX] = glm::vec2(CHESS_COLUMN_TO_X(center.x + 1), CHESS_ROW_TO_Y(center.y + 1));
-            pos[SHU_COUNTRY_INDEX] = glm::vec2(CHESS_COLUMN_TO_X(center.x - 1), CHESS_ROW_TO_Y(center.y + 1));
+            pos[Wei_Country] = glm::vec2(CHESS_COLUMN_TO_X(center.x + 1), CHESS_ROW_TO_Y(center.y + 1));
+            pos[Shu_Country] = glm::vec2(CHESS_COLUMN_TO_X(center.x - 1), CHESS_ROW_TO_Y(center.y + 1));
         }
         else if(center.x == CHESSBOARD_ROW - 1){
             //汉在吴的位置
-            pos[WEI_COUNTRY_INDEX] = glm::vec2(CHESS_COLUMN_TO_X(center.x + 1), CHESS_ROW_TO_Y(center.y - 1));
-            pos[SHU_COUNTRY_INDEX] = glm::vec2(CHESS_COLUMN_TO_X(center.x + 1), CHESS_ROW_TO_Y(center.y + 1));
+            pos[Wei_Country] = glm::vec2(CHESS_COLUMN_TO_X(center.x + 1), CHESS_ROW_TO_Y(center.y - 1));
+            pos[Shu_Country] = glm::vec2(CHESS_COLUMN_TO_X(center.x + 1), CHESS_ROW_TO_Y(center.y + 1));
         }
     }
     glm::mat4 model[3];

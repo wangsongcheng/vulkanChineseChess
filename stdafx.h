@@ -27,11 +27,27 @@ struct ImGuiInput{
         interface.RetMain();
     }
 };
+//最好不要修改
+enum Country{
+    Shu_Country = 0,
+    Wu_Country,
+    Wei_Country,
+    Han_Country,
+    Invald_Country
+};
+enum Territory{
+    Wu_Territory = Wu_Country,
+    Wei_Territory = Wei_Country,
+    Shu_Territory = Shu_Country,
+    Han_Territory = Han_Country,
+    Center_Territory,
+    Invald_Territory
+};
 #ifndef MAX_BYTE
 #define MAX_BYTE 0xff
 #endif
 //定义该宏启用襄樊战役
-#define ENABLE_BATTLE_FAN_GUANYU
+// #define ENABLE_BATTLE_FAN_GUANYU
 
 #define CHESSBOARD_LINE_WIDTH 1
 
@@ -65,21 +81,15 @@ struct ImGuiInput{
 
 #define ROW_COLUMN_TO_INDEX(ROW_INDEX, COLUMN_INDEX, COLUMN)((ROW_INDEX) * (COLUMN) + (COLUMN_INDEX))
 
-#define MAX_COUNTRY_INDEX 4
-//最好不要修改
-#define WU_COUNTRY_INDEX 1
-#define WEI_COUNTRY_INDEX 2
-#define SHU_COUNTRY_INDEX 0
-#define HAN_COUNTRY_INDEX 3
-#define INVALID_COUNTRY_INDEX MAX_COUNTRY_INDEX
 //该宏应该减少使用,尽量使用Game类中的国家总数
+#define MAX_COUNTRY_INDEX 4
 
 //联盟相关宏, 一般情况下需要修改
 #define ALLIANCE_POINT_FONT_WIDTH 25
 #define ALLIANCE_POINT_FONT_HEIGHT ALLIANCE_POINT_FONT_WIDTH
-#define ALLIANCE_POINT_FONT_INDEX_WU WU_COUNTRY_INDEX
-#define ALLIANCE_POINT_FONT_INDEX_WEI WEI_COUNTRY_INDEX
-#define ALLIANCE_POINT_FONT_INDEX_SHU SHU_COUNTRY_INDEX
+#define ALLIANCE_POINT_FONT_INDEX_WU Wu_Country
+#define ALLIANCE_POINT_FONT_INDEX_WEI Wei_Country
+#define ALLIANCE_POINT_FONT_INDEX_SHU Shu_Country
 #define ALLIANCE_POINT_WIDTH 15
 #define ALLIANCE_POINT_HEIGHT ALLIANCE_POINT_WIDTH
 
@@ -133,13 +143,6 @@ struct ImGuiInput{
 #define DRAW_CHESS_COUNT (COUNTRY_CHESS_COUNT * 3)
 //每个国家需要绘制4个矩形
 #define CHESSBOARD_PALACE_COUNT (MAX_COUNTRY_INDEX * 4)
-
-#define WU_TERRITORY_INDEX WU_COUNTRY_INDEX
-#define WEI_TERRITORY_INDEX WEI_COUNTRY_INDEX
-#define SHU_TERRITORY_INDEX SHU_COUNTRY_INDEX
-#define HAN_TERRITORY_INDEX HAN_COUNTRY_INDEX
-#define CENTER_TERRITORY_INDEX (HAN_TERRITORY_INDEX + 1)
-#define INVALID_TERRITORY_INDEX (CENTER_TERRITORY_INDEX + 1)
 
 //vulkan专用，无特殊情况不要修改
 //如果val比alignment小，则返回alignment，否则如果val大于alignment但小于alignment*2则返回alignment*2以此类推

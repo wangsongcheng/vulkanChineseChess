@@ -68,7 +68,7 @@ public:
 
     void Setup(VulkanDevice device, VkDescriptorSetLayout setLayout, VkQueue graphics, VulkanPool pool);
 
-    void UpdateUniform(VkDevice device, uint32_t windowWidth, uint32_t playerCountry = INVALID_COUNTRY_INDEX);
-    void UpdateFontUniform(VkDevice device, int32_t playerCountry);
+    void UpdateUniform(VkDevice device, uint32_t windowWidth, Country player = Invald_Country);
+    void UpdateFontUniform(VkDevice device, Country player);
 };
 #endif

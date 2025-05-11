@@ -3,7 +3,7 @@
 #include "stdafx.h"
 #include "BaseGraphic.hpp"
 
-#define WU_COUNTRY_COLOR glm::vec3(0, 1, 0)
+#define WU_COUNTRY_COLOR glm::vec3(0, .5, 0)
 #define WEI_COUNTRY_COLOR glm::vec3(0, 0, 1)
 #define SHU_COUNTRY_COLOR glm::vec3(1, 0, 0)
 #define HAN_COUNTRY_COLOR glm::vec3(.5, .5, 0)
@@ -15,10 +15,10 @@
 #define FONT_INDEX_BING 4
 #define FONT_INDEX_XIANG 8
 
-#define FONT_INDEX_WU WU_COUNTRY_INDEX
-#define FONT_INDEX_SHU SHU_COUNTRY_INDEX
-#define FONT_INDEX_WEI WEI_COUNTRY_INDEX
-#define FONT_INDEX_HAN HAN_COUNTRY_INDEX
+#define FONT_INDEX_WU Wu_Country
+#define FONT_INDEX_SHU Shu_Country
+#define FONT_INDEX_WEI Wei_Country
+#define FONT_INDEX_HAN Han_Country
 
 //字体宏一般情况下需要修改
 //字体大小不一定要和棋子大小一样

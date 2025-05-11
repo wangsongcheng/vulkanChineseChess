@@ -1,8 +1,10 @@
 #ifndef ONLINE_H
 #define ONLINE_H
 #include <array>
+#include "stdafx.h"
 #include "Server.h"
 #include "Chess.h"
+#define INVALID_CLIENT_INDEX 1000
 enum GameEvent{
     INVALID_GAMER_EVENT = 0,
     GAME_OVER_GAME_EVENT,
@@ -22,14 +24,14 @@ enum GameEvent{
 struct Player{
     bool ai;
     bool random;
-    uint32_t uCountry;
+    Country uCountry;
     char name[MAX_BYTE];
     char country[MAX_BYTE];
     Player(){
         ai = false;
         random = true;
         strcpy(country, "?");
-        uCountry = INVALID_PLAYER_INDEX;
+        uCountry = Invald_Country;
     }
 };
 struct GameMessage{
@@ -45,9 +47,9 @@ class OnLine{
     bool mIsServer;
     Server mServer;
     char mLocalIp[MAX_BYTE];
-    uint32_t clientIndex = INVALID_PLAYER_INDEX;
+    uint32_t clientIndex = Invald_Country;
     //3人游戏模式下, 最多1个ai....4人游戏模式下, 最多2个ai//只有服务器需要该值
-    int32_t aIClientIndex[2] = { INVALID_PLAYER_INDEX, INVALID_PLAYER_INDEX};
+    uint32_t aIClientIndex[2] = { INVALID_CLIENT_INDEX, INVALID_CLIENT_INDEX};
     void GetLocalIp(char outIp[]);
     void SendSelfInfoation(uint32_t clientIndex);
     void SendPlayerNameInfoation(uint32_t count, const std::array<Player, 3>&players);
@@ -59,7 +61,7 @@ public:
     void Cleanup();
     void ExitGame();
     void JoinsGame();
-    void SendCurrentCountry(uint32_t currentCountry);
+    void SendCurrentCountry(Country currentCountry);
     SOCKET AcceptClient(uint32_t client, void *__buf, size_t __n);
     void SendClientInfoation(uint32_t clientIndex, const Player *player);
     //只有服务端需要调用这个函数;调用这个函数前，必须随机好国家等信息

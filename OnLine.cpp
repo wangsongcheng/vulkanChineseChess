@@ -111,7 +111,7 @@ void OnLine::AddAi(const char *serverIp){
     client.Shutdown();
 }
 
-void OnLine::SendCurrentCountry(uint32_t currentCountry){
+void OnLine::SendCurrentCountry(Country currentCountry){
     GameMessage message;
     message.player.uCountry = currentCountry;
     message.event = CURRENT_COUNTRY_GAME_EVENT;

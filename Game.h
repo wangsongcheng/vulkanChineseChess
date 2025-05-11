@@ -21,29 +21,32 @@ class Game{
         bool isControllable = false;
     }state;
     struct{
-        uint32_t country = INVALID_COUNTRY_INDEX;
+        Country country = Invald_Country;
     }player;
     std::mutex mMutex;
+    Country mCurrent;
+    Country mNotAlliance;
     Chessboard mChessboard;
-    uint32_t mCurrentCountry;
-    uint32_t mNotAllianceCountry;
     uint32_t mMaxCountryCount = 3;
+    ChessMove GetSaveStep(Chess *pChess, uint32_t dstRow, uint32_t dstColumn);
+    uint32_t GetCanPlay(const glm::vec2&mousePos, const std::vector<glm::vec2>&canplays);
+
     void UpdateChessUniform(VkDevice device);
     void UpdateSelectChessUniform(VkDevice device, std::vector<glm::vec2>&canplays);
-    uint32_t GetCanPlay(const glm::vec2&mousePos, const std::vector<glm::vec2>&canplays);
 public:
     Game(/* args */);
     ~Game();
     bool areKingsFacing();
     //返回被将的棋子
-    const Chess *Check(uint32_t *srcCountry)const;
+    const Chess *Check(Country *srcCountry)const;
 
     bool GameOver();
-    uint32_t GetNextCountry()const;
-    uint32_t GetLastCountry()const;
-    uint32_t GetNextCountry(uint32_t country)const;
+    Country GetNextCountry()const;
+    Country GetLastCountry()const;
+    Country GetLastCountry(Country currentCountry)const;
+    Country GetNextCountry(Country country)const;
 
-    void InitinalizeGame(int32_t playerCountry = INVALID_COUNTRY_INDEX, int32_t currentCountry = INVALID_COUNTRY_INDEX);
+    void InitinalizeGame(Country playerCountry = Invald_Country, Country currentCountry = Invald_Country);
 
     void MoveChess(const glm::vec2&start, const glm::vec2&end, uint32_t fontIndex, uint32_t country, uint32_t dynamicOffsets);
 
@@ -53,14 +56,13 @@ public:
     void RemoveInvalidTarget(std::vector<glm::vec2>&canplays);
 
     void SelectChess(const Chess *pChess);
-    void SaveStep(Chess *pChess, uint32_t dstRow, uint32_t dstColumn);
     void SetNotAllianceCountry(uint32_t country, uint32_t row, uint32_t column);
 
     void UnSelectChess();
 
     void LastCountry();
     void NextCountry();
-    void NewGame(int32_t playerCountry = INVALID_COUNTRY_INDEX, int32_t currentCountry = INVALID_COUNTRY_INDEX);
+    void NewGame(Country playerCountry = Invald_Country, Country currentCountry = Invald_Country);
     //绘图方面的函数
     void Cleanup(VkDevice device);
 
@@ -83,17 +85,17 @@ public:
     inline void EnableHan(){
         state.isControllable = true;
     }
-    inline uint32_t GetNotAllianceCountry(){
-        return mNotAllianceCountry;
+    inline auto GetNotAllianceCountry(){
+        return mNotAlliance;
     }
     inline uint32_t GetCountryCount(){
         return mMaxCountryCount;
     }
-    inline uint32_t GetPlayerCountry(){
+    inline auto GetPlayerCountry(){
         return player.country;
     }
-    inline uint32_t GetCurrentCountry(){
-        return mCurrentCountry;
+    inline auto GetCurrentCountry(){
+        return mCurrent;
     }
     inline Chessboard *GetChessboard(){
         return &mChessboard;
@@ -113,8 +115,8 @@ public:
     // inline void SetPlayerCountry(uint32_t country){
     //     player.country = country;
     // }
-    inline void SetCurrentCountry(uint32_t country){
-        mCurrentCountry = country;
+    inline void SetCurrentCountry(Country country){
+        mCurrent = country;
     }
 };
 #endif

@@ -12,14 +12,14 @@ void aiPlay(Ai *pAi){
         else{
             Chess target;
             target.SetPos(dst.y, dst.x);
-            target.SetCountry(MAX_COUNTRY_INDEX);
+            target.SetCountry(Invald_Country);
             pAi->SendPlayChessMessage(g_Players[pAi->GetCurrentCountry()], pSelect, &target);
         }
     }
     else{
         // pAi->SelectChess(pSelect);
         pAi->PlayChess(pSelect, dst.y, dst.x);
-        // pAi->SyncBoardCopy(pSelect, dst.y, dst.x);
+        pAi->SyncBoard(pSelect, dst.y, dst.x);
         // pAi->UnSelectChess();
         //下完棋要调用下面的函数
         pAi->EnableNextCountry(g_ImGuiInput.enableAutoPlay);
@@ -247,19 +247,6 @@ void uciCommunication() {
 
 开发象棋AI需要平衡搜索深度与评估准确性，建议从简单版本开始逐步优化。
 */
-int32_t Ai::CanPlay(uint32_t country, const std::vector<glm::vec2>&canplays)const{
-    int32_t index = 0;
-    auto pBoard = mGame->GetChessboard();
-    for (auto&it:canplays){
-        if(Check(country, it))continue;
-        const Chess *pInfo = pBoard->GetChess(it.y, it.x);
-        if((!pInfo || pInfo->GetCountry() != country) && !Check(country, it)){
-            return index;
-        }
-        ++index;
-    }
-    return -1;
-}
 Ai::Ai(/* args */){
 #ifdef __linux__
     sem_init(&mAiSemaphore, 0, 0);
@@ -336,16 +323,16 @@ void Ai::EnableNextCountry(bool autoPlay){
 //     }
 //     return pSelect;
 // }
-Chess *Ai::GetTarget(uint32_t country)const{
+Chess *Ai::GetSelect(Country country)const{
     Chess *pSelect = nullptr;
     std::vector<glm::vec2>canplays;
-    auto pBoard = mGame->GetChessboard();
-    auto pCountryChess = pBoard->GetChess(country);
+    // auto pBoard = mGame->GetChessboard();
+    auto pCountryChess = mChessboard.GetChess(country);
     for (size_t i = 0; i < DRAW_CHESS_COUNT; ++i){
         Chess *pChess = pCountryChess[i];
         if(pChess){
             canplays.clear();
-            pChess->Select(pBoard, canplays);
+            pChess->Select(&mChessboard, canplays);
             mGame->RemoveInvalidTarget(canplays);
             const Chess *pTarget = GetTarget(pChess, canplays);
             if(pTarget){
@@ -358,123 +345,145 @@ Chess *Ai::GetTarget(uint32_t country)const{
 }
 Chess *Ai::GetTarget(const Chess *pSelect, const std::vector<glm::vec2>&canplays)const{
     Chess *pTarget = nullptr;
-    auto pBoard = mGame->GetChessboard();
+    // auto pBoard = mGame->GetChessboard();
     for (const auto&it:canplays){
-        pTarget = pBoard->GetChess(it.y, it.x);
+        pTarget = mChessboard.GetChess(it.y, it.x);
         if(pTarget && pTarget->GetCountry() != pSelect->GetCountry())break;
     }
     return pTarget;
 }
-
-Chess *Ai::RandChess(uint32_t country) const{
+ChessMove Ai::GetSaveStep(Chess *pChess, uint32_t dstRow, uint32_t dstColumn){
+    //注意:更新该函数后仍需要更新Game类的同名函数
+    /*
+        int move_number;
+        Facing facing;//如果因为见面被销毁或被灭亡后，棋子可以记这里
+    */
+   const Chess *pTarget = mChessboard.GetChess(dstRow, dstColumn);
+   ChessMove move = {};
+   move.chess = *pChess;
+   move.is_capture = pTarget;
+   if(move.is_capture){
+       move.is_death = pTarget->GetChess() == Chess::Type::Jiang_Chess;
+       if(move.is_death){
+           move.death.country = pTarget->GetCountry();
+           auto pCountryChess = mChessboard.GetChess(move.death.country);
+           for (size_t uiChess = 0; uiChess < DRAW_CHESS_COUNT; uiChess++){
+               if(pCountryChess[uiChess])move.death.chess.push_back(*pCountryChess[uiChess]);
+           }
+       }
+       else{
+           move.captured = *pTarget;
+       }        
+   }
+   move.is_check = mGame->Check(nullptr);
+   //为测试是否见面，需要一定的修改
+   const glm::vec2 pos = glm::vec2(pChess->GetColumn(), pChess->GetRow());
+   pChess->SetPos(dstRow, dstColumn);
+   for (uint32_t srcCountry = 0; srcCountry < mGame->GetCountryCount(); srcCountry++){
+       for (uint32_t dstountry = 0; dstountry < mGame->GetCountryCount(); dstountry++){
+           if(srcCountry != dstountry){
+               if(mChessboard.areKingsFacing((Country)srcCountry, (Country)dstountry)){
+                   move.is_facing = true;
+                   move.facing[1].country = (Country)dstountry;
+                   move.facing[0].country = (Country)srcCountry;
+                   srcCountry = mGame->GetCountryCount();
+                   break;
+               }
+           }
+       }
+   }
+   pChess->SetPos(pos.y, pos.x);
+   if(move.is_facing){
+       for (uint32_t i = 0; i < move.facing.size(); ++i){
+           auto pCountryChess = mChessboard.GetChess(move.facing[i].country);
+           for (size_t uiChess = 0; uiChess < DRAW_CHESS_COUNT; uiChess++){
+               if(pCountryChess[uiChess]){
+                   move.facing[i].chess.push_back(*pCountryChess[uiChess]);
+               }   
+           }        
+       }
+   }
+   return move;
+}
+Chess *Ai::RandChess(Country country) const{
     Chess *pSelect = nullptr;
+    uint32_t count = 0;//防止死循环
     std::vector<glm::vec2>canplays;
-    auto pBoard = mGame->GetChessboard();
-    auto pChess = pBoard->GetChess(country);
+    // auto pBoard = mGame->GetChessboard();
+    auto pChess = mChessboard.GetChess(country);
+    const uint32_t chessCount = mChessboard.GetChessCount(count);
     do{
         pSelect = pChess[rand() % DRAW_CHESS_COUNT];
         if(pSelect){
             canplays.clear();
-            pSelect->Select(mGame->GetChessboard(), canplays);
+            pSelect->Select(&mChessboard, canplays);
             mGame->RemoveInvalidTarget(canplays);
+            if(canplays.size() < 2 && count < chessCount)pSelect = nullptr;//优先走能走多格的
         }
-    }while(!pSelect || -1 == CanPlay(country, canplays));
+    }while(!pSelect || canplays.empty());
     return pSelect;
 }
 
-Chess *Ai::RandTarget(uint32_t country, const std::vector<glm::vec2> &canplays, glm::vec2&pos) const{
-    int32_t index = 0;
-    Chess *pTarget = nullptr;
-    auto pBoard = mGame->GetChessboard();
-    do{
-        index = rand() % canplays.size();
-        pTarget = pBoard->GetChess(canplays[index].y, canplays[index].x);
-        if(canplays.size() <= 1)break;
-    } while (Check(country, canplays[index]));
-    pos = canplays[index];
-    return pTarget;
+glm::vec2 Ai::RandTarget(const Chess *pSelect, const std::vector<glm::vec2> &canplays){
+    //先仔细
+    glm::vec2 pos = glm::vec2(0);
+    uint32_t count = 0;//防止死循环
+    const auto country = pSelect->GetCountry();
+    auto pJiang = mChessboard.GetChess(country, Chess::Type::Jiang_Chess);
+    const glm::vec2 jiang = glm::vec2(pJiang->GetColumn(), pJiang->GetRow());
+    if(canplays.size() > 1){
+        do{
+            auto target = canplays[rand() % canplays.size()];
+            SyncBoard(pSelect, target.y, target.x);
+            if(!Check(country, target) && !Check(country, jiang) && Invald_Country == areKingsFacing(country)){
+                pos = target;
+            }
+            UndoStep();
+            if(!IsBoundary(pos.y, pos.x))break;
+            ++count;
+        }while (count <= canplays.size());
+    }
+    //大部分送死情况都是因为只能走一格导致进入该条件随机了
+    if(IsBoundary(pos.y, pos.x)){
+        //没办法，随机一个位置吧
+        pos = canplays[rand() % canplays.size()];
+    }
+    return pos;
 }
-// void Ai::SetNotAllianceCountry(uint32_t country, uint32_t row, uint32_t column){
-//     const uint32_t mNotAllianceCountry = mGame->GetNotAllianceCountry(), playerCountry = mGame->GetPlayerCountry();
-//     if(mNotAllianceCountry != INVALID_COUNTRY_INDEX)return;
-//     glm::vec2 vPos[3];
-//     const uint32_t territory = GET_TERRITORY_INDEX(HAN_COUNTRY_INDEX, playerCountry);
-//     glm::vec2 center = mChessboard.GetPalacesCenter(territory);
-//     for (size_t i = 0; i < MAX_COUNTRY_INDEX; ++i){
-//         if((i != HAN_COUNTRY_INDEX) && mChessboard.IsDeath(i)){
-//             //有势力阵亡，联盟就无效了
-//             return;
-//         }
-//     }
-//     //吴永远在中心点
-//     vPos[WU_COUNTRY_INDEX] = center;
-//     if(territory == HAN_TERRITORY_INDEX){
-//         vPos[WEI_COUNTRY_INDEX] = glm::vec2(center.x - 1, center.y + 1);
-//         vPos[SHU_COUNTRY_INDEX] = glm::vec2(center.x - 1, center.y - 1);
-//     }
-//     else if(territory == WEI_TERRITORY_INDEX){
-//         vPos[WEI_COUNTRY_INDEX] = glm::vec2(center.x - 1, center.y - 1);
-//         vPos[SHU_COUNTRY_INDEX] = glm::vec2(center.x + 1, center.y - 1);
-//     }
-//     else if(territory == SHU_TERRITORY_INDEX){
-//         //理论上不可能，但算了，还是写上吧
-//         vPos[WEI_COUNTRY_INDEX] = glm::vec2(center.x + 1, center.y - 1);
-//         vPos[SHU_COUNTRY_INDEX] = glm::vec2(center.x - 1, center.y - 1);
-//     }
-//     else if(territory == WU_TERRITORY_INDEX){
-//         vPos[WEI_COUNTRY_INDEX] = glm::vec2(center.x + 1, center.y - 1);
-//         vPos[SHU_COUNTRY_INDEX] = glm::vec2(center.x + 1, center.y + 1);
-//     }
-//     uint32_t allianceCountry = INVALID_COUNTRY_INDEX;
-//     for (size_t i = 0; i < MAX_COUNTRY_INDEX; ++i){
-//         if(vPos[i].x == column && vPos[i].y == row && country != i){
-//             allianceCountry = i;
-//             break;
-//         }
-//     }
-//     if(allianceCountry != INVALID_COUNTRY_INDEX && allianceCountry != country){
-//         mChessboard.GetCountryChess(mNotAllianceCountry, HAN_COUNTRY_INDEX);
-//         mChessboard.DestroyCountry(HAN_COUNTRY_INDEX);
-//     }
-// }
-// void Ai::SyncBoardCopy(Chess *pChess, uint32_t dstRow, uint32_t dstColumn){
-//     Chess *pSelect = mChessboard.GetChess(pChess->GetCountry())[pChess->GetChessOffset()];
-//     mChessboard.SaveStep(pSelect->GetRow(), pSelect->GetColumn(), dstRow, dstColumn);
-//     const Chess *pTarget = mChessboard.GetChess(dstRow, dstColumn);
-//     if(pTarget){
-//         uint32_t targetCountry = pTarget->GetCountry();
-//         mChessboard.CaptureChess(pSelect, pTarget);
-//         if(mChessboard.IsDeath(targetCountry)){
-//             mChessboard.DestroyCountry(targetCountry);
-//         }
-//     }
-//     pSelect->SetPos(dstRow, dstColumn);
-//     for (uint32_t srcCountry = 0; srcCountry < mGame->GetCurrentCountry(); srcCountry++){
-//         for (uint32_t dstountry = 0; dstountry < mGame->GetCurrentCountry(); dstountry++){
-//             if(srcCountry != dstountry){
-//                 if(mChessboard.areKingsFacing(srcCountry, dstountry)){
-//                     mChessboard.DestroyCountry(srcCountry);
-//                     mChessboard.DestroyCountry(dstountry);
-//                     srcCountry = mGame->GetCurrentCountry();
-//                     break;
-//                 }
-//             }
-//         }
-//     }
-//     if(!mGame->IsControllable() && pSelect->GetChess() == Chess::Type::Ma_Chess){
-//         //不用提示了。因为结盟后，汉的棋子会归另一方
-//         SetNotAllianceCountry(pSelect->GetCountry(), pSelect->GetRow(), pSelect->GetColumn());
-//     }
-// }
+void Ai::SyncBoard(const Chess *pChess, uint32_t dstRow, uint32_t dstColumn){
+    Chess *pSelect = mChessboard.GetChess(pChess->GetCountry())[pChess->GetChessOffset()];
+    mChessboard.SaveStep(GetSaveStep(pSelect, dstRow, dstColumn));
+    const Chess *pTarget = mChessboard.GetChess(dstRow, dstColumn);
+    if(pTarget){
+        auto targetCountry = pTarget->GetCountry();
+        mChessboard.CaptureChess(pSelect, pTarget);
+        if(mChessboard.IsDeath(targetCountry)){
+            mChessboard.DestroyCountry(targetCountry);
+        }
+    }
+    pSelect->SetPos(dstRow, dstColumn);
+    for (uint32_t srcCountry = 0; srcCountry < mGame->GetCurrentCountry(); srcCountry++){
+        for (uint32_t dstountry = 0; dstountry < mGame->GetCurrentCountry(); dstountry++){
+            if(srcCountry != dstountry){
+                if(mChessboard.areKingsFacing((Country)srcCountry, (Country)dstountry)){
+                    mChessboard.DestroyCountry((Country)srcCountry);
+                    mChessboard.DestroyCountry((Country)dstountry);
+                    srcCountry = mGame->GetCurrentCountry();
+                    break;
+                }
+            }
+        }
+    }
+}
 
-Chess *Ai::GetSelect(uint32_t country, const Chess *pTarget) const{
-    auto pBoard = mGame->GetChessboard();
-    auto pAllChess = pBoard->GetChess(country);
+Chess *Ai::GetSelect(Country country, const Chess *pTarget) const{
+    // auto pBoard = mGame->GetChessboard();
+    auto pAllChess = mChessboard.GetChess(country);
     for (size_t uiChess = 0; uiChess < DRAW_CHESS_COUNT; uiChess++){
         Chess *pChess = pAllChess[uiChess];
         if(pChess){
             std::vector<glm::vec2>canplays;
-            pChess->Select(pBoard, canplays);
+            pChess->Select(&mChessboard, canplays);
             mGame->RemoveInvalidTarget(canplays);
             for (auto&it:canplays){
                 if(it.x == pTarget->GetColumn() && it.y == pTarget->GetRow()){
@@ -485,31 +494,39 @@ Chess *Ai::GetSelect(uint32_t country, const Chess *pTarget) const{
     }
     return nullptr;
 }
-//目前，该函数无法判断吃子后是否能被吃等类似情况
-// 判断是否有国家一下步会走到row, column的地方
-const Chess *Ai::Check(uint32_t country, const glm::vec2&pos) const{
-    auto pBoard = mGame->GetChessboard();
+// 判断是否有国家一下步会走到pos的地方
+const Chess *Ai::Check(Country country, const glm::vec2&pos) const{
+    // auto pBoard = mGame->GetChessboard();
     for (size_t i = 0; i < mGame->GetCountryCount(); ++i){
     //得先模拟走后的结果，例如这个问题, 炮吃马本来应该会被旁边的车吃，但现在的马还没有被吃，所以车肯定走不到马的位置
         if(country != i){
-            const Chess *pChess = pBoard->Check(i, pos.y, pos.x);
+            const Chess *pChess = mChessboard.Check((Country)i, pos.y, pos.x);
             if(pChess){
-                if(pChess->GetChess() != Chess::Type::Pao_Chess || pBoard->GetChess(pos.y, pos.x)){
-                    return pChess;
-                }
+                return pChess;
             }
         }
     }
     return nullptr;
 }
-const Chess *Ai::Check(uint32_t country) const{
+Country Ai::areKingsFacing(Country country){
+    Country cCountry = Invald_Country;
+    for (uint32_t dstountry = 0; dstountry < mGame->GetCountryCount(); dstountry++){
+        if(country != dstountry && (Invald_Country == mGame->GetNotAllianceCountry() || dstountry != GET_ALLIANCE_COUNTRY(country, mGame->GetNotAllianceCountry()))){
+            if(mChessboard.areKingsFacing(country, (Country)dstountry)){
+                cCountry = (Country)dstountry;
+                break;
+            }
+        }
+    }
+    return cCountry;
+}
+const Chess *Ai::Check(Country country) const{
     const Chess *pChess = nullptr;
-    auto pBoard = mGame->GetChessboard();
-    const Chess *pTaget = pBoard->GetChess(country, Chess::Type::Jiang_Chess);
-    if(!pTaget)return pChess;
+    // auto pBoard = mGame->GetChessboard();
+    const Chess *pTaget = mChessboard.GetChess(country, Chess::Type::Jiang_Chess);
     for (size_t i = 0; i < mGame->GetCountryCount(); ++i){
         if(i != country){
-            pChess = pBoard->Check(i, pTaget->GetRow(), pTaget->GetColumn());
+            pChess = mChessboard.Check((Country)i, pTaget->GetRow(), pTaget->GetColumn());
             if(pChess){
                 break;
             }    
@@ -534,76 +551,94 @@ std::vector<glm::vec2>Ai::GetPathBetween(const Chess *pChess, const Chess *pTarg
     if(!pTarget || !pChess)return {};
     const glm::vec2 che = glm::vec2(pChess->GetColumn(), pChess->GetRow()), target = glm::vec2(pTarget->GetColumn(), pTarget->GetRow());
     const glm::vec2 dir = glm::normalize(che - target) * -1.0f;
-    glm::vec2 pos = glm::vec2(0);
+    glm::vec2 pos = glm::vec2(pChess->GetColumn(), pChess->GetRow());
     std::vector<glm::vec2>canplays;
     //目前这里是按车的逻辑来写的，能被车吃到，说明中间肯定没棋子
     do{
         pos += dir;
         canplays.push_back(pos);
-    } while (IsBoundary(pos.y, pos.x) && pos.x != pTarget->GetColumn() && pTarget->GetRow() != pos.y);
+    } while (!IsBoundary(pos.y, pos.x) && (pos.x != pTarget->GetColumn() || pTarget->GetRow() != pos.y));
     return canplays;
 }
 Chess *Ai::GetCannonScreenPiece(const Chess *pPao, const Chess *pTarget) const{
     if(!pPao || !pTarget)return nullptr;
-    auto pBoard = mGame->GetChessboard();
+    // auto pBoard = mGame->GetChessboard();
     const glm::vec2 pao = glm::vec2(pPao->GetColumn(), pPao->GetRow()), jiang = glm::vec2(pTarget->GetColumn(), pTarget->GetRow());
     const glm::vec2 dir = glm::normalize(pao - jiang) * -1.0f;
     glm::vec2 pos = pao;
     Chess *pChess = nullptr;
     do{
         pos += dir;
-        pChess = pBoard->GetChess(pos.y, pos.x);
+        pChess = mChessboard.GetChess(pos.y, pos.x);
     }while (!pChess && !IsBoundary(pos.y, pos.x));
     return pChess;
 }
 //返回走后能避免pTarget被吃的棋子
 Chess *Ai::GetResolveCheck_Pao(const Chess *pCheck, const Chess *pTarget, glm::vec2&pos){
     Chess *pSelect = nullptr;
-    auto pBoard = mGame->GetChessboard();
+    // auto pBoard = mGame->GetChessboard();
     //找出炮是通过哪个棋子吃将的
     Chess *pCannonScreen = GetCannonScreenPiece(pCheck, pTarget);
     //不需要判空，pCannonScreen不能为空，为空说明程序有问题
     std::vector<glm::vec2>canplays;
-    pCannonScreen->Select(pBoard, canplays);
+    pCannonScreen->Select(&mChessboard, canplays);
     mGame->RemoveInvalidTarget(canplays);
     //如果炮架是自己的棋子, 那么就移动炮架
     if(pCannonScreen->GetCountry() == pTarget->GetCountry() && !canplays.empty()){
         pSelect = pCannonScreen;
-        pos = canplays[rand() % canplays.size()];
+        pos = RandTarget(pSelect, canplays);
     }
-    else{
+    if(IsBoundary(pos.y, pos.x)){
         canplays.clear();
-        pTarget->Select(pBoard, canplays);
+        pTarget->Select(&mChessboard, canplays);
         mGame->RemoveInvalidTarget(canplays);
         if(canplays.empty()){
-            pSelect = GetResolveCheck_Che(pCheck, pCannonScreen, pos);
+            pSelect = GetResolveCheck_Che(pCannonScreen, pTarget, pos);
         }
         else{
-            pSelect = pBoard->GetChess(pTarget->GetRow(), pTarget->GetColumn());
-            pos = canplays[rand() % canplays.size()];
+            pSelect = mChessboard.GetChess(pTarget->GetRow(), pTarget->GetColumn());
+            pos = RandTarget(pSelect, canplays);
         }
     }
     return pSelect;
 }
-//被将的国家和造成将的棋子;返回能解将的棋子
+//返回能解将的棋子
 Chess *Ai::ResolveCheck(const Chess *pCheck, const Chess *pTarget, glm::vec2&pos){
-    auto pBoard = mGame->GetChessboard();
+    // auto pBoard = mGame->GetChessboard();
+    const Chess *pDefender = nullptr;
     //优先把'将'的棋子吃掉
     Chess *pSelect = GetSelect(pTarget->GetCountry(), pCheck);
-    if(!pSelect){
+    if(pSelect)pos = glm::vec2(pCheck->GetColumn(), pCheck->GetRow());
+    if(!pSelect && pTarget->GetChess() != Chess::Type::Jiang_Chess){
+        Chess backup = *pTarget;//SyncBoard执行后, pTarget指向的地址会被销毁, 所以需要备份
+        //看看吃掉pTarget后，pCheck会不会被本势力其他棋子吃。但是不能拿老将赌
+        SyncBoard(pCheck, pTarget->GetRow(), pTarget->GetColumn());
+        pDefender = Check(pCheck->GetCountry(), glm::vec2(pCheck->GetColumn(), pCheck->GetRow()));
+        // if(pDefender){
+        //     //我赌你不敢吃
+        // }
+        UndoStep();
+        //因为被销毁了, 所以需要恢复
+        pTarget = mChessboard.GetChess(backup.GetCountry(), backup.GetRow(), backup.GetColumn());
+    }
+    if(!pSelect && !pDefender){
         //就目前而言，能将的只有车、马、炮、兵。
-        //特别是士，经常因为炮而移动到非法位置
         if(pCheck->GetChess() == Chess::Type::Pao_Chess){
             pSelect = GetResolveCheck_Pao(pCheck, pTarget, pos);
         }
         //马不能通过蹩马脚解将
         else if(pCheck->GetChess() == Chess::Type::Ma_Chess){
             //这时候只能走将
-            pSelect = pBoard->GetChess(pTarget->GetRow(), pTarget->GetColumn());
+            pSelect = mChessboard.GetChess(pTarget->GetRow(), pTarget->GetColumn());
             std::vector<glm::vec2>canplays;
-            pSelect->Select(pBoard, canplays);
+            pSelect->Select(&mChessboard, canplays);
             mGame->RemoveInvalidTarget(canplays);
-            pos = canplays[rand() % canplays.size()];
+            if(canplays.empty()){
+                pSelect = nullptr;
+            }
+            else{
+                pos = canplays[rand() % canplays.size()];
+            }
         }
         else{
             //兵一般情况下，都能直接吃掉,所以只处理车
@@ -611,6 +646,18 @@ Chess *Ai::ResolveCheck(const Chess *pCheck, const Chess *pTarget, glm::vec2&pos
         }
     }
     return pSelect;
+}
+void RemoveSamePos(const std::vector<glm::vec2>&canplays, std::vector<glm::vec2>&targetcanplays){
+    for (auto&it:canplays){
+        for (auto tit = targetcanplays.begin(); tit != targetcanplays.end();){
+            if(it == *tit){
+                tit = targetcanplays.erase(tit);
+            }
+            else{
+                ++tit;
+            }
+        }
+    }
 }
 glm::vec2 GetSamePos(const std::vector<glm::vec2>&canplays, const std::vector<glm::vec2>&targetcanplays){
     for (auto&it:canplays){
@@ -625,22 +672,25 @@ glm::vec2 GetSamePos(const std::vector<glm::vec2>&canplays, const std::vector<gl
 Chess *Ai::GetResolveCheck_Che(const Chess *pCheck, const Chess *pTarget, glm::vec2&pos){
     //只需要判断哪个棋子能走到车的路径上即可
     Chess *pSelect = nullptr;
-    auto pBoard = mGame->GetChessboard();
+    // auto pBoard = mGame->GetChessboard();
     //优先走子
-    std::vector<glm::vec2>canplays;
-    pTarget->Select(pBoard, canplays);
+    std::vector<glm::vec2>canplays, targetcanplays;
+    pCheck->Select(&mChessboard, canplays);
+    pTarget->Select(&mChessboard, targetcanplays);
     mGame->RemoveInvalidTarget(canplays);
-    if(canplays.empty()){
-        auto checanplays = GetPathBetween(pCheck,pTarget);
-        auto pCountryChess = pBoard->GetChess(pTarget->GetCountry());
+    mGame->RemoveInvalidTarget(targetcanplays);
+    RemoveSamePos(canplays, targetcanplays);
+    if(targetcanplays.empty()){
+        auto checanplays = GetPathBetween(pCheck, pTarget);
+        auto pCountryChess = mChessboard.GetChess(pTarget->GetCountry());
         Chess *pChess = nullptr;
         for (size_t i = 0; i < DRAW_CHESS_COUNT; i++){
-            canplays.clear();
+            targetcanplays.clear();
             pChess = pCountryChess[i];
-            if(pChess){
-                pChess->Select(pBoard,canplays);
-                mGame->RemoveInvalidTarget(canplays);
-                auto bpos = GetSamePos(checanplays, canplays);
+            if(pChess && pChess->GetChessOffset() != pTarget->GetChessOffset()){
+                pChess->Select(&mChessboard,targetcanplays);
+                mGame->RemoveInvalidTarget(targetcanplays);
+                auto bpos = GetSamePos(checanplays, targetcanplays);
                 if(!IsBoundary(pos.y, pos.x)){
                     pos = bpos;
                     //走pChess来挡住车
@@ -651,12 +701,12 @@ Chess *Ai::GetResolveCheck_Che(const Chess *pCheck, const Chess *pTarget, glm::v
         }
     }
     else{
-        pSelect = pBoard->GetChess(pTarget->GetRow(), pTarget->GetColumn());
-        pos = canplays[rand()%canplays.size()];
+        pSelect = mChessboard.GetChess(pTarget->GetRow(), pTarget->GetColumn());
+        pos = RandTarget(pSelect, targetcanplays);
     }
     return pSelect;
 }
-Chess *Ai::GetSelect(uint32_t country, glm::vec2&pos){
+Chess *Ai::GetSelect(Country country, glm::vec2&pos){
     //计谋篇
     //驱虎吞狼:强制和棋多的一方结盟
     //二虎竞食:强制和棋少的一方结盟
@@ -679,23 +729,30 @@ Chess *Ai::GetSelect(uint32_t country, glm::vec2&pos){
     Chess *pSelect = nullptr;
     std::vector<glm::vec2>canplays;
     auto pBoard = mGame->GetChessboard();
-    auto pCountryChess = pBoard->GetChess(country);
+    auto pCountryChess = mChessboard.GetChess(country);
     const Chess *pCheck = Check(country);
-    //现在可以同添加一个棋盘变量，然后模拟走过的情况，这样就能判断吃子后会不会被吃。可能涉及棋子分数的计算
-    //还需要考虑该棋子走开后，将会不会被吃掉....不过...如果不自己搞一个chessboard类模拟的话，似乎没法判断啊
+    // printf("--------势力%d开始思考下棋-------\n", country);
     if(pCheck){
         pSelect = ResolveCheck(pCheck, pCountryChess[JIANG_CHESS_OFFSET], pos);
     }
     //其实应该根据棋子的分数决定行为，例如，有更重要的棋子即将被吃，则应该先逃离。
     if(!pSelect){
-        pSelect = GetTarget(country);
+        pSelect = GetSelect(country);
         if(pSelect){
-            pSelect->Select(pBoard, canplays);
+            pSelect->Select(&mChessboard, canplays);
             mGame->RemoveInvalidTarget(canplays);
             auto pTarget = GetTarget(pSelect, canplays);
             if(pTarget){
-                pos.y = pTarget->GetRow();
-                pos.x = pTarget->GetColumn();    
+                const glm::vec2 target = glm::vec2(pTarget->GetColumn(), pTarget->GetRow());
+                SyncBoard(pSelect, target.y, target.x);
+                if(Check(country, target)){
+                    pSelect = nullptr;
+                }
+                else{
+                    pos.y = pTarget->GetRow();
+                    pos.x = pTarget->GetColumn();
+                }
+                UndoStep();
             }
             else{
                 pSelect = nullptr;
@@ -709,19 +766,24 @@ Chess *Ai::GetSelect(uint32_t country, glm::vec2&pos){
                 pCheck = Check(country, glm::vec2(pTarget->GetColumn(), pTarget->GetRow()));
                 if(pCheck){
                     pSelect = ResolveCheck(pCheck, pTarget, pos);
-                    break;
-                    }
-                }                    
+                    if(pSelect)break;
+                }
             }
+        }
     }
     if(!pSelect){
         canplays.clear();
+        //暂时不要随机士相
         pSelect = RandChess(country);
-        pSelect->Select(pBoard, canplays);
+        pSelect->Select(&mChessboard, canplays);
         mGame->RemoveInvalidTarget(canplays);
-        RandTarget(country, canplays, pos);
+        pos = RandTarget(pSelect, canplays);
     }
-    return pSelect;
+    if(!pBoard->GetChess(country, pSelect->GetRow(), pSelect->GetColumn())){
+        printf("......\n");
+    }
+    // printf("--------势力%d结束的思考下棋-------\n", country);
+    return pBoard->GetChess(country, pSelect->GetRow(), pSelect->GetColumn());
 }
 void Ai::WaitThread(){
 #ifdef WIN32
@@ -735,11 +797,10 @@ void Ai::WaitThread(){
 void Ai::CreatePthread(Game *pGame, OnLine *pOnline){
     if(!mEnd)return;
     mEnd = false;
-    // mPause = false;
     mGame = pGame;
     mOnline = pOnline;
-    // const uint32_t playerCountry = mGame->GetPlayerCountry();
-    // mChessboard.InitializeChess(playerCountry, mGame->IsControllable(), mGame->GetCountryCount());
+    auto player = mGame->GetPlayerCountry();
+    mChessboard.InitializeChess(player, mGame->IsControllable(), mGame->GetCountryCount());
 #ifdef WIN32
     CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)AiPlayChess, this, 0, &pthreadId);
 #endif

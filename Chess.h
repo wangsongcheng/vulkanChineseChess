@@ -27,16 +27,16 @@ protected:
     Type mChess;
     uint32_t mRow;
     uint32_t mColumn;
-    uint32_t mCountry;
+    Country mCountry;
+    Territory mTerritory;
     uint32_t mChessOffset = 0;//用于计算棋子的uniform偏移等
-    uint32_t mTerritory = INVALID_TERRITORY_INDEX;
     uint32_t GetTerritoryIndex()const;
-    uint32_t GetTerritoryIndex(uint32_t row, uint32_t column)const;
+    Territory GetTerritoryIndex(uint32_t row, uint32_t column)const;
     virtual void RemoveInvalidChess(const void *pBoard, std::vector<glm::vec2>&canplays)const;
 public:
     Chess(/* args */);
-    Chess(uint32_t country, Type chess, uint32_t fontIndex, bool hasExitPermission);
-    Chess(uint32_t country, Type chess, uint32_t fontIndex, uint32_t row, uint32_t column, bool hasExitPermission);
+    Chess(Country country, Territory territory, Type chess, uint32_t fontIndex, bool hasExitPermission);
+    Chess(Country country, Territory territory, Type chess, uint32_t fontIndex, uint32_t row, uint32_t column, bool hasExitPermission);
     ~Chess();
     inline uint32_t GetRow()const{
         return mRow;
@@ -50,7 +50,7 @@ public:
     inline auto GetChess()const{
         return mChess;
     }
-    inline uint32_t GetCountry()const{
+    inline auto GetCountry()const{
         return mCountry;
     }
     inline uint32_t GetFontIndex()const{
@@ -59,7 +59,7 @@ public:
     inline void SetChess(Type chess){
         mChess = chess;
     }
-    inline void SetCountry(uint32_t country){
+    inline void SetCountry(Country country){
         mCountry = country;
     }
     inline void SetFontIndex(uint32_t fontIndex){
@@ -85,7 +85,8 @@ public:
 class Wei:public Chess{
 public:
     Wei();
-    Wei(uint32_t row, uint32_t column);
+    Wei(Territory territory);
+    Wei(Territory territory, uint32_t row, uint32_t column);
     ~Wei();
     virtual void Select(const void *pBoard, std::vector<glm::vec2>&canplays)const;
 };
@@ -93,7 +94,8 @@ public:
 class Shu:public Chess{
 public:
     Shu();
-    Shu(uint32_t row, uint32_t column);
+    Shu(Territory territory);
+    Shu(Territory territory, uint32_t row, uint32_t column);
     ~Shu();
     virtual void Select(const void *pBoard, std::vector<glm::vec2>&canplays)const;
 };
@@ -101,7 +103,8 @@ public:
 class Wu:public Chess{
 public:
     Wu();
-    Wu(uint32_t row, uint32_t column);
+    Wu(Territory territory);
+    Wu(Territory territory, uint32_t row, uint32_t column);
     ~Wu();
     virtual void Select(const void *pBoard, std::vector<glm::vec2>&canplays)const;
 };
@@ -109,7 +112,8 @@ public:
 class Han:public Chess{
 public:
     Han();
-    Han(uint32_t row, uint32_t column);
+    Han(Territory territory);
+    Han(Territory territory, uint32_t row, uint32_t column);
     ~Han();
     virtual void Select(const void *pBoard, std::vector<glm::vec2>&canplays)const;
 };
@@ -118,8 +122,8 @@ class Bing:public Chess{
     bool IsAbroad(uint32_t row, uint32_t column)const;
 public:
     Bing();
-    Bing(uint32_t country);
-    Bing(uint32_t country, uint32_t row, uint32_t column);
+    Bing(Country country, Territory territory);
+    Bing(Country country, Territory territory, uint32_t row, uint32_t column);
     ~Bing();
     virtual void Select(const void *pBoard, std::vector<glm::vec2>&canplays)const;
 };
@@ -127,8 +131,8 @@ class Pao:public Chess{
     // virtual void InPalaceMove(const void *pBoard, std::vector<glm::vec2>&canplays)const;
 public:
     Pao();
-    Pao(uint32_t country);
-    Pao(uint32_t country, uint32_t row, uint32_t column);
+    Pao(Country country, Territory territory);
+    Pao(Country country, Territory territory, uint32_t row, uint32_t column);
     ~Pao();
     virtual void Select(const void *pBoard, std::vector<glm::vec2>&canplays)const;
 };
@@ -141,8 +145,8 @@ class Che:public Chess{
     // void SetMatrix(const void *pBoard, float m[CHESSBOARD_ROW * CHESSBOARD_COLUMN]);
 public:
     Che();
-    Che(uint32_t country);
-    Che(uint32_t country, uint32_t row, uint32_t column);
+    Che(Country country, Territory territory);
+    Che(Country country, Territory territory, uint32_t row, uint32_t column);
     ~Che();
     virtual void Select(const void *pBoard, std::vector<glm::vec2>&canplays)const;
 };
@@ -150,8 +154,8 @@ class Ma:public Chess{
     virtual void RemoveInvalidChess(const void *pBoard, std::vector<glm::vec2>&canplays)const;
 public:
     Ma();
-    Ma(uint32_t country);
-    Ma(uint32_t country, uint32_t row, uint32_t column);
+    Ma(Country country, Territory territory);
+    Ma(Country country, Territory territory, uint32_t row, uint32_t column);
     ~Ma();
     virtual void Select(const void *pBoard, std::vector<glm::vec2>&canplays)const;
 };
@@ -159,8 +163,8 @@ class Xiang:public Chess{
     bool IsAbroad(uint32_t row, uint32_t column)const;
 public:
     Xiang();
-    Xiang(uint32_t country);
-    Xiang(uint32_t country, uint32_t row, uint32_t column);
+    Xiang(Country country, Territory territory);
+    Xiang(Country country, Territory territory, uint32_t row, uint32_t column);
     ~Xiang();
     virtual void Select(const void *pBoard, std::vector<glm::vec2>&canplays)const;
 };
@@ -168,8 +172,8 @@ class Shi:public Chess{
     void InPalaceMove(const void *pBoard, std::vector<glm::vec2>&canplays)const;
     public:
     Shi();
-    Shi(uint32_t country);
-    Shi(uint32_t country, uint32_t row, uint32_t column);
+    Shi(Country country, Territory territory);
+    Shi(Country country, Territory territory, uint32_t row, uint32_t column);
     ~Shi();
     virtual void Select(const void *pBoard, std::vector<glm::vec2>&canplays)const;
 };

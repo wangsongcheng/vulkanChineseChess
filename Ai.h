@@ -28,32 +28,34 @@ class Ai{
     OnLine *mOnline;
     //有些棋子因未知原因没正确同步，目前出问题的是魏的士
     // //用来推演的，这样就能判断吃子后是否被吃，并可以根据分数决定是否可以互换棋子，例如一开始就用炮吃马，可能是亏本行为
-    // Chessboard mChessboard;
+    Chessboard mChessboard;
+    //返回见面的势力;country为当前势力
+    Country areKingsFacing(Country country);
     
-    const Chess *Check(uint32_t country) const;
-    const Chess *Check(uint32_t country, const glm::vec2&pos)const;
-    int32_t CanPlay(uint32_t country, const std::vector<glm::vec2>&canplays)const;
+    const Chess *Check(Country country) const;
+    const Chess *Check(Country country, const glm::vec2&pos)const;
     
-    // Chess *GetCheck(uint32_t country, glm::vec2&pos)const;
-    Chess *GetTarget(uint32_t country)const;
+    // Chess *GetCheck(CountryType country, glm::vec2&pos)const;
+    Chess *GetSelect(Country country)const;
     //获得能吃到pTarget的棋子
-    Chess *GetSelect(uint32_t country, const Chess *pTarget)const;
+    Chess *GetSelect(Country country, const Chess *pTarget)const;
     Chess *GetCannonScreenPiece(const Chess *pao, const Chess *pTarget)const;
     Chess *GetTarget(const Chess *pSelect, const std::vector<glm::vec2>&canplays)const;
+
+    //不能照搬game类的函数，应该键盘对象不同
+    ChessMove GetSaveStep(Chess *pChess, uint32_t dstRow, uint32_t dstColumn);
 
     bool IsBoundary(int32_t row, int32_t column)const;
     //获得车到目标那个方向所有能下的位置
     std::vector<glm::vec2>GetPathBetween(const Chess *pChess, const Chess *pTarget)const;
     
     //返回的棋子肯定有位置可以下
-    Chess *RandChess(uint32_t country)const;
+    Chess *RandChess(Country country)const;
     Chess *ResolveCheck(const Chess *pCheck, const Chess *pTarget, glm::vec2&pos);
     Chess *GetResolveCheck_Che(const Chess *pCheck, const Chess *pTarget, glm::vec2&pos);
     Chess *GetResolveCheck_Pao(const Chess *pCheck, const Chess *pTarget, glm::vec2&pos);
 
-    Chess *RandTarget(uint32_t country, const std::vector<glm::vec2>&canplays, glm::vec2&pos)const;
-
-    // void SetNotAllianceCountry(uint32_t country, uint32_t row, uint32_t column);
+    glm::vec2 RandTarget(const Chess *pSelect, const std::vector<glm::vec2>&canplays);
 public:
     Ai(/* args */);
     ~Ai();
@@ -61,16 +63,17 @@ public:
     void Enable();
     void EnableNextCountry(bool autoPlay);
     void CreatePthread(Game *pGame, OnLine *pOnline);
-    Chess *GetSelect(uint32_t country, glm::vec2&pos);
+    Chess *GetSelect(Country country, glm::vec2&pos);
 
     void WaitThread();
     // const Chess *GetTarget(const Chess *pSelect, uint32_t *row, uint32_t *column)const;
     
-    // void SyncBoardCopy(Chess *pChess, uint32_t dstRow, uint32_t dstColumn);
+    void SyncBoard(const Chess *pChess, uint32_t dstRow, uint32_t dstColumn);
 
     inline void End(){
         const bool end = mEnd;
         mEnd = true;
+        mChessboard.DestroyCountry();
         if(!end){
             Enable();
         }
@@ -91,6 +94,9 @@ public:
     // inline const Chess *Check(uint32_t srcCountry, uint32_t dstCountry, uint32_t chess)const{
     //     mGame->Check(srcCountry, dstCountry, chess);
     // }
+    void UndoStep(uint32_t step = 1){
+        mChessboard.UndoStep(step);
+    }
     auto GetChess(uint32_t row, uint32_t column){
         return mGame->GetChessboard()->GetChess(row, column);
     }
@@ -103,10 +109,10 @@ public:
     inline auto GetAiClientIndex(){
         return mOnline->GetAiClientIndex();        
     }
-    inline uint32_t GetPlayer()const{
+    inline auto GetPlayer()const{
         return mGame->GetPlayerCountry();
     }
-    inline uint32_t GetCurrentCountry()const{
+    inline auto GetCurrentCountry()const{
         return mGame->GetCurrentCountry();
     }
     inline bool IsServer()const{
