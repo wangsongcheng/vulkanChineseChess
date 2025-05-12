@@ -64,11 +64,14 @@ class Ai{
 public:
     Ai(/* args */);
     ~Ai();
-    void Wait();
+    void CreatePthread();
+
     void Enable();
     void EnableNextCountry(bool autoPlay);
-    void CreatePthread(Game *pGame, OnLine *pOnline);
+    
     Chess *GetSelect(Country country, glm::vec2&pos);
+
+    void Wait();
 
     void WaitThread();
     // const Chess *GetTarget(const Chess *pSelect, uint32_t *row, uint32_t *column)const;
@@ -99,10 +102,17 @@ public:
     // inline const Chess *Check(uint32_t srcCountry, uint32_t dstCountry, uint32_t chess)const{
     //     mGame->Check(srcCountry, dstCountry, chess);
     // }
-    void UndoStep(uint32_t step = 1){
+    inline void InitializeAi(Game *pGame, OnLine *pOnline){
+        mGame = pGame;
+        mOnline = pOnline;
+    }
+    inline void InitializeChessboard(){
+        mChessboard.InitializeChess(mGame->GetPlayer(), mGame->IsControllable(), mGame->GetCountryCount());
+    }
+    inline void UndoStep(uint32_t step = 1){
         mChessboard.UndoStep(step);
     }
-    auto GetChess(uint32_t row, uint32_t column){
+    inline auto GetChess(uint32_t row, uint32_t column){
         return mGame->GetChessboard()->GetChess(row, column);
     }
     inline bool IsOnline()const{
@@ -115,7 +125,7 @@ public:
         return mOnline->GetAiClientIndex();        
     }
     inline auto GetPlayer()const{
-        return mGame->GetPlayerCountry();
+        return mGame->GetPlayer();
     }
     inline auto GetCurrentCountry()const{
         return mGame->GetCurrentCountry();

@@ -73,14 +73,22 @@ void Game::SelectChess(const Chess *pChess){
 }
 ChessMove Game::GetSaveStep(Chess *pChess, uint32_t dstRow, uint32_t dstColumn){
     //注意:更新该函数后仍需要更新AI类的同名函数
-    /*
-        int move_number;
-        Facing facing;//如果因为见面被销毁或被灭亡后，棋子可以记这里
-    */
     const Chess *pTarget = mChessboard.GetChess(dstRow, dstColumn);
     ChessMove move = {};
     move.chess = *pChess;
     move.is_capture = pTarget;
+    char step[MAX_BYTE];
+    if(dstRow > pChess->GetRow()){
+        strcpy(step, u8"退");
+    }
+    else if(dstRow < pChess->GetRow()){
+        strcpy(step, u8"进");
+    }
+    else{
+        strcpy(step, u8"平");
+    }
+    uint32_t si = pChess->GetColumn(), di = strcmp(step, u8"平")?dstRow:dstColumn;
+    sprintf(move.notation, "%s:%s%s%s%s", mCountry[pChess->GetCountry()].c_str(), mName[pChess->GetChess()].c_str(),  mNumber[si].c_str(), step, mNumber[di].c_str());
     if(move.is_capture){
         move.is_death = pTarget->GetChess() == Chess::Type::Jiang_Chess;
         if(move.is_death){
@@ -92,7 +100,10 @@ ChessMove Game::GetSaveStep(Chess *pChess, uint32_t dstRow, uint32_t dstColumn){
         }
         else{
             move.captured = *pTarget;
-        }        
+        }
+    }
+    else{
+        move.captured.SetPos(dstRow, dstColumn);
     }
     move.is_check = Check(nullptr);
     //为测试是否见面，需要一定的修改
@@ -139,6 +150,35 @@ glm::vec4 Game::PrepareChess(const Chess *pSelect, const glm::vec2 &mousePos){
     return info;
 }
 Game::Game(/* args */){
+    mCountry[Wu_Country] = u8"吴";
+    mCountry[Wei_Country] = u8"魏";
+    mCountry[Shu_Country] = u8"蜀";
+    mCountry[Han_Country] = u8"汉";
+    mName[Chess::Type::Ma_Chess] = u8"馬";
+    mName[Chess::Type::Shi_Chess] = u8"士";
+    mName[Chess::Type::Pao_Chess] = u8"炮";
+    mName[Chess::Type::Che_Chess] = u8"車";
+    mName[Chess::Type::Bing_Chess] = u8"兵";
+    mName[Chess::Type::Jiang_Chess] = u8"将";
+    mName[Chess::Type::Xiang_Chess] = u8"相";
+
+    mNumber[1] = u8"一";
+    mNumber[2] = u8"二";
+    mNumber[3] = u8"三";
+    mNumber[4] = u8"四";
+    mNumber[5] = u8"五";
+    mNumber[6] = u8"六";
+    mNumber[7] = u8"七";
+    mNumber[8] = u8"八";
+    mNumber[9] = u8"九";
+    mNumber[10] = u8"十";
+    mNumber[11] = u8"十一";
+    mNumber[12] = u8"十二";
+    mNumber[13] = u8"十三";
+    mNumber[14] = u8"十四";
+    mNumber[15] = u8"十五";
+    mNumber[16] = u8"十六";
+    mNumber[17] = u8"十七";
 }
 
 Game::~Game(){

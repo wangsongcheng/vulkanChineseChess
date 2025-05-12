@@ -15,8 +15,8 @@ typedef struct {
     Rercord death;//如果国家灭亡，则不需要恢复captured, 直接按这里的棋子恢复
     Chess captured;
     bool is_capture;
-    char notation[8];// 棋步记录(如"炮二平五")
     int move_number;
+    char notation[350];// 棋步记录(如"炮二平五")
     std::array<Rercord, 2>facing;//因为见面被灭亡后，棋子应该记这里
     bool is_facing, is_death, is_check;
 } ChessMove;
@@ -62,7 +62,7 @@ public:
     Chess *GetChess(Country country, const glm::vec2&mousePos)const;
     Chess *GetChess(Country country, uint32_t row, uint32_t column)const;
 
-
+    void ImportRecord(const std::vector<ChessMove>&record);
     void InitializeChess(Country player, bool isControllable = false, uint32_t countryCount = MAX_COUNTRY_INDEX);
 
     Territory IsInPalace(uint32_t row, uint32_t column)const;
@@ -78,6 +78,15 @@ public:
     // inline auto GetChess()const{
     //     return mChess;
     // }
+    inline auto RecordBegin(){
+        return mRecord.begin();
+    }
+    inline auto RecordEnd(){
+        return mRecord.end();
+    }
+    inline auto GetRecordSize(){
+        return mRecord.size();
+    }
     inline auto GetChess(Country country)const{
         return mChess[country];
     }

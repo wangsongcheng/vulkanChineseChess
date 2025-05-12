@@ -417,8 +417,13 @@ void Ma::Select(const void *pBoard, std::vector<glm::vec2>&canplays) const{
         glm::vec2(mColumn - 1, mRow - 2), glm::vec2(mColumn - 2, mRow - 1), glm::vec2(mColumn - 2, mRow + 1), glm::vec2(mColumn - 1, mRow + 2),
         glm::vec2(mColumn + 1, mRow + 2), glm::vec2(mColumn + 2, mRow + 1), glm::vec2(mColumn + 2, mRow - 1), glm::vec2(mColumn + 1, mRow - 2)
     };
+    //用来判断某个点有没有在边界上//要判断是否"蹩马腿"也可以用类似的办法，只需要换个方向
+    const glm::vec2 bound[] = {
+        glm::vec2(mColumn - 1, mRow - 1), glm::vec2(mColumn - 1, mRow - 1), glm::vec2(mColumn - 1, mRow + 1), glm::vec2(mColumn - 1, mRow + 1),
+        glm::vec2(mColumn + 1, mRow + 1), glm::vec2(mColumn + 1, mRow + 1), glm::vec2(mColumn + 1, mRow - 1), glm::vec2(mColumn + 1, mRow - 1)
+    };
     for(uint32_t i = 0; i < sizeof(cInfo) / sizeof(glm::vec2); ++i){
-        if(!IsBoundary(cInfo[i].y, cInfo[i].x)){//这里的马和相不会被"蹩马腿",所以不需要判断
+        if(!IsBoundary(cInfo[i].y, cInfo[i].x) && !IsBoundary(bound[i].y, bound[i].x)){//这里的马和相不会被"蹩马腿",所以不需要判断
             canplays.push_back(cInfo[i]);
         }
     }

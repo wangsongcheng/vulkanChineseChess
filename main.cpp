@@ -2,7 +2,9 @@
 #include <thread>
 #include <chrono>
 #include <iostream>
-
+#ifdef __linux__
+#include <dirent.h>
+#endif
 #define GLFW_INCLUDE_VULKAN
 #include "GLFW/glfw3.h"
 
@@ -13,6 +15,12 @@
 #include "VulkanImgui.h"
 #include "VulkanWindow.h"
 #include "imgui_impl_glfw.h"
+enum IMGUI_BUTTON_IDENTIFIER{
+    IMGUI_BUTTON_UNKNOW = 0,
+    IMGUI_BUTTON_OK,
+    IMGUI_BUTTON_CANCEL,
+};
+
 VulkanPool g_VulkanPool;
 VulkanQueue g_VulkanQueue;
 VulkanDevice g_VulkanDevice;
@@ -23,6 +31,9 @@ uint32_t g_WindowWidth = (CHESSBOARD_RECT_COUNT + 2) * CHESSBOARD_RECT_SIZE + MA
 
 VulkanImGui g_VulkanImGui;
 VkCommandBuffer g_CommandBuffers;
+
+void (*g_OpenFileFunCall)(const std::string&file);
+std::vector<const char *>g_FileTypeItem;
 
 VkPipelineCache g_PipelineCache;
 VkPipelineLayout g_PipelineLayout;
@@ -37,7 +48,6 @@ glm::vec2 g_JiangPos[MAX_COUNTRY_INDEX];//目前只用于RotateChess
 std::array<Player, MAX_COUNTRY_INDEX>g_Players;
 //用数组是为了在联机模式下显示和控制其他玩家的国籍;目前只能选择ai的国籍
 std::array<std::vector<std::string>, MAX_COUNTRY_INDEX>g_CountryItems;
-
 void ResetCountryItem(std::vector<std::string>&countryItems){
     std::vector<std::string>country = { "?", "魏", "蜀", "吴" };
     if(g_Game.IsControllable()){
@@ -56,8 +66,9 @@ void NewGame(Country playerCountry = Invald_Country, Country currentCountry = In
     }
     g_Game.NewGame(playerCountry, currentCountry);
     if(g_ImGuiInput.enableAi){
-        g_Ai.CreatePthread(&g_Game, &g_OnLine);
+        g_Ai.CreatePthread();
     }
+    g_Ai.InitializeChessboard();
 }
 void ShowPlayerCountryCombo(){
     static std::string currentCountryItem = g_CountryItems[0][0];
@@ -349,12 +360,12 @@ void *process_client(void *userData){
                 dstColumn = pTarget->GetColumn();
             }
             g_Game.PlayChess(pStart, dstRow, dstColumn);
+            g_Ai.SyncBoard(pStart, dstRow, dstColumn);
             if(!g_Ai.IsEnd()){
                 if(g_Game.GameOver()){
                     g_Ai.End();
                 }
                 g_Ai.EnableNextCountry(g_ImGuiInput.enableAutoPlay);
-                g_Ai.SyncBoard(pStart, dstRow, dstColumn);
             }
         }
         else if(message.event == PLAYER_EXIT_GAME_EVENT){
@@ -407,6 +418,333 @@ void *process_client(void *userData){
     printf("function %s end\n", __FUNCTION__);
     return nullptr;
 }
+void splicingDirectory(const std::vector<std::string>&subDir, std::string&path){
+    std::string newPath;
+    for (size_t i = 0; i < subDir.size(); ++i){
+        newPath += subDir[i];
+    }
+    path = newPath;
+}
+void getSubdirectory(const std::string&path, std::vector<std::string>&subDir){
+    //得到从0到'/'的字符串。并将字符移动到‘/’之外。然后重复
+    // int index = 0;
+#ifdef __linux__
+    char cSeparator = '/';
+#endif
+#ifdef WIN32
+    char cSeparator = '\\';
+#endif
+    std::string sPath = path;
+    if(sPath[sPath.size() - 1] != cSeparator){
+            sPath += cSeparator;
+    }
+    const char *ptrStart = sPath.c_str();
+    const char *ptrEnd = nullptr;
+    while(ptrEnd = strchr(ptrStart, cSeparator)){
+            int size = ptrEnd - ptrStart;
+            subDir.push_back(std::string(ptrStart, size + 1));
+            ptrStart += size + 1;
+    }
+}
+void getFileFromDirectory(const std::string&path, std::vector<std::string>&folder, std::vector<std::string>&file){
+#ifdef __linux
+    DIR *d;
+    dirent *dFile = NULL;
+    if(!(d = opendir(path.c_str()))){
+        perror("opendir error");
+        printf("path is %s\n", path.c_str());
+        return;
+    }
+    while((dFile = readdir(d))){
+        if(strcmp(dFile->d_name, ".") && strcmp(dFile->d_name, "..")){
+            if(dFile->d_type == DT_DIR){
+                folder.push_back(dFile->d_name);
+            }
+            else{
+                file.push_back(dFile->d_name);
+            }
+        }
+    }
+    closedir(d);
+#endif
+#ifdef WIN32
+    HANDLE hListFile;
+    CHAR szFilePath[MAX_PATH];
+    WIN32_FIND_DATA FindFileData;
+
+    lstrcpyA(szFilePath, path.c_str());
+
+    lstrcatA(szFilePath, "\\*");
+    hListFile = FindFirstFile(szFilePath, &FindFileData);
+    //判断句柄
+    if (hListFile == INVALID_HANDLE_VALUE){
+        printf("错误： %d\n", GetLastError());
+        return;
+    }
+    else{
+        do{
+            if(lstrcmp(FindFileData.cFileName,TEXT("."))==0 || lstrcmp(FindFileData.cFileName,TEXT(".."))==0){
+                continue;
+            }
+            //打印文件名、目录名
+            //printf("%s\t\t", FindFileData.cFileName);
+            //判断文件属性，是否为目录
+            if (FindFileData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY){
+                folder.push_back(FindFileData.cFileName);
+            }
+            else {
+                file.push_back(FindFileData.cFileName);
+            }
+        } while (FindNextFile(hListFile, &FindFileData));
+    }
+#endif // WIN32
+}
+std::string GetCurrentDirectory(){
+#ifdef __linux
+    std::string currentDir = get_current_dir_name();
+#endif
+#ifdef WIN32
+    char directory[MAX_PATH] = { 0 };
+    GetCurrentDirectory(sizeof(directory), directory);
+    std::string currentDir = directory;
+#endif
+return currentDir;
+}
+bool ShowHomeDirectory(std::string&currentDir){
+    if(ImGui::BeginTable("常用路径", 1)){
+        ImGui::TableSetupColumn("主目录");
+        ImGui::TableHeadersRow();
+
+        ImGui::TableNextRow();
+
+        ImGui::TableSetColumnIndex(0);
+        // ImGui::TextUnformatted(r);
+        // ImGui::Button(r);
+#ifdef __linux
+        std::string homePaht = getenv("HOME");
+        std::vector<std::string>recentPath = { homePaht, homePaht + "/Desktop", homePaht + "/Documents", homePaht + "/Downloads", homePaht + "/Music", homePaht + "/Pictures", homePaht + "/Videos" };
+#endif
+#ifdef WIN32
+        std::string homePaht = getenv("USERPROFILE");
+        std::vector<std::string>recentPath = { homePaht, homePaht + "\\Desktop", homePaht + "\\Documents", homePaht + "\\Downloads", homePaht + "\\Music", homePaht + "\\Pictures", homePaht + "\\Videos" };
+#endif
+        for (size_t i = 0; i < recentPath.size(); ++i){
+            if(ImGui::Selectable(recentPath[i].c_str())){
+                currentDir = recentPath[i];
+
+                ImGui::EndTable();
+                return true;
+            }
+        }
+        ImGui::EndTable();
+    }
+    return false;
+}
+void ShowFolderDirectory(const std::string&currentDir, std::vector<std::string>&subDir){
+    getSubdirectory(currentDir, subDir);
+    if(ImGui::BeginTable("各个文件路径名", subDir.size())){
+        for (size_t i = 0; i < subDir.size(); ++i){
+            ImGui::TableSetupColumn(subDir[i].c_str());
+        }
+        ImGui::TableHeadersRow();
+        ImGui::EndTable();
+    }
+}
+bool ShowFolderAndFile(const char *const *items, int fileTypeIndex, std::string&currentDir, std::vector<std::string>&subDir, std::string&selectedFile){
+    if(ImGui::Begin("文件名窗口", nullptr, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_ChildWindow)){
+        ImGui::SetWindowSize(ImVec2(400, 200));
+        if(ImGui::BeginTable("文件名", 1)){
+            ImGui::TableNextRow();
+            ImGui::TableSetColumnIndex(0);
+            std::vector<std::string>file;
+            std::vector<std::string>folder;
+            getFileFromDirectory(currentDir, folder, file);
+            // ImGui::TextUnformatted(r);
+            for (size_t i = 0; i < folder.size(); ++i){
+#ifdef __linux
+                if(ImGui::Selectable((folder[i] + '/').c_str())){
+#endif
+#ifdef WIN32
+                if (ImGui::Selectable((folder[i] + '\\').c_str())) {
+#endif // WIN32
+
+                    subDir.push_back(folder[i]);
+                    splicingDirectory(subDir, currentDir);
+
+                    ImGui::EndTable();
+                    ImGui::EndChild();
+                    return true;
+                }
+            }
+            if(fileTypeIndex){//指定栏类型
+                for (size_t i = 0; i < file.size(); ++i){
+                    std::size_t pos = file[i].find('.');
+                    std::size_t tPos = file[i].find('.', pos + 1);
+                    while(tPos < file[i].length()){
+                        pos = tPos;
+                        tPos = file[i].find('.', tPos + 1);
+                    }
+                    if(pos < file[i].length()){
+                        std::string s = file[i].substr(pos);
+                        if(s == items[fileTypeIndex] + 1){
+                            if(ImGui::Selectable(file[i].c_str())){
+                                selectedFile = currentDir + '/' + file[i];
+                            }
+                        }
+                    }
+                }
+            }
+            else{
+                for (size_t i = 0; i < file.size(); ++i){
+                    if(ImGui::Selectable(file[i].c_str())){
+#ifdef __linux                        
+                        selectedFile = currentDir + '/' + file[i];
+#endif
+#ifdef WIN32
+                        selectedFile = currentDir + '\\' + file[i];
+#endif
+                    }
+                }
+            }
+            ImGui::EndTable();
+        }
+        ImGui::EndChild();
+    }
+    return false;
+}
+IMGUI_BUTTON_IDENTIFIER ShowImguiGetFileButton(const char *ok_button, const char *cancel_button = "取消"){
+    ImVec2 windowSize = ImGui::GetWindowSize();    
+    ImGui::SetCursorPos(ImVec2(0, windowSize.y - 40));
+    if(ImGui::Button(cancel_button)){
+        return IMGUI_BUTTON_CANCEL;
+    }
+    ImGui::SetCursorPos(ImVec2(40, windowSize.y - 40));
+    if(ImGui::Button(ok_button)){
+        return IMGUI_BUTTON_OK;
+    }
+    return IMGUI_BUTTON_UNKNOW;
+}
+bool ShowFileInfomation(const char *const *items, int32_t items_count, int32_t fileTypeIndex, std::vector<std::string>&subDir, std::string&currentDir, std::string&selectedFile){
+    if(ImGui::BeginTable("表_对齐", 2)){
+        ImGui::TableNextColumn();
+        if(ShowHomeDirectory(currentDir)){
+            ImGui::EndTable();
+            return true;
+        }
+        ImGui::TableNextColumn();
+        ShowFolderDirectory(currentDir, subDir);
+        if(ShowFolderAndFile(items, fileTypeIndex, currentDir, subDir, selectedFile)){
+            ImGui::EndTable();
+            return true;
+        }
+        ImGui::EndTable();
+    }
+    return true;
+}
+void ShowFileType(const char *const *items, int32_t items_count, int32_t *fileTypeIndex, std::vector<std::string>&subDir, std::string&currentDir){
+    ImVec2 windowSize = ImGui::GetWindowSize();
+    ImGui::SetCursorPos(ImVec2(0, windowSize.y - 70));
+    if(ImGui::BeginTable("返回上级_类型_表", 2)){
+        ImGui::TableNextColumn();
+        if(ImGui::Button("返回上级")){
+            if(subDir.size() > 1){
+                subDir.pop_back();
+                splicingDirectory(subDir, currentDir);
+            }
+        }
+        ImGui::TableNextColumn();ImGui::Combo("类型", fileTypeIndex, items, items_count);
+        ImGui::EndTable();
+    }
+}
+bool ShowOpenFileUI(const char *const *items, int items_count, std::string&result){
+    // bool continueShow = true;
+    if(!ImGui::Begin("打开"/*, nullptr, ImGuiWindowFlags_NoResize*/)){
+        ImGui::End();
+        return true;
+    }
+    static int fileTypeIndex = items_count - 1;
+    std::vector<std::string> subDir;
+    static std::string selectedFile;
+    static std::string currentDir = GetCurrentDirectory();
+
+    ShowFileInfomation(items, items_count, fileTypeIndex, subDir, currentDir, selectedFile);
+    
+    ImGui::Text(selectedFile.c_str());
+
+    ShowFileType(items, items_count, &fileTypeIndex, subDir, currentDir);
+
+    IMGUI_BUTTON_IDENTIFIER buttonID = ShowImguiGetFileButton("打开");
+    if(buttonID == IMGUI_BUTTON_CANCEL){
+        selectedFile = "";
+        ImGui::End();
+        return false;
+    }
+    else if(buttonID == IMGUI_BUTTON_OK){
+        if(selectedFile != ""){
+            result = selectedFile;
+            selectedFile = "";
+            ImGui::End();
+            return false;
+        }
+        else{
+            result = currentDir;
+            selectedFile = "";
+            ImGui::End();
+            return false;
+        }
+    }
+    ImGui::End();
+    return true;
+}
+bool ShowOpenFolderUI(const char *const *items, int items_count, std::string&result){
+    if(!ImGui::Begin("打开"/*, nullptr, ImGuiWindowFlags_NoResize*/)){
+        ImGui::End();
+        return true;
+    }
+    static int fileTypeIndex = items_count - 1;
+    std::vector<std::string> subDir;
+    static std::string selectedFile;
+    static std::string currentDir = GetCurrentDirectory();
+
+    ShowFileInfomation(items, items_count, fileTypeIndex, subDir, currentDir, selectedFile);
+
+    static char fileName[1000] = "/";
+    if((selectedFile == "" || selectedFile.c_str() != currentDir) && !strchr(selectedFile.c_str(), '.'))
+        selectedFile = currentDir;
+    memset(fileName, 0, sizeof(fileName));
+    memcpy(fileName, selectedFile.c_str(), sizeof(char) * selectedFile.size());
+    if(ImGui::InputText("选择保存的文件或文件夹", fileName, 999)){
+        selectedFile = fileName;
+    }
+    
+    ShowFileType(items, items_count, &fileTypeIndex, subDir, currentDir);
+
+    IMGUI_BUTTON_IDENTIFIER buttonID = ShowImguiGetFileButton("保存");
+    if(buttonID == IMGUI_BUTTON_CANCEL){
+        memset(fileName, 0, sizeof(fileName));
+        selectedFile = "";
+        ImGui::End();
+        return false;
+    }
+    else if(buttonID == IMGUI_BUTTON_OK){
+        if(selectedFile != ""){
+            result = selectedFile;
+            memset(fileName, 0, sizeof(fileName));
+            selectedFile = "";
+            ImGui::End();
+            return false;
+        }
+        else{
+            result = currentDir;
+            memset(fileName, 0, sizeof(fileName));
+            selectedFile = "";
+            ImGui::End();
+            return false;
+        }
+    }
+    ImGui::End();
+    return true;
+}
 void CreateClient(const char *serverIp){
     if(g_OnLine.CreateClient(serverIp)){
         CreateThread(process_client, nullptr);
@@ -453,6 +791,126 @@ void ShowPlayerCountryCombo(uint32_t comboIndex, const char *country){
         }
     }
 }
+void *ReplayFun(void *userData){
+    g_Game.EnableReplay();
+    std::vector<ChessMove>record = *(std::vector<ChessMove> *)userData;
+    auto pBoard = g_Game.GetChessboard();
+    for (auto&it:record){
+        Chess *pStart = pBoard->GetChess(it.chess.GetRow(), it.chess.GetColumn());
+        g_Game.PlayChess(pStart, it.captured.GetRow(), it.captured.GetColumn());
+        g_Ai.SyncBoard(pStart, it.captured.GetRow(), it.captured.GetColumn());
+    }
+    g_Game.EndReplay();
+    return nullptr;
+}
+void ReadChessFromFile(FILE *fp, Chess&chess){
+    Chess::Type c;
+    Country country;
+    uint32_t row, column, chessOffset;
+    fread(&c, sizeof(c), 1, fp);
+    fread(&row, sizeof(row), 1, fp);
+    fread(&column, sizeof(column), 1, fp);
+    fread(&country, sizeof(country), 1, fp);
+    fread(&chessOffset, sizeof(chessOffset), 1, fp);
+    chess.SetChess(c);
+    chess.SetCountry(country);
+    chess.SetPos(row, column);
+    chess.SetChessOffset(chessOffset);
+}
+void LoadReplay(const std::string &file){
+    //还需要实现ImportRecord
+    FILE *fp = fopen(file.c_str(), "rb");
+    if(!fp){
+        perror("read file error");
+        printf("file is %s\n", file.c_str());
+        return;
+    }
+    Country player;
+    ChessMove move;
+    uint32_t recordCount;
+    static std::vector<ChessMove>record;
+    record.clear();
+    fread(&player, sizeof(player), 1, fp);
+    fread(&recordCount, sizeof(recordCount), 1, fp);
+    for (size_t i = 0; i < recordCount; i++){
+        fread(&move.is_facing, sizeof(move.is_facing), 1, fp);
+        fread(&move.is_death, sizeof(move.is_death), 1, fp);
+        fread(&move.is_check, sizeof(move.is_check), 1, fp);
+        fread(&move.is_capture, sizeof(move.is_capture), 1, fp);
+        fread(move.notation, sizeof(move.notation), 1, fp);
+        fread(&move.move_number, sizeof(move.move_number), 1, fp);
+        ReadChessFromFile(fp, move.chess);
+        ReadChessFromFile(fp, move.captured);
+        if(move.is_death){
+            fread(&move.death.country, sizeof(move.death.country), 1, fp);
+            for (auto&chess:move.death.chess){
+                ReadChessFromFile(fp, chess);
+            }
+        }
+        if(move.is_facing){
+            for (size_t i = 0; i < move.facing.size(); ++i){
+                fread(&move.facing[i].country, sizeof(move.facing[i].country), 1, fp);
+                for (auto&chess:move.facing[i].chess){
+                    ReadChessFromFile(fp, chess);
+                }
+            } 
+        }
+        record.push_back(move);
+    }
+    fclose(fp);
+    NewGame(player);
+    CreateThread(ReplayFun, &record);
+}
+void WriteChessToFile(FILE *fp, const Chess&chess){
+    Chess::Type c = chess.GetChess();
+    uint32_t row = chess.GetRow();
+    uint32_t column = chess.GetColumn();
+    Country country = chess.GetCountry();
+    uint32_t chessOffset = chess.GetChessOffset();
+    fwrite(&c, sizeof(c), 1, fp);
+    fwrite(&row, sizeof(row), 1, fp);
+    fwrite(&column, sizeof(column), 1, fp);
+    fwrite(&country, sizeof(country), 1, fp);
+    fwrite(&chessOffset, sizeof(chessOffset), 1, fp);
+}
+void SaveReplay(const std::string &file){
+  FILE *fp = fopen(file.c_str(), "wb");
+  if(!fp){
+    perror("write file error");
+    printf("file is %s\n", file.c_str());
+    return;
+  }
+  Country country = g_Game.GetPlayer();
+  fwrite(&country, sizeof(country), 1, fp);
+   auto pBoard = g_Game.GetChessboard();
+   uint32_t recordCount = pBoard->GetRecordSize();
+  fwrite(&recordCount, sizeof(recordCount), 1, fp);
+   for (auto it = pBoard->RecordBegin(); it != pBoard->RecordEnd(); ++it){
+        fwrite(&it->is_facing, sizeof(it->is_facing), 1, fp);
+        fwrite(&it->is_death, sizeof(it->is_death), 1, fp);
+        fwrite(&it->is_check, sizeof(it->is_check), 1, fp);
+        fwrite(&it->is_capture, sizeof(it->is_capture), 1, fp);
+        fwrite(it->notation, sizeof(it->notation), 1, fp);
+        fwrite(&it->move_number, sizeof(it->move_number), 1, fp);
+        WriteChessToFile(fp, it->chess);
+        WriteChessToFile(fp, it->captured);
+        if(it->is_death){
+            fwrite(&it->death.country, sizeof(it->death.country), 1, fp);
+            for (auto&chess:it->death.chess){
+                WriteChessToFile(fp, chess);
+            }            
+        }
+        if(it->is_facing){
+            for (size_t i = 0; i < it->facing.size(); ++i){
+                fwrite(&it->facing[i].country, sizeof(it->facing[i].country), 1, fp);
+                for (auto&chess:it->facing[i].chess){
+                    WriteChessToFile(fp, chess);
+                }
+            } 
+        }
+   }
+   fclose(fp);
+}
 void ShowGameWidget(uint32_t player){
     const char *countryName[MAX_COUNTRY_INDEX];
     countryName[Wu_Country] = "吴";
@@ -472,7 +930,7 @@ void ShowGameWidget(uint32_t player){
         }
         ResetCountryItem(g_CountryItems[0]);
     }
-    if(g_Game.IsGameStart()){
+    if(g_Game.IsGameStart() && !g_Game.IsReplay()){
         if(ImGui::BeginTable("检查框列表", 2)){
             ImGui::TableNextColumn();
             if(ImGui::Checkbox("启用AI", &g_ImGuiInput.enableAi)){
@@ -481,7 +939,7 @@ void ShowGameWidget(uint32_t player){
                         g_Ai.End();
                         g_Ai.WaitThread();
                     }
-                    g_Ai.CreatePthread(&g_Game, &g_OnLine);
+                    g_Ai.CreatePthread();
                 }
                 else{
                     g_Ai.End();
@@ -494,7 +952,16 @@ void ShowGameWidget(uint32_t player){
                 }
             }
             ImGui::EndTable();
-        }    
+        }
+        if(ImGui::Button("保存对局")){
+            g_ImGuiInput.interface.bOpenFolder = true;
+            g_OpenFileFunCall = SaveReplay;
+            g_FileTypeItem.push_back("*.*");
+            g_FileTypeItem.push_back(REPLAY_FILE_TYP);
+        }
+    }
+    if(ImGui::Button("回放信息")){
+        g_ImGuiInput.interface.bReplayInfo = true;
     }
     if(g_Game.IsOnline()){
         if(ImGui::Button("返回主菜单")){
@@ -585,7 +1052,7 @@ bool ShowOnlineModeMainInterface(bool *mainInterface){
         else{
             ShowClientWidget();
         }
-        if(!g_OnLine.IsServer() && !g_Game.IsGameStart()){
+        if(!g_OnLine.IsServer()){
             static bool enableHan;
             if(ImGui::Checkbox("四国", &enableHan)){
                 if(enableHan){
@@ -627,12 +1094,12 @@ bool ShowSinglePlayerModeMainInterface(bool *mainInterface){
     countryName[Wei_Country] = "魏";
     countryName[Shu_Country] = "蜀";
     countryName[Han_Country] = "汉";
-    const uint32_t currentCountry = g_Game.GetCurrentCountry(), player = g_Game.GetPlayerCountry();
+    const uint32_t currentCountry = g_Game.GetCurrentCountry(), player = g_Game.GetPlayer();
     if(ImGui::Begin("单人模式")){
         if(ImGui::Button("新游戏")){
             NewGame();
         }
-        ShowGameWidget(g_Game.GetPlayerCountry());
+        ShowGameWidget(g_Game.GetPlayer());
         ShowPlayerCountryCombo();
         if(ImGui::Button("返回")){
             *mainInterface = true;
@@ -645,7 +1112,31 @@ bool ShowSinglePlayerModeMainInterface(bool *mainInterface){
     ImGui::End();
     return !ret;
 }
-bool MainInterface(bool *bSinglePlayer, bool *bOnline){
+bool ShowRecordInterface(bool *mainInterface, bool *bSinglePlayer){
+    bool bshow = true;
+    if(!g_Game.IsGameStart()){
+        if(ImGui::Begin("回放")){
+            if(ImGui::BeginTable("回放界面按钮", 1)){
+                ImGui::TableNextColumn();
+                if(ImGui::Button("加载棋谱")){
+                    *bSinglePlayer = true;
+                    g_ImGuiInput.interface.bOpenFile = true;
+                    g_OpenFileFunCall = LoadReplay;
+                    g_FileTypeItem.push_back("*.*");
+                    g_FileTypeItem.push_back(REPLAY_FILE_TYP);
+                }
+                ImGui::EndTable();
+            }
+            if(ImGui::Button("返回")){
+                bshow = false;
+                *mainInterface = true;
+            }
+        }
+        ImGui::End();
+    }
+    return bshow;
+}
+bool MainInterface(bool *bSinglePlayer, bool *bOnline, bool *bReplay){
     if(ImGui::Begin("主界面")){
         if(ImGui::BeginTable("主界面-按钮表格", 2)){
             ImGui::TableNextColumn();
@@ -658,16 +1149,74 @@ bool MainInterface(bool *bSinglePlayer, bool *bOnline){
             }
             ImGui::EndTable();
         }
+        if(ImGui::Button("回放")){
+            *bReplay = true;
+        }
     }
     ImGui::End();
-    return !*bSinglePlayer && !*bOnline;
+    return !*bSinglePlayer && !*bOnline && !*bReplay;
+}
+bool ShowReplayInof(bool *mainInterface){
+    bool bshow = true;
+    if(ImGui::Begin("详细步骤")){
+        auto pBoard = g_Game.GetChessboard();
+        if(ImGui::BeginTable("检查框列表", MAX_COUNTRY_INDEX)){
+            ImGui::TableNextColumn();
+            ImGui::TextColored(ImVec4(0, 0, 1, 1), "魏");
+            for (auto it = pBoard->RecordBegin(); it != pBoard->RecordEnd(); ++it){
+                if(it->chess.GetCountry() == Wei_Country){
+                    if(ImGui::Selectable(it->notation)){
+                        //需要跳到该步骤
+    
+                    }    
+                }
+            }
+            ImGui::TableNextColumn();
+            ImGui::TextColored(ImVec4(1, 0, 0, 1), "蜀");
+            for (auto it = pBoard->RecordBegin(); it != pBoard->RecordEnd(); ++it){
+                if(it->chess.GetCountry() == Shu_Country){
+                    if(ImGui::Selectable(it->notation)){
+                       //需要跳到该步骤
+
+                    }
+                }
+            }
+            ImGui::TableNextColumn();
+            ImGui::TextColored(ImVec4(0, 1, 0, 1), "吴");
+            for (auto it = pBoard->RecordBegin(); it != pBoard->RecordEnd(); ++it){
+                if(it->chess.GetCountry() == Wu_Country){
+                    if(ImGui::Selectable(it->notation)){
+                       //需要跳到该步骤
+
+                    }
+                }
+            }
+            ImGui::TableNextColumn();
+            ImGui::TextColored(ImVec4(1, 1, 0, 1), "汉");
+            for (auto it = pBoard->RecordBegin(); it != pBoard->RecordEnd(); ++it){
+                if(it->chess.GetCountry() == Han_Country){
+                    if(ImGui::Selectable(it->notation)){
+                       //需要跳到该步骤
+
+                    }
+                }
+            }
+            ImGui::EndTable();
+        }
+        if(ImGui::Button("关闭")){
+            bshow = false;
+            *mainInterface = true;
+        }
+    }
+    ImGui::End();
+    return bshow;
 }
 void UpdateImgui(VkCommandBuffer command){
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
     
     if(g_ImGuiInput.interface.bMain){
-        g_ImGuiInput.interface.bMain = MainInterface(&g_ImGuiInput.interface.bSinglePlayer, &g_ImGuiInput.interface.bOnline);
+        g_ImGuiInput.interface.bMain = MainInterface(&g_ImGuiInput.interface.bSinglePlayer, &g_ImGuiInput.interface.bOnline, &g_ImGuiInput.interface.bReplay);
     }
     else if(g_ImGuiInput.interface.bSinglePlayer){
         g_ImGuiInput.interface.bSinglePlayer = ShowSinglePlayerModeMainInterface(&g_ImGuiInput.interface.bMain);
@@ -675,9 +1224,35 @@ void UpdateImgui(VkCommandBuffer command){
     else if(g_ImGuiInput.interface.bOnline){
         g_ImGuiInput.interface.bOnline = ShowOnlineModeMainInterface(&g_ImGuiInput.interface.bMain);
     }
-    // if(g_Game.IsGameStart() && g_Game.IsOnline()){
-    //     ShowGameWidget();
-    // }
+    else if (g_ImGuiInput.interface.bReplay){
+        g_ImGuiInput.interface.bReplay = ShowRecordInterface(&g_ImGuiInput.interface.bMain, &g_ImGuiInput.interface.bSinglePlayer);
+    }
+
+    if(g_ImGuiInput.interface.bReplayInfo){
+        g_ImGuiInput.interface.bReplayInfo = ShowReplayInof(&g_ImGuiInput.interface.bMain);
+    }
+    if(g_ImGuiInput.interface.bOpenFile){
+        std::string file = "";
+        g_ImGuiInput.interface.bOpenFile = ShowOpenFileUI(g_FileTypeItem.data(), g_FileTypeItem.size(), file);
+        if(!g_ImGuiInput.interface.bOpenFile){
+            g_FileTypeItem.clear();
+        }
+        if(file != "" && g_OpenFileFunCall){
+            g_OpenFileFunCall(file);
+            g_FileTypeItem.clear();
+        }
+    }
+    if(g_ImGuiInput.interface.bOpenFolder){
+        std::string file = "";
+        g_ImGuiInput.interface.bOpenFolder = ShowOpenFolderUI(g_FileTypeItem.data(), g_FileTypeItem.size(), file);
+        if(!g_ImGuiInput.interface.bOpenFolder){
+            g_FileTypeItem.clear();
+        }
+        if(file != "" && g_OpenFileFunCall){
+            g_OpenFileFunCall(file);
+            g_FileTypeItem.clear();
+        }        
+    }
 
     ImGui::Render();
     ImDrawData *draw_data = ImGui::GetDrawData();
@@ -712,7 +1287,7 @@ void keybutton(GLFWwindow *window, int key, int scancode, int action, int mods){
                 if(g_Game.IsOnline()){
                     //联机模式需要所有人类投票决定
                 }
-                else if(g_Game.GetCurrentCountry() == g_Game.GetPlayerCountry() || !g_ImGuiInput.enableAi){
+                else if(g_Game.GetCurrentCountry() == g_Game.GetPlayer() || !g_ImGuiInput.enableAi){
                     //只在玩家回合支持撤回。另外，回放功能下不能启动ai
                     auto pBoard = g_Game.GetChessboard();
                     const uint32_t step = 1;
@@ -732,8 +1307,9 @@ void *PlayChessFun(void *userData){
     auto pBoard = g_Game.GetChessboard();
     Chess *pStart = pBoard->GetChess(info.y, info.x);
     g_Game.PlayChess(pStart, info.w, info.z);
+    //之所以没开ai也要同步的原因, 就是怕玩家突然开ai
+    g_Ai.SyncBoard(pStart, info.w, info.z);
     if(g_ImGuiInput.enableAi){
-        g_Ai.SyncBoard(pStart, info.w, info.z);
         if(g_Game.GameOver()){
             g_Ai.End();
         }
@@ -745,7 +1321,7 @@ const Chess *g_Select;
 bool SelectChess(const glm::vec2 &mousePos){
     auto pBoard = g_Game.GetChessboard();
     const Country currentCountry = g_Game.GetCurrentCountry();
-    if((!g_Ai.IsEnd() || g_Game.IsOnline()) && currentCountry != g_Game.GetPlayerCountry())return false;
+    if((!g_Ai.IsEnd() || g_Game.IsOnline()) && currentCountry != g_Game.GetPlayer())return false;
     if(g_Select){
         g_Game.UnSelectChess();
         static glm::vec4 info;
@@ -913,8 +1489,9 @@ void Setup(GLFWwindow *window){
     for (size_t i = 0; i < MAX_COUNTRY_INDEX - 1; i++){
         ResetCountryItem(g_CountryItems[i]);
     }
-}
 
+    g_Ai.InitializeAi(&g_Game, &g_OnLine);
+}
 void Cleanup(VkDevice device){
     ImGui_ImplGlfw_Shutdown();
     vkDestroyDescriptorSetLayout(device, g_SetLayout, VK_NULL_HANDLE);

@@ -12,7 +12,11 @@ struct ImGuiInput{
     bool enableAutoPlay;
     struct{
         bool bOnline;
+        bool bReplay;
+        bool bOpenFile;
+        bool bReplayInfo;
         bool bMain = true;
+        bool bOpenFolder;
         bool bSinglePlayer;
         void RetMain(){
             bMain = true;
@@ -84,15 +88,6 @@ enum Territory{
 //该宏应该减少使用,尽量使用Game类中的国家总数
 #define MAX_COUNTRY_INDEX 4
 
-//联盟相关宏, 一般情况下需要修改
-#define ALLIANCE_POINT_FONT_WIDTH 25
-#define ALLIANCE_POINT_FONT_HEIGHT ALLIANCE_POINT_FONT_WIDTH
-#define ALLIANCE_POINT_FONT_INDEX_WU Wu_Country
-#define ALLIANCE_POINT_FONT_INDEX_WEI Wei_Country
-#define ALLIANCE_POINT_FONT_INDEX_SHU Shu_Country
-#define ALLIANCE_POINT_WIDTH 15
-#define ALLIANCE_POINT_HEIGHT ALLIANCE_POINT_WIDTH
-
 #define CHESS_WIDTH 20
 #define CHESS_HEIGHT CHESS_WIDTH
 /*
@@ -144,12 +139,19 @@ enum Territory{
 //每个国家需要绘制4个矩形
 #define CHESSBOARD_PALACE_COUNT (MAX_COUNTRY_INDEX * 4)
 
+#define REPLAY_FILE_TYP "*.cr"
 //vulkan专用，无特殊情况不要修改
 //如果val比alignment小，则返回alignment，否则如果val大于alignment但小于alignment*2则返回alignment*2以此类推
 #define ALIGN(val, alignment)((val + alignment - 1) & ~(alignment - 1))
 
 #define ROW_COLUMN_TO_INDEX(ROW_INDEX, COLUMN_INDEX, COLUMN)((ROW_INDEX) * (COLUMN) + (COLUMN_INDEX))
 
-#define CHESS_COLUMN_TO_X(COLUMN)((COLUMN + 1) * (CHESSBOARD_RECT_SIZE) + (COLUMN + 1) * CHESSBOARD_LINE_WIDTH)
+#define COLUMN_TO_X(COLUMN)((COLUMN) * (CHESSBOARD_RECT_SIZE) + (COLUMN) * CHESSBOARD_LINE_WIDTH)
+#define ROW_TO_Y(ROW)COLUMN_TO_X(ROW)
+
+#define CHESS_COLUMN_TO_X(COLUMN)COLUMN_TO_X(COLUMN + 1)
 #define CHESS_ROW_TO_Y(ROW)(CHESS_COLUMN_TO_X(ROW))
+
+// #define CHESS_COLUMN_TO_X(COLUMN)((COLUMN + 1) * (CHESSBOARD_RECT_SIZE) + (COLUMN + 1) * CHESSBOARD_LINE_WIDTH)
+// #define CHESS_ROW_TO_Y(ROW)(CHESS_COLUMN_TO_X(ROW))
 #endif

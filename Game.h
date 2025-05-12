@@ -1,5 +1,6 @@
 #ifndef GAME_H
 #define GAME_H
+#include <map>
 #include <mutex>
 #include "Chessboard.h"
 #include "VulkanChess.h"
@@ -16,6 +17,7 @@ class Game{
     }vulkan;
     struct{
         bool isOnline = false;
+        bool isReplay = false;
         bool isGameStart = false;
         //代表汉能不能被操作
         bool isControllable = false;
@@ -28,6 +30,9 @@ class Game{
     Country mNotAlliance;
     Chessboard mChessboard;
     uint32_t mMaxCountryCount = 3;
+    std::map<Country, std::string>mCountry;
+    std::map<uint32_t, std::string>mNumber;
+    std::map<Chess::Type, std::string>mName;
     ChessMove GetSaveStep(Chess *pChess, uint32_t dstRow, uint32_t dstColumn);
     uint32_t GetCanPlay(const glm::vec2&mousePos, const std::vector<glm::vec2>&canplays);
 
@@ -76,6 +81,12 @@ public:
 
     void UpdateUniform(VkDevice device, uint32_t windowWidth);
     //内联
+    inline void EnableReplay(){
+        state.isReplay = true;
+    }
+    inline void EndReplay(){
+        state.isReplay = false;
+    }
     inline void EnableOnline(){
         state.isOnline = true;
     }
@@ -91,12 +102,15 @@ public:
     inline uint32_t GetCountryCount(){
         return mMaxCountryCount;
     }
-    inline auto GetPlayerCountry(){
+    inline auto GetPlayer(){
         return player.country;
     }
     inline auto GetCurrentCountry(){
         return mCurrent;
     }
+    // inline auto GetCountryMap(){
+    //     return mCountry;
+    // }
     inline Chessboard *GetChessboard(){
         return &mChessboard;
     }
@@ -108,6 +122,9 @@ public:
     }
     inline bool IsControllable(){
         return state.isControllable;
+    }
+    inline bool IsReplay(){
+        return state.isReplay;
     }
     inline void StartGame(){
         state.isGameStart = true;

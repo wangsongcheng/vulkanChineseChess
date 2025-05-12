@@ -370,6 +370,10 @@ bool Chessboard::areKingsFacing(Country srcCountry, Country dstCountry){
     }
     return are;
 }
+void Chessboard::ImportRecord(const std::vector<ChessMove> &record){
+    //可能只有文本有问题
+    mRecord = record;
+}
 void Chessboard::InitializeChess(Country player, bool isControllable, uint32_t countryCount){
     mCountryCount = countryCount;    
     for (uint32_t uiCountry = 0; uiCountry < MAX_COUNTRY_INDEX; ++uiCountry){

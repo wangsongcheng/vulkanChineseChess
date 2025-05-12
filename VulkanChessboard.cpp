@@ -103,10 +103,20 @@ void VulkanChessboard::CreateFontResource(VulkanDevice device, VkQueue graphics,
         return;
 	}
     const uint32_t imageSize = ALLIANCE_POINT_FONT_WIDTH * ALLIANCE_POINT_FONT_HEIGHT;
-    wchar_t word[3];
+    wchar_t word[FONT_INDEX_COUNT];
     word[ALLIANCE_POINT_FONT_INDEX_WU] = L'吴';
     word[ALLIANCE_POINT_FONT_INDEX_WEI] = L'魏';
     word[ALLIANCE_POINT_FONT_INDEX_SHU] = L'蜀';
+    word[FONT_INDEX_INDEX_NUMBER_1] = L'1';
+    word[FONT_INDEX_INDEX_NUMBER_2] = L'2';
+    word[FONT_INDEX_INDEX_NUMBER_3] = L'3';
+    word[FONT_INDEX_INDEX_NUMBER_4] = L'4';
+    word[FONT_INDEX_INDEX_NUMBER_5] = L'5';
+    word[FONT_INDEX_INDEX_NUMBER_6] = L'6';
+    word[FONT_INDEX_INDEX_NUMBER_7] = L'7';
+    word[FONT_INDEX_INDEX_NUMBER_8] = L'8';
+    word[FONT_INDEX_INDEX_NUMBER_9] = L'9';
+    word[FONT_INDEX_INDEX_NUMBER_0] = L'0';
     const uint32_t fontImageCount = sizeof(word) / sizeof(wchar_t);
     std::vector<unsigned char *>datas(fontImageCount);
     for (size_t i = 0; i < fontImageCount; ++i){
@@ -256,6 +266,11 @@ void VulkanChessboard::DrawAllianceFont(VkCommandBuffer command, VkPipelineLayou
         vkCmdBindDescriptorSets(command, VK_PIPELINE_BIND_POINT_GRAPHICS, layout, 0, 1, &fonts.descriptrorSet.alliance, 1, &dynamicOffsets);
         fonts.font.Draw(command);
     }
+    // for (size_t column = 0; column < MAX_CHESSBOARD_LINE * 2; column++){
+    //     dynamicOffsets = (column + FONT_INDEX_INDEX_NUMBER_0) * fonts.uniforms.alliance.size;
+    //     vkCmdBindDescriptorSets(command, VK_PIPELINE_BIND_POINT_GRAPHICS, layout, 0, 1, &fonts.descriptrorSet.alliance, 1, &dynamicOffsets);
+    //     fonts.font.Draw(command);        
+    // }
 }
 
 void VulkanChessboard::Setup(VulkanDevice device, VkDescriptorSetLayout setLayout, VkQueue graphics, VulkanPool pool){
@@ -280,8 +295,8 @@ void VulkanChessboard::Setup(VulkanDevice device, VkDescriptorSetLayout setLayou
 
     uniforms.alliance.CreateBuffer(device, minUniformBufferOffset * 3, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
     uniforms.alliance.size = minUniformBufferOffset;
-
-    fonts.uniforms.alliance.CreateBuffer(device, minFontUniformBufferOffset, 3, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+    const uint32_t fontCount = MAX_COUNTRY_INDEX - 1 + MAX_CHESSBOARD_LINE * 4;
+    fonts.uniforms.alliance.CreateBuffer(device, minFontUniformBufferOffset, fontCount, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 
     uniforms.background.CreateBuffer(device, minUniformBufferOffset * 2, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
     uniforms.background.size = minUniformBufferOffset;
@@ -351,14 +366,31 @@ void VulkanChessboard::UpdateFontUniform(VkDevice device, Country player){
         }
     }
     glm::mat4 model[3];
-    FontUniform fUbo[3];
+    FontUniform fUbo;
     for (size_t i = 0; i < sizeof(model) / sizeof(glm::mat4); ++i){
         model[i] = glm::scale(glm::translate(glm::mat4(1), glm::vec3(pos[i].x, pos[i].y, 0)), glm::vec3(ALLIANCE_POINT_WIDTH, ALLIANCE_POINT_HEIGHT, 1));
-        fUbo[i].imageIndex = i;
-        fUbo[i].color = glm::vec3(1);
-        fUbo[i].model = glm::scale(glm::translate(glm::mat4(1), glm::vec3(pos[i].x - ALLIANCE_POINT_FONT_WIDTH * .45, pos[i].y - ALLIANCE_POINT_FONT_HEIGHT * .5, 0)), glm::vec3(ALLIANCE_POINT_FONT_WIDTH, ALLIANCE_POINT_FONT_HEIGHT, 1));
+        fUbo.imageIndex = i;
+        fUbo.color = glm::vec3(1);
+        fUbo.model = glm::scale(glm::translate(glm::mat4(1), glm::vec3(pos[i].x - ALLIANCE_POINT_FONT_WIDTH * .45, pos[i].y - ALLIANCE_POINT_FONT_HEIGHT * .5, 0)), glm::vec3(ALLIANCE_POINT_FONT_WIDTH, ALLIANCE_POINT_FONT_HEIGHT, 1));
         //由于不同设备的最小动态偏移不同，所以用这种方式更新最保险
-        fonts.uniforms.alliance.UpdateData(device, fonts.uniforms.alliance.size, &fUbo[i], i * fonts.uniforms.alliance.size);
+        fonts.uniforms.alliance.UpdateData(device, fonts.uniforms.alliance.size, &fUbo, i * fonts.uniforms.alliance.size);
     }
     uniforms.alliance.UpdateData(device, sizeof(model), model);
+    glm::vec3 numberOffset = glm::vec3(10 + ALLIANCE_POINT_FONT_WIDTH + CHESSBOARD_LINE_WIDTH, ALLIANCE_POINT_FONT_HEIGHT + CHESSBOARD_LINE_WIDTH, 0);
+    for (size_t column = FONT_INDEX_INDEX_NUMBER_0; column <= FONT_INDEX_INDEX_NUMBER_9; column++){
+        fUbo.imageIndex = column;
+        fUbo.model = glm::scale(glm::translate(glm::mat4(1), numberOffset),  glm::vec3(ALLIANCE_POINT_FONT_WIDTH, ALLIANCE_POINT_FONT_HEIGHT, 1));
+        fonts.uniforms.alliance.UpdateData(device, fonts.uniforms.alliance.size, &fUbo,(column) * fonts.uniforms.alliance.size);   
+        numberOffset += glm::vec3(CHESSBOARD_RECT_SIZE + CHESSBOARD_LINE_WIDTH, 0, 0);
+    }
+    //还需要更新10以及以上的字
+
+    numberOffset = glm::vec3(10 + ALLIANCE_POINT_FONT_WIDTH + CHESSBOARD_LINE_WIDTH, ALLIANCE_POINT_FONT_HEIGHT + CHESSBOARD_LINE_WIDTH, 0);
+    for (size_t row = FONT_INDEX_INDEX_NUMBER_0 + FONT_INDEX_INDEX_NUMBER_9; row <= (FONT_INDEX_INDEX_NUMBER_0 + FONT_INDEX_INDEX_NUMBER_9) * 2; row++){
+        fUbo.imageIndex = row - FONT_INDEX_INDEX_NUMBER_9;
+        fUbo.model = glm::scale(glm::translate(glm::mat4(1), numberOffset),  glm::vec3(ALLIANCE_POINT_FONT_WIDTH, ALLIANCE_POINT_FONT_HEIGHT, 1));
+        fonts.uniforms.alliance.UpdateData(device, fonts.uniforms.alliance.size, &fUbo,row * fonts.uniforms.alliance.size);   
+        numberOffset += glm::vec3(0, CHESSBOARD_RECT_SIZE + CHESSBOARD_LINE_WIDTH, 0);
+    }
+    //还需要更新10以及以上的字
 }
