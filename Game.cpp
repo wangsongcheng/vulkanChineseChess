@@ -293,7 +293,7 @@ void Game::PlayChess(Chess *pChess, uint32_t dstRow, uint32_t dstColumn){
     // const Chess *pCheck = Check(&currerntCountry);
     if(pCheck){
         Country country = pCheck->GetCountry();
-        //被将先走:如果将的人是上个回合的人，或者自己上个回合就是自己，那么没法继续解将
+        //如果因为自己下的棋而被将，则不触发被将先走
         if(mCurrent != country){
             // if(currerntCountry == mCurrent && mCurrent != country){
             mCurrent = country;

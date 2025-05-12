@@ -42,6 +42,14 @@ class Ai{
     Chess *GetCannonScreenPiece(const Chess *pao, const Chess *pTarget)const;
     Chess *GetTarget(const Chess *pSelect, const std::vector<glm::vec2>&canplays)const;
 
+    Chess *GetResolveCheck(const Chess *pCheck, const Chess *pTarget, glm::vec2&pos);
+    Chess *GetResolveCheck_Che(const Chess *pCheck, const Chess *pTarget, glm::vec2&pos);
+    Chess *GetResolveCheck_Pao(const Chess *pCheck, const Chess *pTarget, glm::vec2&pos);
+    //获得现在就能保护到pTarget的棋子
+    Chess *GetNowDefender(const Chess *pCheck, const Chess **pTarget);
+    //获得下一步能保护到pTarget的棋子的棋子
+    Chess *GetNextDefender(const Chess *pCheck, const Chess **pTarget, glm::vec2&pos);
+
     //不能照搬game类的函数，应该键盘对象不同
     ChessMove GetSaveStep(Chess *pChess, uint32_t dstRow, uint32_t dstColumn);
 
@@ -51,9 +59,6 @@ class Ai{
     
     //返回的棋子肯定有位置可以下
     Chess *RandChess(Country country)const;
-    Chess *ResolveCheck(const Chess *pCheck, const Chess *pTarget, glm::vec2&pos);
-    Chess *GetResolveCheck_Che(const Chess *pCheck, const Chess *pTarget, glm::vec2&pos);
-    Chess *GetResolveCheck_Pao(const Chess *pCheck, const Chess *pTarget, glm::vec2&pos);
 
     glm::vec2 RandTarget(const Chess *pSelect, const std::vector<glm::vec2>&canplays);
 public:
