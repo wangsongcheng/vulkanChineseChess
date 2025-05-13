@@ -1232,7 +1232,7 @@ bool ShowReplayInof(bool *mainInterface){
                     }
                 }
                 ImGui::Text(notation);
-                for (size_t i = 0; i < g_Game.GetCountryCount(); i++){
+                for (size_t i = 1; i < g_Game.GetCountryCount() + 1; i++){
                     if(it + i == pBoard->RecordEnd()){
                         it = pBoard->RecordEnd();
                         break;

@@ -135,10 +135,6 @@ ChessMove Game::GetSaveStep(const Chessboard *pBoard, Chess *pChess, uint32_t ds
     char step[MAX_BYTE];
     uint32_t srcNumber, dstNumber;
     Territory srcTerritory = pChess->GetTerritory();
-    /*
-        如果pchess的势力是汉、吴，则翻转行列
-        如果pchess的势力是魏则翻转行;蜀不需要
-    */
    if(srcTerritory == Han_Territory || srcTerritory == Wu_Territory){
         srcNumber = pChess->GetRow() + 1;
         if(srcTerritory == Han_Territory){
@@ -163,7 +159,8 @@ ChessMove Game::GetSaveStep(const Chessboard *pBoard, Chess *pChess, uint32_t ds
                 strcpy(step, "平");
             }
         }
-        dstNumber = strcmp(step, "平")?dstColumn + 1:dstRow + 1;
+        // dstNumber = strcmp(step, "平")?dstColumn + 1:dstRow + 1;
+        dstNumber = strcmp(step, "平")?abs(pChess->GetColumn() - dstColumn):abs(pChess->GetRow() - dstRow);
     }
    else{
         srcNumber = pChess->GetColumn() + 1;
@@ -189,12 +186,13 @@ ChessMove Game::GetSaveStep(const Chessboard *pBoard, Chess *pChess, uint32_t ds
                 strcpy(step, "平");
             }
         }
-        dstNumber = strcmp(step, "平")?dstRow + 1:dstColumn + 1;
+        // dstNumber = strcmp(step, "平")?dstRow + 1:dstColumn + 1;
+        dstNumber = strcmp(step, "平")?abs(pChess->GetRow() - dstRow):abs(pChess->GetColumn() - dstColumn);
     }
-    if(srcTerritory == Shu_Territory || srcTerritory == Han_Territory){
-        srcNumber = MAX_CHESSBOARD_LINE - srcNumber;
-        dstNumber = MAX_CHESSBOARD_LINE - dstNumber;    
-    }
+    // if(srcTerritory == Shu_Territory || srcTerritory == Han_Territory){
+    //     srcNumber = MAX_CHESSBOARD_LINE - srcNumber;
+    //     // dstNumber = MAX_CHESSBOARD_LINE - dstNumber;    
+    // }
     sprintf(move.step, "%s%s%s%s", mChessName[pChess->GetChess()].c_str(),  mNumberName[srcNumber].c_str(), step, mNumberName[dstNumber].c_str());
     // sprintf(move.step, "%s:%s%s%s%s", mCountryName[srcCountry].c_str(), mChessName[pChess->GetChess()].c_str(),  mNumberName[srcNumber].c_str(), step, mNumberName[dstNumber].c_str());
     if(move.is_check){
