@@ -9,6 +9,7 @@
 struct ImGuiInput{
     bool enableAi;
     bool enableHan;
+    bool skipReplay;
     bool enableAutoPlay;
     struct{
         bool bOnline;

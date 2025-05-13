@@ -65,10 +65,10 @@ void NewGame(Country playerCountry = Invald_Country, Country currentCountry = In
         g_Ai.WaitThread();
     }
     g_Game.NewGame(playerCountry, currentCountry);
+    g_Ai.InitializeChessboard();
     if(g_ImGuiInput.enableAi){
         g_Ai.CreatePthread();
     }
-    g_Ai.InitializeChessboard();
 }
 void ShowPlayerCountryCombo(){
     static std::string currentCountryItem = g_CountryItems[0][0];
@@ -797,10 +797,14 @@ void *ReplayFun(void *userData){
     auto pBoard = g_Game.GetChessboard();
     for (auto&it:record){
         Chess *pStart = pBoard->GetChess(it.chess.GetRow(), it.chess.GetColumn());
-        g_Game.PlayChess(pStart, it.captured.GetRow(), it.captured.GetColumn());
-        g_Ai.SyncBoard(pStart, it.captured.GetRow(), it.captured.GetColumn());
+        if(!pBoard->IsBoundary(it.chess.GetRow(), it.chess.GetColumn())){
+            g_Game.PlayChess(pStart, it.captured.GetRow(), it.captured.GetColumn(), g_ImGuiInput.skipReplay);
+            g_Ai.SyncBoard(pStart, it.captured.GetRow(), it.captured.GetColumn());    
+        }
     }
+    g_Game.UpdateUniform(g_VulkanDevice.device, g_WindowWidth);
     g_Game.EndReplay();
+    g_ImGuiInput.skipReplay = false;
     return nullptr;
 }
 void ReadChessFromFile(FILE *fp, Chess&chess){
@@ -838,7 +842,7 @@ void LoadReplay(const std::string &file){
         fread(&move.is_check, sizeof(move.is_check), 1, fp);
         fread(&move.is_capture, sizeof(move.is_capture), 1, fp);
         fread(move.notation, sizeof(move.notation), 1, fp);
-        fread(&move.move_number, sizeof(move.move_number), 1, fp);
+        fread(&move.round, sizeof(move.round), 1, fp);
         ReadChessFromFile(fp, move.chess);
         ReadChessFromFile(fp, move.captured);
         if(move.is_death){
@@ -891,7 +895,7 @@ void SaveReplay(const std::string &file){
         fwrite(&it->is_check, sizeof(it->is_check), 1, fp);
         fwrite(&it->is_capture, sizeof(it->is_capture), 1, fp);
         fwrite(it->notation, sizeof(it->notation), 1, fp);
-        fwrite(&it->move_number, sizeof(it->move_number), 1, fp);
+        fwrite(&it->round, sizeof(it->round), 1, fp);
         WriteChessToFile(fp, it->chess);
         WriteChessToFile(fp, it->captured);
         if(it->is_death){
@@ -930,34 +934,41 @@ void ShowGameWidget(uint32_t player){
         }
         ResetCountryItem(g_CountryItems[0]);
     }
-    if(g_Game.IsGameStart() && !g_Game.IsReplay()){
-        if(ImGui::BeginTable("检查框列表", 2)){
-            ImGui::TableNextColumn();
-            if(ImGui::Checkbox("启用AI", &g_ImGuiInput.enableAi)){
-                if(g_ImGuiInput.enableAi){
-                    if(!g_Ai.IsEnd()){
-                        g_Ai.End();
-                        g_Ai.WaitThread();
-                    }
-                    g_Ai.CreatePthread();
-                }
-                else{
-                    g_Ai.End();
-                }
+    if(g_Game.IsGameStart()){
+        if(g_Game.IsReplay()){
+            if(ImGui::Button("跳过推演")){
+                g_ImGuiInput.skipReplay = true;
             }
-            ImGui::TableNextColumn();
-            if(ImGui::Checkbox("托管", &g_ImGuiInput.enableAutoPlay)){
-                if(g_ImGuiInput.enableAutoPlay && currentCountry == player){
-                    g_Ai.Enable();
-                }
-            }
-            ImGui::EndTable();
         }
-        if(ImGui::Button("保存对局")){
-            g_ImGuiInput.interface.bOpenFolder = true;
-            g_OpenFileFunCall = SaveReplay;
-            g_FileTypeItem.push_back("*.*");
-            g_FileTypeItem.push_back(REPLAY_FILE_TYP);
+        else{
+            if(ImGui::BeginTable("检查框列表", 2)){
+                ImGui::TableNextColumn();
+                if(ImGui::Checkbox("启用AI", &g_ImGuiInput.enableAi)){
+                    if(g_ImGuiInput.enableAi){
+                        if(!g_Ai.IsEnd()){
+                            g_Ai.End();
+                            g_Ai.WaitThread();
+                        }
+                        g_Ai.CreatePthread();
+                    }
+                    else{
+                        g_Ai.End();
+                    }
+                }
+                ImGui::TableNextColumn();
+                if(ImGui::Checkbox("托管", &g_ImGuiInput.enableAutoPlay)){
+                    if(g_ImGuiInput.enableAutoPlay && currentCountry == player){
+                        g_Ai.Enable();
+                    }
+                }
+                ImGui::EndTable();
+            }
+            if(ImGui::Button("保存对局")){
+                g_ImGuiInput.interface.bOpenFolder = true;
+                g_OpenFileFunCall = SaveReplay;
+                g_FileTypeItem.push_back("*.*");
+                g_FileTypeItem.push_back(REPLAY_FILE_TYP);
+            }
         }
     }
     if(ImGui::Button("回放信息")){
@@ -1160,45 +1171,72 @@ bool ShowReplayInof(bool *mainInterface){
     bool bshow = true;
     if(ImGui::Begin("详细步骤")){
         auto pBoard = g_Game.GetChessboard();
-        if(ImGui::BeginTable("检查框列表", MAX_COUNTRY_INDEX)){
+        if(ImGui::BeginTable("检查框列表", g_Game.GetCountryCount() + 2)){
+            ImGui::TableNextColumn();
+            ImGui::Text("回合");
+            uint32_t round = 1;
+            for (auto it = pBoard->RecordBegin(); it != pBoard->RecordEnd(); it += 3) {
+                ImGui::Text("%d", round++);
+                if(round > (pBoard->GetRecordSize() / 3) + 1)break;
+            }
+            ImGui::TableNextColumn();
+            ImGui::TextColored(ImVec4(0, 1, 0, 1), "吴");
+            for (auto it = pBoard->RecordBegin(); it != pBoard->RecordEnd(); ++it) {
+                if (it->chess.GetCountry() == Wu_Country) {
+                    if (ImGui::Selectable(it->step)) {
+                        //需要跳到该步骤
+
+                    }
+                }
+            }
             ImGui::TableNextColumn();
             ImGui::TextColored(ImVec4(0, 0, 1, 1), "魏");
             for (auto it = pBoard->RecordBegin(); it != pBoard->RecordEnd(); ++it){
                 if(it->chess.GetCountry() == Wei_Country){
-                    if(ImGui::Selectable(it->notation)){
+                    if(ImGui::Selectable(it->step)){
                         //需要跳到该步骤
     
                     }    
                 }
             }
+            if(g_Game.IsControllable()){
+                ImGui::TableNextColumn();
+                ImGui::TextColored(ImVec4(1, 1, 0, 1), "汉");
+                for (auto it = pBoard->RecordBegin(); it != pBoard->RecordEnd(); ++it) {
+                    if (it->chess.GetCountry() == Han_Country) {
+                        if (ImGui::Selectable(it->step)) {
+                            //需要跳到该步骤
+    
+                        }
+                    }
+                }    
+            }
             ImGui::TableNextColumn();
             ImGui::TextColored(ImVec4(1, 0, 0, 1), "蜀");
             for (auto it = pBoard->RecordBegin(); it != pBoard->RecordEnd(); ++it){
                 if(it->chess.GetCountry() == Shu_Country){
-                    if(ImGui::Selectable(it->notation)){
+                    if(ImGui::Selectable(it->step)){
                        //需要跳到该步骤
 
                     }
                 }
             }
             ImGui::TableNextColumn();
-            ImGui::TextColored(ImVec4(0, 1, 0, 1), "吴");
-            for (auto it = pBoard->RecordBegin(); it != pBoard->RecordEnd(); ++it){
-                if(it->chess.GetCountry() == Wu_Country){
-                    if(ImGui::Selectable(it->notation)){
-                       //需要跳到该步骤
-
+            ImGui::Text("备注");
+            for (auto it = pBoard->RecordBegin(); it != pBoard->RecordEnd();){
+                auto temp = it;
+                char notation[300] = {0};
+                for (size_t i = 0; i < 3; i++, ++temp){
+                    if(strcmp(temp->notation, "")){
+                        strcat(strcat(notation, temp->notation),";");
                     }
                 }
-            }
-            ImGui::TableNextColumn();
-            ImGui::TextColored(ImVec4(1, 1, 0, 1), "汉");
-            for (auto it = pBoard->RecordBegin(); it != pBoard->RecordEnd(); ++it){
-                if(it->chess.GetCountry() == Han_Country){
-                    if(ImGui::Selectable(it->notation)){
-                       //需要跳到该步骤
-
-                    }
+                ImGui::Text(notation);
+                if(it + 1 != pBoard->RecordEnd() && it + 2 != pBoard->RecordEnd() && it + 3 != pBoard->RecordEnd()){
+                    it += 3;
+                }
+                else{
+                    break;
                 }
             }
             ImGui::EndTable();

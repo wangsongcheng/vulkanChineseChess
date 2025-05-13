@@ -8,6 +8,7 @@
 #include "VulkanChessboard.h"
 #define GET_NOT_ALLIANCE_COUNTRY(COUNTRY, ALLIANCE_COUNTRY) (MAX_COUNTRY_INDEX - 1 - COUNTRY - ALLIANCE_COUNTRY)
 #define GET_ALLIANCE_COUNTRY(COUNTRY, NOT_ALLIANCE_COUNTRY) GET_NOT_ALLIANCE_COUNTRY(COUNTRY, NOT_ALLIANCE_COUNTRY)
+#define GET_SKIP_COUNTRY_COUNT(SRC_COUNTRY, DST_COUNTRY, COUNTRY_COUNT) ((((DST_COUNTRY) - (SRC_COUNTRY) - 1) + COUNTRY_COUNT) % COUNTRY_COUNT)
 class Game{
     struct{
         VulkanChess chess;
@@ -30,10 +31,9 @@ class Game{
     Country mNotAlliance;
     Chessboard mChessboard;
     uint32_t mMaxCountryCount = 3;
-    std::map<Country, std::string>mCountry;
-    std::map<uint32_t, std::string>mNumber;
-    std::map<Chess::Type, std::string>mName;
-    ChessMove GetSaveStep(Chess *pChess, uint32_t dstRow, uint32_t dstColumn);
+    std::map<Country, std::string>mCountryName;
+    std::map<uint32_t, std::string>mNumberName;
+    std::map<Chess::Type, std::string>mChessName;
     uint32_t GetCanPlay(const glm::vec2&mousePos, const std::vector<glm::vec2>&canplays);
 
     void UpdateChessUniform(VkDevice device);
@@ -51,11 +51,13 @@ public:
     Country GetLastCountry(Country currentCountry)const;
     Country GetNextCountry(Country country)const;
 
+    ChessMove GetSaveStep(const Chessboard *pBoard, Chess *pChess, uint32_t dstRow, uint32_t dstColumn);
+
     void InitinalizeGame(Country playerCountry = Invald_Country, Country currentCountry = Invald_Country);
 
     void MoveChess(const glm::vec2&start, const glm::vec2&end, uint32_t fontIndex, uint32_t country, uint32_t dynamicOffsets);
 
-    void PlayChess(Chess *pChess, uint32_t dstRow, uint32_t dstColumn);
+    void PlayChess(Chess *pChess, uint32_t dstRow, uint32_t dstColumn, bool skipAnim = false);
     glm::vec4 PrepareChess(const Chess *pSelect, const glm::vec2&mousePos);
 
     void RemoveInvalidTarget(std::vector<glm::vec2>&canplays);
@@ -108,8 +110,14 @@ public:
     inline auto GetCurrentCountry(){
         return mCurrent;
     }
-    // inline auto GetCountryMap(){
-    //     return mCountry;
+    // inline auto GetCountryMap(Country country){
+    //     return mCountry[country];
+    // }
+    // inline auto GetChessNameMap(Chess::Type chess){
+    //     return mName[chess];
+    // }
+    // inline auto GetNumberMap(uint32_t number){
+    //     return mNumber[number];
     // }
     inline Chessboard *GetChessboard(){
         return &mChessboard;

@@ -50,10 +50,6 @@ class Ai{
     //获得下一步能保护到pTarget的棋子的棋子
     Chess *GetNextDefender(const Chess *pCheck, const Chess **pTarget, glm::vec2&pos);
 
-    //不能照搬game类的函数，应该键盘对象不同
-    ChessMove GetSaveStep(Chess *pChess, uint32_t dstRow, uint32_t dstColumn);
-
-    bool IsBoundary(int32_t row, int32_t column)const;
     //获得车到目标那个方向所有能下的位置
     std::vector<glm::vec2>GetPathBetween(const Chess *pChess, const Chess *pTarget)const;
     

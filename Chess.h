@@ -53,6 +53,9 @@ public:
     inline auto GetCountry()const{
         return mCountry;
     }
+    inline auto GetTerritory()const{
+        return mTerritory;
+    }
     inline uint32_t GetFontIndex()const{
         return mFontIndex ;
     }

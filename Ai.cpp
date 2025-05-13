@@ -352,55 +352,6 @@ Chess *Ai::GetTarget(const Chess *pSelect, const std::vector<glm::vec2>&canplays
     }
     return pTarget;
 }
-ChessMove Ai::GetSaveStep(Chess *pChess, uint32_t dstRow, uint32_t dstColumn){
-    //注意:更新该函数后仍需要更新Game类的同名函数
-   const Chess *pTarget = mChessboard.GetChess(dstRow, dstColumn);
-   ChessMove move = {};
-   move.chess = *pChess;
-   move.is_capture = pTarget;
-   if(move.is_capture){
-       move.is_death = pTarget->GetChess() == Chess::Type::Jiang_Chess;
-       if(move.is_death){
-           move.death.country = pTarget->GetCountry();
-           auto pCountryChess = mChessboard.GetChess(move.death.country);
-           for (size_t uiChess = 0; uiChess < DRAW_CHESS_COUNT; uiChess++){
-               if(pCountryChess[uiChess])move.death.chess.push_back(*pCountryChess[uiChess]);
-           }
-       }
-       else{
-           move.captured = *pTarget;
-       }        
-   }
-   move.is_check = mGame->Check(nullptr);
-   //为测试是否见面，需要一定的修改
-   const glm::vec2 pos = glm::vec2(pChess->GetColumn(), pChess->GetRow());
-   pChess->SetPos(dstRow, dstColumn);
-   for (uint32_t srcCountry = 0; srcCountry < mGame->GetCountryCount(); srcCountry++){
-       for (uint32_t dstountry = 0; dstountry < mGame->GetCountryCount(); dstountry++){
-           if(srcCountry != dstountry){
-               if(mChessboard.areKingsFacing((Country)srcCountry, (Country)dstountry)){
-                   move.is_facing = true;
-                   move.facing[1].country = (Country)dstountry;
-                   move.facing[0].country = (Country)srcCountry;
-                   srcCountry = mGame->GetCountryCount();
-                   break;
-               }
-           }
-       }
-   }
-   pChess->SetPos(pos.y, pos.x);
-   if(move.is_facing){
-       for (uint32_t i = 0; i < move.facing.size(); ++i){
-           auto pCountryChess = mChessboard.GetChess(move.facing[i].country);
-           for (size_t uiChess = 0; uiChess < DRAW_CHESS_COUNT; uiChess++){
-               if(pCountryChess[uiChess]){
-                   move.facing[i].chess.push_back(*pCountryChess[uiChess]);
-               }   
-           }        
-       }
-   }
-   return move;
-}
 Chess *Ai::RandChess(Country country) const{
     Chess *pSelect = nullptr;
     uint32_t count = 0;//防止死循环
@@ -437,9 +388,9 @@ glm::vec2 Ai::RandTarget(const Chess *pSelect, const std::vector<glm::vec2> &can
             pos = *target;
         }
         UndoStep();
-        if(!IsBoundary(pos.y, pos.x))break;
+        if(!mChessboard.IsBoundary(pos.y, pos.x))break;
     }
-    if(IsBoundary(pos.y, pos.x)){
+    if(mChessboard.IsBoundary(pos.y, pos.x)){
         can = canplays;
         while(can.empty()){
             auto target = can.begin() + rand() % can.size();
@@ -451,11 +402,11 @@ glm::vec2 Ai::RandTarget(const Chess *pSelect, const std::vector<glm::vec2> &can
                 pos = *target;
             }
             UndoStep();
-            if(!IsBoundary(pos.y, pos.x))break;
+            if(!mChessboard.IsBoundary(pos.y, pos.x))break;
         }
     }
     //大部分送死情况都是因为只能走一格导致进入该条件随机了
-    if(IsBoundary(pos.y, pos.x)){
+    if(mChessboard.IsBoundary(pos.y, pos.x)){
         //没办法，随机一个位置吧
         pos = canplays[rand() % canplays.size()];
     }
@@ -463,7 +414,7 @@ glm::vec2 Ai::RandTarget(const Chess *pSelect, const std::vector<glm::vec2> &can
 }
 void Ai::SyncBoard(const Chess *pChess, uint32_t dstRow, uint32_t dstColumn){
     Chess *pSelect = mChessboard.GetChess(pChess->GetCountry())[pChess->GetChessOffset()];
-    mChessboard.SaveStep(GetSaveStep(pSelect, dstRow, dstColumn));
+    mChessboard.SaveStep(mGame->GetSaveStep(&mChessboard, pSelect, dstRow, dstColumn));
     const Chess *pTarget = mChessboard.GetChess(dstRow, dstColumn);
     if(pTarget){
         auto targetCountry = pTarget->GetCountry();
@@ -545,19 +496,6 @@ const Chess *Ai::Check(Country country) const{
     }
     return pChess;
 }
-bool Ai::IsBoundary(int32_t row, int32_t column)const{
-    if(row < 0 || column < 0)return true;
-    if(row > CHESSBOARD_ROW || column > CHESSBOARD_COLUMN){
-        // printf("到达边界, row:%u, column:%u\n", row, column);
-        return true;
-    }
-    else if ((row < CHESSBOARD_BING_GRID_DENSITY || row > CHESSBOARD_BOUNDARY_CENTER_RECT_COUNT + CHESSBOARD_BING_GRID_DENSITY)
-    && (column < CHESSBOARD_BING_GRID_DENSITY || column > CHESSBOARD_BOUNDARY_CENTER_RECT_COUNT + CHESSBOARD_BING_GRID_DENSITY)){
-        // printf("到达边界, row:%u, column:%u\n", row, column);
-        return true;
-    }
-    return false;
-}
 std::vector<glm::vec2>Ai::GetPathBetween(const Chess *pChess, const Chess *pTarget) const{
     if(!pTarget || !pChess)return {};
     const glm::vec2 che = glm::vec2(pChess->GetColumn(), pChess->GetRow()), target = glm::vec2(pTarget->GetColumn(), pTarget->GetRow());
@@ -568,7 +506,7 @@ std::vector<glm::vec2>Ai::GetPathBetween(const Chess *pChess, const Chess *pTarg
     do{
         pos += dir;
         canplays.push_back(pos);
-    } while (!IsBoundary(pos.y, pos.x) && (pos.x != pTarget->GetColumn() || pTarget->GetRow() != pos.y));
+    } while (!mChessboard.IsBoundary(pos.y, pos.x) && (pos.x != pTarget->GetColumn() || pTarget->GetRow() != pos.y));
     return canplays;
 }
 Chess *Ai::GetCannonScreenPiece(const Chess *pPao, const Chess *pTarget) const{
@@ -581,7 +519,7 @@ Chess *Ai::GetCannonScreenPiece(const Chess *pPao, const Chess *pTarget) const{
     do{
         pos += dir;
         pChess = mChessboard.GetChess(pos.y, pos.x);
-    }while (!pChess && !IsBoundary(pos.y, pos.x));
+    }while (!pChess && !mChessboard.IsBoundary(pos.y, pos.x));
     return pChess;
 }
 //返回走后能避免pTarget被吃的棋子
@@ -598,7 +536,7 @@ Chess *Ai::GetResolveCheck_Pao(const Chess *pCheck, const Chess *pTarget, glm::v
         pSelect = pCannonScreen;
         pos = RandTarget(pSelect, canplays);
     }
-    if(IsBoundary(pos.y, pos.x)){
+    if(mChessboard.IsBoundary(pos.y, pos.x)){
         canplays.clear();
         pTarget->Select(&mChessboard, canplays);
         mGame->RemoveInvalidTarget(canplays);
@@ -740,7 +678,7 @@ Chess *Ai::GetResolveCheck_Che(const Chess *pCheck, const Chess *pTarget, glm::v
                     pChess->Select(&mChessboard,targetcanplays);
                     mGame->RemoveInvalidTarget(targetcanplays);
                     auto bpos = GetSamePos(checanplays, targetcanplays);
-                    if(!IsBoundary(pos.y, pos.x)){
+                    if(!mChessboard.IsBoundary(pos.y, pos.x)){
                         pos = bpos;
                         //走pChess来挡住车
                         pSelect = pChess;
@@ -750,7 +688,7 @@ Chess *Ai::GetResolveCheck_Che(const Chess *pCheck, const Chess *pTarget, glm::v
             }    
         }
     }
-    if(IsBoundary(pos.y, pos.x)){
+    if(mChessboard.IsBoundary(pos.y, pos.x)){
         pSelect = mChessboard.GetChess(pTarget->GetRow(), pTarget->GetColumn());
         targetcanplays.clear();
         pSelect->Select(&mChessboard, targetcanplays);

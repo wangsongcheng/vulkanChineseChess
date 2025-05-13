@@ -237,7 +237,7 @@ void Chessboard::InitHanChessRowAndColumn(uint32_t country, std::array<Chess *, 
     }
     else if(country == Wei_Country){
         pChess[JIANG_CHESS_OFFSET]->SetPos(CHESSBOARD_ROW / 2, CHESSBOARD_COLUMN);
-        std::array<int32_t, HAN_CHE_CHESS_COUNT> offset = { 2, 0, 2 };
+        std::array<int32_t, HAN_CHE_CHESS_COUNT> offset = { 2, 0, -2 };
 #ifdef ENABLE_BATTLE_FAN_GUANYU
         for (size_t i = 0; i < HAN_CHE_CHESS_COUNT; i++){
             pChess[HAN_CHE_CHESS_OFFSET + i]->SetPos(pChess[JIANG_CHESS_OFFSET]->GetRow() + offset[i], pChess[JIANG_CHESS_OFFSET]->GetColumn() - 2);
@@ -286,6 +286,12 @@ void Chessboard::InitHanChessRowAndColumn(uint32_t country, std::array<Chess *, 
     }
 }
 void Chessboard::UndoStep(){
+    while (!mRecord.empty() && IsBoundary(mRecord.back().chess.GetRow(), mRecord.back().chess.GetColumn())){
+        mRecord.pop_back();
+    }
+    
+    if(mRecord.empty())return;
+
     auto last = mRecord.back();
     //走的棋子也可能被吃
     const Country selectCountry = last.chess.GetCountry(), captureCountry = last.captured.GetCountry();
@@ -343,7 +349,7 @@ Chessboard::~Chessboard(){
     mRecord.clear();
 }
 
-bool Chessboard::areKingsFacing(Country srcCountry, Country dstCountry){
+bool Chessboard::areKingsFacing(Country srcCountry, Country dstCountry)const{
     bool are = true;
     const Chess *pSrc = mChess[srcCountry][JIANG_CHESS_OFFSET], *pDst = mChess[dstCountry][JIANG_CHESS_OFFSET];
     if(!pSrc || !pDst)return false;
@@ -370,12 +376,25 @@ bool Chessboard::areKingsFacing(Country srcCountry, Country dstCountry){
     }
     return are;
 }
+bool Chessboard::IsBoundary(int32_t row, int32_t column)const{
+    if(row < 0 || column < 0)return true;
+    if(row > CHESSBOARD_ROW || column > CHESSBOARD_COLUMN){
+        // printf("到达边界, row:%u, column:%u\n", row, column);
+        return true;
+    }
+    else if ((row < CHESSBOARD_BING_GRID_DENSITY || row > CHESSBOARD_BOUNDARY_CENTER_RECT_COUNT + CHESSBOARD_BING_GRID_DENSITY) && (column < CHESSBOARD_BING_GRID_DENSITY || column > CHESSBOARD_BOUNDARY_CENTER_RECT_COUNT + CHESSBOARD_BING_GRID_DENSITY)){
+        // printf("到达边界, row:%u, column:%u\n", row, column);
+        return true;
+    }
+    return false;
+}
 void Chessboard::ImportRecord(const std::vector<ChessMove> &record){
     //可能只有文本有问题
     mRecord = record;
 }
 void Chessboard::InitializeChess(Country player, bool isControllable, uint32_t countryCount){
-    mCountryCount = countryCount;    
+    mRecord.clear();
+    mCountryCount = countryCount;
     for (uint32_t uiCountry = 0; uiCountry < MAX_COUNTRY_INDEX; ++uiCountry){
         mTerritory[uiCountry] = (Territory)GET_TERRITORY_INDEX(uiCountry, player);
     }

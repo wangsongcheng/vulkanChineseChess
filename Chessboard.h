@@ -13,10 +13,11 @@ typedef struct {
 typedef struct {
     Chess chess;
     Rercord death;//如果国家灭亡，则不需要恢复captured, 直接按这里的棋子恢复
+    uint32_t round;
     Chess captured;
     bool is_capture;
-    int move_number;
-    char notation[350];// 棋步记录(如"炮二平五")
+    char step[350];// 棋步记录(如"炮二平五")
+    char notation[350];
     std::array<Rercord, 2>facing;//因为见面被灭亡后，棋子应该记这里
     bool is_facing, is_death, is_check;
 } ChessMove;
@@ -41,7 +42,7 @@ class Chessboard{
 public:
     Chessboard(/* args */);
     ~Chessboard();
-    bool areKingsFacing(Country srcCountry, Country dstCountry);
+    bool areKingsFacing(Country srcCountry, Country dstCountry)const;
 
     void CaptureChess(const Chess *srcChess, const Chess *dstChess);
     // //返回的棋子属于srcCountry, 该棋子下一步能吃掉dstCountry的chess
@@ -62,6 +63,7 @@ public:
     Chess *GetChess(Country country, const glm::vec2&mousePos)const;
     Chess *GetChess(Country country, uint32_t row, uint32_t column)const;
 
+    bool IsBoundary(int32_t row, int32_t column)const;
     void ImportRecord(const std::vector<ChessMove>&record);
     void InitializeChess(Country player, bool isControllable = false, uint32_t countryCount = MAX_COUNTRY_INDEX);
 
@@ -78,11 +80,8 @@ public:
     // inline auto GetChess()const{
     //     return mChess;
     // }
-    inline auto RecordBegin(){
-        return mRecord.begin();
-    }
-    inline auto RecordEnd(){
-        return mRecord.end();
+    inline auto GetRecordSzie(){
+        return mRecord.size();
     }
     inline auto GetRecordSize(){
         return mRecord.size();
@@ -95,6 +94,13 @@ public:
     }
     inline bool IsDeath(Country country)const{
         return !mChess[country][Chess::Type::Jiang_Chess];
+    }
+
+    inline auto RecordBegin(){
+        return mRecord.begin();
+    }
+    inline auto RecordEnd(){
+        return mRecord.end();
     }
 };
 #endif
