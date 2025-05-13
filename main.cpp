@@ -1175,7 +1175,7 @@ bool ShowReplayInof(bool *mainInterface){
             ImGui::TableNextColumn();
             ImGui::Text("回合");
             uint32_t round = 1;
-            for (auto it = pBoard->RecordBegin(); it != pBoard->RecordEnd(); it += 3) {
+            for (auto it = pBoard->RecordBegin(); it != pBoard->RecordEnd(); it += g_Game.GetCountryCount()) {
                 ImGui::Text("%d", round++);
                 if(round > (pBoard->GetRecordSize() / 3) + 1)break;
             }
@@ -1226,18 +1226,19 @@ bool ShowReplayInof(bool *mainInterface){
             for (auto it = pBoard->RecordBegin(); it != pBoard->RecordEnd();){
                 auto temp = it;
                 char notation[300] = {0};
-                for (size_t i = 0; i < 3; i++, ++temp){
+                for (size_t i = 0; i < g_Game.GetCountryCount(); i++, ++temp){
                     if(strcmp(temp->notation, "")){
                         strcat(strcat(notation, temp->notation),";");
                     }
                 }
                 ImGui::Text(notation);
-                if(it + 1 != pBoard->RecordEnd() && it + 2 != pBoard->RecordEnd() && it + 3 != pBoard->RecordEnd()){
-                    it += 3;
+                for (size_t i = 0; i < g_Game.GetCountryCount(); i++){
+                    if(it + i == pBoard->RecordEnd()){
+                        it = pBoard->RecordEnd();
+                        break;
+                    }
                 }
-                else{
-                    break;
-                }
+                if(it != pBoard->RecordEnd())it += g_Game.GetCountryCount();
             }
             ImGui::EndTable();
         }
