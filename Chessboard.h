@@ -13,7 +13,7 @@ typedef struct {
 typedef struct {
     Chess chess;
     Rercord death;//如果国家灭亡，则不需要恢复captured, 直接按这里的棋子恢复
-    uint32_t round;
+    // uint32_t round;
     Chess captured;
     bool is_capture;
     char step[350];// 棋步记录(如"炮二平五")
@@ -64,7 +64,7 @@ public:
     Chess *GetChess(Country country, uint32_t row, uint32_t column)const;
 
     bool IsBoundary(int32_t row, int32_t column)const;
-    void ImportRecord(const std::vector<ChessMove>&record);
+    // void ImportRecord(const std::vector<ChessMove>&record);
     void InitializeChess(Country player, bool isControllable = false, uint32_t countryCount = MAX_COUNTRY_INDEX);
 
     Territory IsInPalace(uint32_t row, uint32_t column)const;

@@ -842,7 +842,7 @@ void LoadReplay(const std::string &file){
         fread(&move.is_check, sizeof(move.is_check), 1, fp);
         fread(&move.is_capture, sizeof(move.is_capture), 1, fp);
         fread(move.notation, sizeof(move.notation), 1, fp);
-        fread(&move.round, sizeof(move.round), 1, fp);
+        // fread(&move.round, sizeof(move.round), 1, fp);
         ReadChessFromFile(fp, move.chess);
         ReadChessFromFile(fp, move.captured);
         if(move.is_death){
@@ -895,7 +895,7 @@ void SaveReplay(const std::string &file){
         fwrite(&it->is_check, sizeof(it->is_check), 1, fp);
         fwrite(&it->is_capture, sizeof(it->is_capture), 1, fp);
         fwrite(it->notation, sizeof(it->notation), 1, fp);
-        fwrite(&it->round, sizeof(it->round), 1, fp);
+        // fwrite(&it->round, sizeof(it->round), 1, fp);
         WriteChessToFile(fp, it->chess);
         WriteChessToFile(fp, it->captured);
         if(it->is_death){
@@ -1177,7 +1177,7 @@ bool ShowReplayInof(bool *mainInterface){
             uint32_t round = 1;
             for (auto it = pBoard->RecordBegin(); it != pBoard->RecordEnd(); it += g_Game.GetCountryCount()) {
                 ImGui::Text("%d", round++);
-                if(round > (pBoard->GetRecordSize() / 3) + 1)break;
+                if(round > (pBoard->GetRecordSize() / g_Game.GetCountryCount()) + 1)break;
             }
             ImGui::TableNextColumn();
             ImGui::TextColored(ImVec4(0, 1, 0, 1), "吴");
@@ -1226,7 +1226,7 @@ bool ShowReplayInof(bool *mainInterface){
             for (auto it = pBoard->RecordBegin(); it != pBoard->RecordEnd();){
                 auto temp = it;
                 char notation[300] = {0};
-                for (size_t i = 0; i < g_Game.GetCountryCount(); i++, ++temp){
+                for (size_t i = 0; i < g_Game.GetCountryCount() && temp != pBoard->RecordEnd(); i++, ++temp){
                     if(strcmp(temp->notation, "")){
                         strcat(strcat(notation, temp->notation),";");
                     }

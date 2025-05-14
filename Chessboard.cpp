@@ -388,10 +388,10 @@ bool Chessboard::IsBoundary(int32_t row, int32_t column)const{
     }
     return false;
 }
-void Chessboard::ImportRecord(const std::vector<ChessMove> &record){
-    //可能只有文本有问题
-    mRecord = record;
-}
+// void Chessboard::ImportRecord(const std::vector<ChessMove> &record){
+//     //可能只有文本有问题
+//     mRecord = record;
+// }
 void Chessboard::InitializeChess(Country player, bool isControllable, uint32_t countryCount){
     mRecord.clear();
     mCountryCount = countryCount;

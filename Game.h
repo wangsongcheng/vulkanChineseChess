@@ -32,7 +32,7 @@ class Game{
     Chessboard mChessboard;
     uint32_t mMaxCountryCount = 3;
     std::map<Country, std::string>mCountryName;
-    std::map<uint32_t, std::string>mNumberName;
+    // std::map<uint32_t, std::string>mNumberName;
     std::map<Chess::Type, std::string>mChessName;
     uint32_t GetCanPlay(const glm::vec2&mousePos, const std::vector<glm::vec2>&canplays);
 
