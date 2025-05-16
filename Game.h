@@ -28,6 +28,7 @@ class Game{
     }player;
     std::mutex mMutex;
     Country mCurrent;
+    uint32_t mStepNumber;
     Country mNotAlliance;
     Chessboard mChessboard;
     uint32_t mMaxCountryCount = 3;
@@ -41,7 +42,7 @@ class Game{
 public:
     Game(/* args */);
     ~Game();
-    bool areKingsFacing();
+    bool areKingsFacing(Country&sCountry, Country&dCountry);
     //返回被将的棋子
     const Chess *Check(Country *srcCountry)const;
 
@@ -78,7 +79,7 @@ public:
     void DrawWireframe(VkCommandBuffer command, VkPipelineLayout layout);
 
     void EndGame();
-
+    void SetStepNumber(uint32_t number);
     void Setup(VulkanDevice device, VkDescriptorSetLayout setLayout, VkQueue graphics, VulkanPool pool);
 
     void UpdateUniform(VkDevice device, uint32_t windowWidth);

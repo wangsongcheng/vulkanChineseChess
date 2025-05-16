@@ -141,6 +141,7 @@ enum Territory{
 #define CHESSBOARD_PALACE_COUNT (MAX_COUNTRY_INDEX * 4)
 
 #define REPLAY_FILE_TYP "*.sgqp"
+
 //vulkan专用，无特殊情况不要修改
 //如果val比alignment小，则返回alignment，否则如果val大于alignment但小于alignment*2则返回alignment*2以此类推
 #define ALIGN(val, alignment)((val + alignment - 1) & ~(alignment - 1))

@@ -37,7 +37,7 @@ public:
     Chess(/* args */);
     Chess(Country country, Territory territory, Type chess, uint32_t fontIndex, bool hasExitPermission);
     Chess(Country country, Territory territory, Type chess, uint32_t fontIndex, uint32_t row, uint32_t column, bool hasExitPermission);
-    ~Chess();
+    virtual ~Chess();
     inline uint32_t GetRow()const{
         return mRow;
     }

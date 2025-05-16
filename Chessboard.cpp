@@ -23,6 +23,19 @@ uint32_t Chessboard::GetCountryCount(){
     }
     return count;
 }
+void Chessboard::DeleteFollowingStep(uint32_t number){
+    //处理回放时的if路线, 也就是直接删除pChess后面的步骤
+    auto it = mRecord.begin();
+    while(it  != mRecord.end()){
+        if(it->number == number){
+            break;
+        }
+        ++it;
+    }
+    while (it != mRecord.end()){
+        it = mRecord.erase(it);
+    }
+}
 void Chessboard::DestoryChess(Country country, uint32_t offset){
     if(mChess[country][offset]){
         delete mChess[country][offset];
@@ -388,13 +401,12 @@ bool Chessboard::IsBoundary(int32_t row, int32_t column)const{
     }
     return false;
 }
-// void Chessboard::ImportRecord(const std::vector<ChessMove> &record){
-//     //可能只有文本有问题
-//     mRecord = record;
-// }
-void Chessboard::InitializeChess(Country player, bool isControllable, uint32_t countryCount){
+void Chessboard::ImportRecord(const std::vector<ChessMove> &record){
+    mRecord = record;
+}
+void Chessboard::InitializeChess(Country player, bool isControllable){
     mRecord.clear();
-    mCountryCount = countryCount;
+    mCountryCount = isControllable?MAX_COUNTRY_INDEX:MAX_COUNTRY_INDEX - 1;
     for (uint32_t uiCountry = 0; uiCountry < MAX_COUNTRY_INDEX; ++uiCountry){
         mTerritory[uiCountry] = (Territory)GET_TERRITORY_INDEX(uiCountry, player);
     }
@@ -508,18 +520,43 @@ bool Chessboard::IsHasExitPermission(Country country){
     }
     return has;
 }
-void Chessboard::SaveStep(const ChessMove&dStep){
+Country Chessboard::PlayChess(Chess *pChess, uint32_t dstRow, uint32_t dstColumn){    
+    Country targetCountry = Invald_Country;
+    const Chess *pTarget = GetChess(dstRow, dstColumn);
+    if(pTarget){
+        targetCountry = pTarget->GetCountry();
+        CaptureChess(pChess, pTarget);
+        if(IsDeath(targetCountry)){
+            DestroyCountry(targetCountry);
+        }
+    }
+    pChess->SetPos(dstRow, dstColumn);
+    return targetCountry;
+}
+void Chessboard::SaveStep(const ChessMove &dStep){
     if(mRecord.size() >= MAX_UNDO_STEP){
         mRecord.erase(mRecord.begin());
     }
     mRecord.push_back(dStep);
 }
+// void Chessboard::SetStepNumber(uint32_t number, Country player, bool isControllable){
+//     auto record = mRecord;
+//     InitializeChess(player, isControllable);
+//     mRecord = record;
+//     uint32_t n = 0;
+//     for (auto it = mRecord.begin(); it != mRecord.end() && n <= number; ++it, ++n){
+//         Chess *pStart = GetChess(it->chess.GetRow(), it->chess.GetColumn());
+//         if(!IsBoundary(it->chess.GetRow(), it->chess.GetColumn())){
+//             PlayChess(pStart, it->captured.GetRow(), it->captured.GetColumn());
+//         }
+//     }
+// }
 void Chessboard::UndoStep(uint32_t step){
     //撤回的步数等于sterp
     if(mRecord.empty())return;
     for (size_t i = 0; i < step; i++){
         UndoStep();
-    }    
+    }
 }
 Territory Chessboard::IsInPalace(uint32_t row, uint32_t column) const{
     Territory country = IsPalaceCenter(row, column);

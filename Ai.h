@@ -103,7 +103,7 @@ public:
         mOnline = pOnline;
     }
     inline void InitializeChessboard(){
-        mChessboard.InitializeChess(mGame->GetPlayer(), mGame->IsControllable(), mGame->GetCountryCount());
+        mChessboard.InitializeChess(mGame->GetPlayer(), mGame->IsControllable());
     }
     inline void UndoStep(uint32_t step = 1){
         mChessboard.UndoStep(step);

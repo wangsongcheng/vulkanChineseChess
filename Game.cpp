@@ -73,14 +73,12 @@ void Game::SelectChess(const Chess *pChess){
 }
 ChessMove Game::GetSaveStep(const Chessboard *pBoard, Chess *pChess, uint32_t dstRow, uint32_t dstColumn){
     ChessMove move = {};
-   Country srcCountry = pChess->GetCountry();
-   if(pBoard->IsBoundary(dstRow, dstColumn)){
+    Country srcCountry = pChess->GetCountry();
+    move.number = mStepNumber;
+    if(pBoard->IsBoundary(dstRow, dstColumn)){
         move.chess.SetCountry(srcCountry);
         move.chess.SetPos(0, 0);
         sprintf(move.step, "x");
-        // Country srcCountry;
-        // const Chess *pCheck = Check(&srcCountry);
-        // sprintf(move.notation, "%s被%s将,跳过", mCountryName[pCheck->GetCountry()].c_str(), mCountryName[srcCountry].c_str());
         return move;
     }
     Chess::Type srcChess = pChess->GetChess();
@@ -107,19 +105,7 @@ ChessMove Game::GetSaveStep(const Chessboard *pBoard, Chess *pChess, uint32_t ds
     pChess->SetPos(dstRow, dstColumn);
     const Chess *pc = Check(&check);
     move.is_check = pc;
-    for (uint32_t srcCountry = 0; srcCountry < mMaxCountryCount; srcCountry++){
-        for (uint32_t dstountry = 0; dstountry < mMaxCountryCount; dstountry++){
-            if(srcCountry != dstountry){
-                if(pBoard->areKingsFacing((Country)srcCountry, (Country)dstountry)){
-                    move.is_facing = true;
-                    move.facing[1].country = (Country)dstountry;
-                    move.facing[0].country = (Country)srcCountry;
-                    srcCountry = mMaxCountryCount;
-                    break;
-                }
-            }
-        }
-    }
+    areKingsFacing(move.facing[0].country, move.facing[1].country);
     pChess->SetPos(pos.y, pos.x);
     if(move.is_facing){
         for (uint32_t i = 0; i < move.facing.size(); ++i){
@@ -132,95 +118,83 @@ ChessMove Game::GetSaveStep(const Chessboard *pBoard, Chess *pChess, uint32_t ds
         }
     }
     char step[MAX_BYTE];
-    /*
-        魏蜀的地盘:
-            普通棋子用列,  进退用差值，平移用列
-            马、相、士进退均用列
-            蜀的列取反
-        汉吴的地盘
-            普通棋子用行,  进退用差值，平移用行
-            马、相、士进退均用行
-            汉的行取反
-    */
     uint32_t srcNumber, dstNumber;
     Territory srcTerritory = pChess->GetTerritory();
-    if(srcTerritory == Han_Territory || srcTerritory == Wu_Territory){
-        if(srcTerritory == Han_Territory){
-            srcNumber = MAX_CHESSBOARD_LINE - pChess->GetRow();
-            if(dstColumn < pChess->GetColumn()){
-                strcpy(step, "退");
-            }
-            else if(dstColumn > pChess->GetColumn()){
-                strcpy(step, "进");
-            }
-            else{
-                strcpy(step, "平");
-            }
-            if(srcChess == Chess::Type::Ma_Chess || srcChess == Chess::Type::Xiang_Chess || srcChess == Chess::Type::Shi_Chess){
-                dstNumber = MAX_CHESSBOARD_LINE - dstRow;
-            }
-            else{
-                dstNumber = strcmp(step, "平")?abs(pChess->GetColumn() - dstColumn):MAX_CHESSBOARD_LINE - dstRow;
-            }
+    if(srcTerritory == Han_Territory){
+        srcNumber = MAX_CHESSBOARD_LINE - pChess->GetRow();
+        if(dstColumn < pChess->GetColumn()){
+            strcpy(step, "退");
+        }
+        else if(dstColumn > pChess->GetColumn()){
+            strcpy(step, "进");
         }
         else{
-            srcNumber = pChess->GetRow() + 1;
-            if(dstColumn > pChess->GetColumn()){
-                strcpy(step, "退");
-            }
-            else if(dstColumn < pChess->GetColumn()){
-                strcpy(step, "进");
-            }
-            else{
-                strcpy(step, "平");
-            }
-            if(srcChess == Chess::Type::Ma_Chess || srcChess == Chess::Type::Xiang_Chess || srcChess == Chess::Type::Shi_Chess){
-                dstNumber =  dstRow + 1;
-            }
-            else{
-                dstNumber = strcmp(step, "平")?abs(pChess->GetColumn() - dstColumn):dstRow + 1;
-            }
+            strcpy(step, "平");
         }
-    }
-   else{
-        if(srcTerritory == Shu_Country){
-            srcNumber = MAX_CHESSBOARD_LINE - pChess->GetColumn();
-            if(dstRow > pChess->GetRow()){
-                strcpy(step, "退");
-            }
-            else if(dstRow < pChess->GetRow()){
-                strcpy(step, "进");
-            }
-            else{
-                strcpy(step, "平");
-            }
-            if(srcChess == Chess::Type::Ma_Chess || srcChess == Chess::Type::Xiang_Chess || srcChess == Chess::Type::Shi_Chess){
-                dstNumber = MAX_CHESSBOARD_LINE - dstColumn;
-            }
-            else{
-                dstNumber = strcmp(step, "平")?abs(pChess->GetRow() - dstRow):MAX_CHESSBOARD_LINE - dstColumn;
-            }
+        if(srcChess == Chess::Type::Ma_Chess || srcChess == Chess::Type::Xiang_Chess || srcChess == Chess::Type::Shi_Chess){
+            dstNumber = MAX_CHESSBOARD_LINE - dstRow;
         }
         else{
-            srcNumber = pChess->GetColumn() + 1;
-            if(dstRow < pChess->GetRow()){
-                strcpy(step, "退");
-            }
-            else if(dstRow > pChess->GetRow()){
-                strcpy(step, "进");
-            }
-            else{
-                strcpy(step, "平");
-            }
-            if(srcChess == Chess::Type::Ma_Chess || srcChess == Chess::Type::Xiang_Chess || srcChess == Chess::Type::Shi_Chess){
-                dstNumber =  dstColumn;
-            }
-            else{
-                dstNumber = strcmp(step, "平")?abs(pChess->GetRow() - dstRow):dstColumn + 1;
-            }
+            dstNumber = strcmp(step, "平")?abs(pChess->GetColumn() - dstColumn):MAX_CHESSBOARD_LINE - dstRow;
         }
     }
-    sprintf(move.step, "%s%d%s%d", mChessName[srcChess].c_str(),  srcNumber, step, dstNumber);
+    else if(srcTerritory == Wu_Territory){
+        srcNumber = pChess->GetRow() + 1;
+        if(dstColumn > pChess->GetColumn()){
+            strcpy(step, "退");
+        }
+        else if(dstColumn < pChess->GetColumn()){
+            strcpy(step, "进");
+        }
+        else{
+            strcpy(step, "平");
+        }
+        if(srcChess == Chess::Type::Ma_Chess || srcChess == Chess::Type::Xiang_Chess || srcChess == Chess::Type::Shi_Chess){
+            dstNumber =  dstRow + 1;
+        }
+        else{
+            dstNumber = strcmp(step, "平")?abs(pChess->GetColumn() - dstColumn):dstRow + 1;
+        }
+    }
+    else if(srcTerritory == Shu_Territory){
+        srcNumber = MAX_CHESSBOARD_LINE - pChess->GetColumn();
+        if(dstRow > pChess->GetRow()){
+            strcpy(step, "退");
+        }
+        else if(dstRow < pChess->GetRow()){
+            strcpy(step, "进");
+        }
+        else{
+            strcpy(step, "平");
+        }
+        if(srcChess == Chess::Type::Ma_Chess || srcChess == Chess::Type::Xiang_Chess || srcChess == Chess::Type::Shi_Chess){
+            dstNumber = MAX_CHESSBOARD_LINE - dstColumn;
+        }
+        else{
+            dstNumber = strcmp(step, "平")?abs(pChess->GetRow() - dstRow):MAX_CHESSBOARD_LINE - dstColumn;
+        }
+    }
+    else{
+        srcNumber = pChess->GetColumn() + 1;
+        if(dstRow < pChess->GetRow()){
+            strcpy(step, "退");
+        }
+        else if(dstRow > pChess->GetRow()){
+            strcpy(step, "进");
+        }
+        else{
+            strcpy(step, "平");
+        }
+        if(srcChess == Chess::Type::Ma_Chess || srcChess == Chess::Type::Xiang_Chess || srcChess == Chess::Type::Shi_Chess){
+            dstNumber =  dstColumn;
+        }
+        else{
+            dstNumber = strcmp(step, "平")?abs(pChess->GetRow() - dstRow):dstColumn + 1;
+        }
+    }
+    //修改或取消number的显示，要注意imgui那边已经用了strstr
+    sprintf(move.step, "%s%d%s%d_%d", mChessName[srcChess].c_str(),  srcNumber, step, dstNumber, move.number);
+
     if(move.is_check){
         sprintf(move.notation, "%s将%s", mCountryName[check].c_str(), mCountryName[pc->GetCountry()].c_str());
     }
@@ -232,6 +206,13 @@ ChessMove Game::GetSaveStep(const Chessboard *pBoard, Chess *pChess, uint32_t ds
     }
     if(move.is_death){
         sprintf(move.notation, "%s灭%s", mCountryName[srcCountry].c_str(), mCountryName[move.death.country].c_str());
+    }
+    if(move.notAlliance != Invald_Country){
+        Country aliance = Invald_Country;
+        if(pChess->GetCountry() != move.notAlliance){
+            aliance = (Country)GET_NOT_ALLIANCE_COUNTRY(pChess->GetCountry(), move.notAlliance);
+        }
+        sprintf(move.notation, "%s%s结盟", mCountryName[aliance].c_str(), mCountryName[move.death.country].c_str());
     }
     return move;
 }
@@ -284,16 +265,16 @@ Game::Game(/* args */){
 
 Game::~Game(){
 }
-bool Game::areKingsFacing(){
+bool Game::areKingsFacing(Country&sCountry, Country&dCountry){
     bool facing = false;
     for (uint32_t srcCountry = 0; srcCountry < mMaxCountryCount; srcCountry++){
         for (uint32_t dstountry = 0; dstountry < mMaxCountryCount; dstountry++){
             if(srcCountry != dstountry && (Invald_Country == mNotAlliance || dstountry != GET_ALLIANCE_COUNTRY(srcCountry, mNotAlliance))){
                 if(mChessboard.areKingsFacing((Country)srcCountry, (Country)dstountry)){
-                    mChessboard.DestroyCountry((Country)srcCountry);
-                    mChessboard.DestroyCountry((Country)dstountry);
-                    srcCountry = mMaxCountryCount;
                     facing = true;
+                    dCountry = (Country)dstountry;
+                    sCountry = (Country)srcCountry;
+                    srcCountry = mMaxCountryCount;
                     break;
                 }
             }
@@ -393,46 +374,43 @@ void Game::MoveChess(const glm::vec2&start, const glm::vec2&end, uint32_t fontIn
     }
 }
 void Game::PlayChess(Chess *pChess, uint32_t dstRow, uint32_t dstColumn, bool skipAnim){
-    const char county[][MAX_BYTE] = { "蜀", "吴", "魏", "汉" };
-    const Chess *pTarget = mChessboard.GetChess(dstRow, dstColumn);
+    // const char county[][MAX_BYTE] = { "蜀", "吴", "魏", "汉" };
     const uint32_t dynamicOffsets = ROW_COLUMN_TO_INDEX(pChess->GetCountry(), pChess->GetChessOffset(), DRAW_CHESS_COUNT);
     const glm::vec2 start = glm::vec2(CHESS_COLUMN_TO_X(pChess->GetColumn()), CHESS_ROW_TO_Y(pChess->GetRow())), end = glm::vec2(CHESS_COLUMN_TO_X(dstColumn), CHESS_ROW_TO_Y(dstRow));
-    //为什么不能正确移动原偏移的棋子，导致移动的时候，原位的棋子位置不变
-    mChessboard.SaveStep(GetSaveStep(&mChessboard, pChess, dstRow, dstColumn));
+    Chess chess = *pChess;
+    ChessMove move = GetSaveStep(&mChessboard, &chess, dstRow, dstColumn);
     if(!skipAnim){
         mMutex.lock();
         MoveChess(start, end, pChess->GetFontIndex(), pChess->GetCountry(), dynamicOffsets);
     }
-    if(pTarget){
-        Country targetCountry = pTarget->GetCountry();
-        mChessboard.CaptureChess(pChess, pTarget);
-        if(mChessboard.IsDeath(targetCountry)){
-            printf("%s国被%s国消灭\n", county[targetCountry], county[pChess->GetCountry()]);
-            mChessboard.DestroyCountry(targetCountry);
-            if(!state.isControllable){
-                if(targetCountry == HAN_CHE_CHESS_COUNT){
-                    //另外两个结盟
-                    mNotAlliance = pChess->GetCountry();
-                }
-                else{
-                    mNotAlliance = Invald_Country;
-                }    
-            }
+    if(!state.isReplay){
+        mChessboard.DeleteFollowingStep(mStepNumber);
+    }
+    Country srcCountry = mChessboard.PlayChess(pChess, dstRow, dstColumn), dstCountry;
+    if(!state.isControllable && srcCountry != Invald_Country){
+        if(srcCountry == Han_Country){
+            move.notAlliance = mNotAlliance;
+            //另外两个结盟
+            mNotAlliance = pChess->GetCountry();
+        }
+        else{
+            mNotAlliance = Invald_Country;
         }
     }
-    pChess->SetPos(dstRow, dstColumn);
-    if(areKingsFacing()){
-        printf("两将见面了\n");
+    if(areKingsFacing(srcCountry, dstCountry)){
+        // printf("两将见面了\n");
+        mChessboard.DestroyCountry(srcCountry);
+        mChessboard.DestroyCountry(dstCountry);
     }
     if(!skipAnim){
         UpdateChessUniform(vulkan.device.device);
         mMutex.unlock();    
     }
     if(!state.isControllable && pChess->GetChess() == Chess::Type::Ma_Chess){
+        move.notAlliance = mNotAlliance;
         //不用提示了。因为结盟后，汉的棋子会归另一方
         SetNotAllianceCountry(pChess->GetCountry(), pChess->GetRow(), pChess->GetColumn());
     }
-    Country srcCountry;
     //应该优先检查下一位势力是否被将
     const Chess *pCheck = Check(&srcCountry);
     if(pCheck){
@@ -455,6 +433,8 @@ void Game::PlayChess(Chess *pChess, uint32_t dstRow, uint32_t dstColumn, bool sk
     else{
         NextCountry();
     }
+    mChessboard.SaveStep(move);
+    ++mStepNumber;
 }
 
 void Game::SetNotAllianceCountry(uint32_t country, uint32_t row, uint32_t column){
@@ -547,7 +527,19 @@ void Game::EndGame(){
     }
     UpdateChessUniform(vulkan.device.device);
 }
-
+void Game::SetStepNumber(uint32_t number){
+    mStepNumber = 0;
+    auto record = mChessboard.GetRecord();
+    InitinalizeGame(player.country);
+    uint32_t n = 0;
+    for (auto it = record.begin(); it != record.end() && n <= number; ++it, ++n){
+        Chess *pStart = mChessboard.GetChess(it->chess.GetRow(), it->chess.GetColumn());
+        if(!mChessboard.IsBoundary(it->chess.GetRow(), it->chess.GetColumn())){
+            PlayChess(pStart, it->captured.GetRow(), it->captured.GetColumn(), true);
+        }
+    }
+    mChessboard.ImportRecord(record);
+}
 void Game::Setup(VulkanDevice device, VkDescriptorSetLayout layout, VkQueue graphics, VulkanPool pool){
     vulkan.device = device;
     vulkan.chess.Setup(device, layout, graphics, pool);

@@ -1,5 +1,6 @@
 #ifndef CHESSBOARD_H
 #define CHESSBOARD_H
+// #include <list>
 #include <array>
 #include "Chess.h"
 #include "stdafx.h"
@@ -13,11 +14,12 @@ typedef struct {
 typedef struct {
     Chess chess;
     Rercord death;//如果国家灭亡，则不需要恢复captured, 直接按这里的棋子恢复
-    // uint32_t round;
     Chess captured;
     bool is_capture;
     char step[350];// 棋步记录(如"炮二平五")
+    uint32_t number;
     char notation[350];
+    Country notAlliance = Invald_Country;
     std::array<Rercord, 2>facing;//因为见面被灭亡后，棋子应该记这里
     bool is_facing, is_death, is_check;
 } ChessMove;
@@ -53,6 +55,7 @@ public:
 
     void DestroyCountry();
     void DestroyCountry(Country country);
+    void DeleteFollowingStep(uint32_t number);
 
     //srcCountry获得dstCountry的棋子
     void GetCountryChess(Country srcCountry, Country dstCountry);
@@ -64,8 +67,8 @@ public:
     Chess *GetChess(Country country, uint32_t row, uint32_t column)const;
 
     bool IsBoundary(int32_t row, int32_t column)const;
-    // void ImportRecord(const std::vector<ChessMove>&record);
-    void InitializeChess(Country player, bool isControllable = false, uint32_t countryCount = MAX_COUNTRY_INDEX);
+    void ImportRecord(const std::vector<ChessMove>&record);
+    void InitializeChess(Country player, bool isControllable = false);
 
     Territory IsInPalace(uint32_t row, uint32_t column)const;
     Territory IsPalaceCenter(uint32_t row, uint32_t column)const;
@@ -73,15 +76,19 @@ public:
     // void Select(const Chess *pChess, std::vector<glm::vec2>&canplays);
     // void Select(uint32_t country, uint32_t chess, std::vector<glm::vec2>&canplays);
     bool IsHasExitPermission(Country country);
+    //返回值不是Invald_Country则表示吃子并且目标势力灭亡
+    Country PlayChess(Chess *pChess, uint32_t dstRow, uint32_t dstColumn);
+
     //单步下没问题，但如果是调用destroycountry销毁的呢
     void SaveStep(const ChessMove&dStep);
+    // void SetStepNumber(uint32_t number, Country player, bool isControllable = false);
     //注意:想实现联网下的撤销功能时, 发出撤销请求后需要所有人投票同意后才能撤销
     void UndoStep(uint32_t step);
     // inline auto GetChess()const{
     //     return mChess;
     // }
-    inline auto GetRecordSzie(){
-        return mRecord.size();
+    inline auto GetRecord(){
+        return mRecord;        
     }
     inline auto GetRecordSize(){
         return mRecord.size();
