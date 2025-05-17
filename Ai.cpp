@@ -348,7 +348,13 @@ Chess *Ai::GetTarget(const Chess *pSelect, const std::vector<glm::vec2>&canplays
     // auto pBoard = mGame->GetChessboard();
     for (const auto&it:canplays){
         pTarget = mChessboard.GetChess(it.y, it.x);
-        if(pTarget && pTarget->GetCountry() != pSelect->GetCountry())break;
+        if(pTarget && pTarget->GetCountry() != pSelect->GetCountry() && pTarget->GetChess() == Chess::Type::Jiang_Chess)break;
+    }
+    if(!pTarget){
+        for (const auto&it:canplays){
+            pTarget = mChessboard.GetChess(it.y, it.x);
+            if(pTarget && pTarget->GetCountry() != pSelect->GetCountry())break;
+        }    
     }
     return pTarget;
 }
@@ -372,7 +378,6 @@ Chess *Ai::RandChess(Country country) const{
 }
 
 glm::vec2 Ai::RandTarget(const Chess *pSelect, const std::vector<glm::vec2> &canplays){
-    //先仔细
     glm::vec2 pos = glm::vec2(0);
     const auto country = pSelect->GetCountry();
     auto pJiang = mChessboard.GetChess(country, Chess::Type::Jiang_Chess);
@@ -381,7 +386,7 @@ glm::vec2 Ai::RandTarget(const Chess *pSelect, const std::vector<glm::vec2> &can
     while(!can.empty()){
         const auto target = can.begin() + rand() % can.size();
         SyncBoard(pSelect, target->y, target->x);
-        if((Check(country, *target) && !mChessboard.Check(country, target->y, target->x)) || Check(country, jiang) || Invald_Country == areKingsFacing(country)){
+        if((Check(country, *target) && !mChessboard.Check(country, target->y, target->x)) || Check(country, jiang) || Invald_Country != areKingsFacing(country)){
             can.erase(target);
         }
         else{
@@ -395,7 +400,7 @@ glm::vec2 Ai::RandTarget(const Chess *pSelect, const std::vector<glm::vec2> &can
         while(can.empty()){
             auto target = can.begin() + rand() % can.size();
             SyncBoard(pSelect, target->y, target->x);
-            if(Check(country, jiang) || Invald_Country == areKingsFacing(country)){
+            if(Check(country, jiang) || Invald_Country != areKingsFacing(country)){
                 can.erase(target);
             }
             else{
@@ -415,26 +420,11 @@ glm::vec2 Ai::RandTarget(const Chess *pSelect, const std::vector<glm::vec2> &can
 void Ai::SyncBoard(const Chess *pChess, uint32_t dstRow, uint32_t dstColumn){
     Chess *pSelect = mChessboard.GetChess(pChess->GetCountry())[pChess->GetChessOffset()];
     mChessboard.SaveStep(mGame->GetSaveStep(&mChessboard, pSelect, dstRow, dstColumn));
-    const Chess *pTarget = mChessboard.GetChess(dstRow, dstColumn);
-    if(pTarget){
-        auto targetCountry = pTarget->GetCountry();
-        mChessboard.CaptureChess(pSelect, pTarget);
-        if(mChessboard.IsDeath(targetCountry)){
-            mChessboard.DestroyCountry(targetCountry);
-        }
-    }
-    pSelect->SetPos(dstRow, dstColumn);
-    for (uint32_t srcCountry = 0; srcCountry < mGame->GetCurrentCountry(); srcCountry++){
-        for (uint32_t dstountry = 0; dstountry < mGame->GetCurrentCountry(); dstountry++){
-            if(srcCountry != dstountry){
-                if(mChessboard.areKingsFacing((Country)srcCountry, (Country)dstountry)){
-                    mChessboard.DestroyCountry((Country)srcCountry);
-                    mChessboard.DestroyCountry((Country)dstountry);
-                    srcCountry = mGame->GetCurrentCountry();
-                    break;
-                }
-            }
-        }
+    mChessboard.PlayChess(pSelect, dstRow, dstColumn);
+    Country srcCountry, dstCountry;
+    if(mGame->areKingsFacing(&mChessboard, srcCountry, dstCountry)){
+        mChessboard.DestroyCountry((Country)srcCountry);
+        mChessboard.DestroyCountry((Country)dstCountry);
     }
 }
 
@@ -568,26 +558,29 @@ Chess *Ai::GetNowDefender(const Chess *pCheck, const Chess **pTarget){
 }
 Chess *Ai::GetNextDefender(const Chess *pCheck, const Chess **pTarget, glm::vec2 &pos){
     Chess *pDefender = nullptr;
-    const Country country = (*pTarget)->GetCountry();
+    Country country = (*pTarget)->GetCountry();
     //需要将所有棋子，所有能走的地方都走一遍, 然后调用GetNowDefender返回现在能包含的棋子
     auto pCountryChess = mChessboard.GetChess(country);
     for (uint32_t uiChess = 0; uiChess < DRAW_CHESS_COUNT; ++uiChess){
-        auto pChess = pCountryChess[uiChess];
-        if(pChess && uiChess != (*pTarget)->GetChessOffset()){
-            std::vector<glm::vec2>canplays;
-            pChess->Select(&mChessboard, canplays);
-            mGame->RemoveInvalidTarget(canplays);
-            for (auto&it:canplays){
-                SyncBoard(pChess, it.y, it.x);
-                pDefender = GetNowDefender(pCheck, pTarget);
-                UndoStep();
-                if(pDefender && pDefender->GetChessOffset() != pChess->GetChessOffset()){
-                    pos = it;
-                    pDefender = pChess;
-                    uiChess = DRAW_CHESS_COUNT;
-                    break;
+        if(pCountryChess[uiChess]){
+            //假如问题出在这里的话，那么说明pChess被改了，需要用下边的方式重新找。
+            auto pChess = mChessboard.GetChess(country, pCountryChess[uiChess]->GetRow(), pCountryChess[uiChess]->GetColumn());
+            if(pChess && uiChess != (*pTarget)->GetChessOffset()){
+                std::vector<glm::vec2>canplays;
+                pChess->Select(&mChessboard, canplays);
+                mGame->RemoveInvalidTarget(canplays);
+                for (auto&it:canplays){
+                    SyncBoard(pChess, it.y, it.x);
+                    pDefender = GetNowDefender(pCheck, pTarget);
+                    UndoStep();
+                    if(pDefender && pDefender->GetChessOffset() != pChess->GetChessOffset()){
+                        pos = it;
+                        pDefender = pChess;
+                        uiChess = DRAW_CHESS_COUNT;
+                        break;
+                    }
                 }
-            }
+            }    
         }
     }
     return pDefender;
@@ -754,10 +747,10 @@ Chess *Ai::GetSelect(Country country, glm::vec2&pos){
         mGame->RemoveInvalidTarget(canplays);
         pos = RandTarget(pSelect, canplays);
     }
-    //调试用
-    if(!pBoard->GetChess(country, pSelect->GetRow(), pSelect->GetColumn())){
-        printf("......\n");
-    }
+    // //调试用
+    // if(!pBoard->GetChess(country, pSelect->GetRow(), pSelect->GetColumn())){
+    //     printf("......\n");
+    // }
     printf("--------势力%d结束的思考下棋-------\n", country);
     return pBoard->GetChess(country, pSelect->GetRow(), pSelect->GetColumn());
 }

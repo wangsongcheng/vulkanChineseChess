@@ -42,7 +42,8 @@ class Game{
 public:
     Game(/* args */);
     ~Game();
-    bool areKingsFacing(Country&sCountry, Country&dCountry);
+    bool areKingsFacing(Country&srcCountry, Country&dstCountry);
+    bool areKingsFacing(const Chessboard *pBoard, Country&sCountry, Country&dCountry);
     //返回被将的棋子
     const Chess *Check(Country *srcCountry)const;
 
@@ -143,6 +144,9 @@ public:
     // }
     inline void SetCurrentCountry(Country country){
         mCurrent = country;
+    }
+    inline void SetNotAllianceCountry(Country country){
+        mNotAlliance = country;
     }
 };
 #endif

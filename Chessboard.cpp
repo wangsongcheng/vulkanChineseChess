@@ -314,6 +314,7 @@ void Chessboard::UndoStep(){
     }
     else{
         mChess[selectCountry][last.chess.GetChessOffset()] = CreateChess(selectCountry, last.chess.GetChess(), last.chess.GetRow(), last.chess.GetColumn());
+        mChess[selectCountry][last.chess.GetChessOffset()]->SetChessOffset(last.chess.GetChessOffset());
     }
     if(last.is_death){
         //灭了其他势力后，获得他的棋子，但撤回的时候没删除这些获得的棋子
@@ -347,6 +348,7 @@ void Chessboard::UndoStep(){
                 }
                 else{
                     mChess[country][cit.GetChessOffset()] = CreateChess(country, cit.GetChess(), cit.GetRow(), cit.GetColumn());
+                    mChess[country][cit.GetChessOffset()]->SetChessOffset(cit.GetChessOffset());
                 }                                
             }
         }
@@ -452,21 +454,42 @@ void Chessboard::InitializeChess(Country player, bool isControllable){
         }
     }
     else{
-        for (uint32_t uiCountry = 0; uiCountry < MAX_COUNTRY_INDEX; ++uiCountry){
-            if(uiCountry != Han_Country){
-                CrerateCountryChess((Country)uiCountry, mChess[uiCountry]);
-            }
-            else{
-                    for (size_t uiChess = HAN_PAO_CHESS_OFFSET; uiChess < HAN_PAO_CHESS_OFFSET + HAN_PAO_CHESS_COUNT; uiChess++){
-                        mChess[uiCountry][uiChess] = new Pao((Country)uiCountry, (Territory)GET_TERRITORY_INDEX(uiCountry, player));
-                        mChess[uiCountry][uiChess]->SetChessOffset(uiChess);
-                    }
-                    for (uint32_t uiChess = HAN_CHE_CHESS_OFFSET; uiChess < HAN_CHE_CHESS_OFFSET + HAN_CHE_CHESS_COUNT; ++uiChess){
-                        mChess[uiCountry][uiChess] = new Che((Country)uiCountry, (Territory)GET_TERRITORY_INDEX(uiCountry, player));
-                        mChess[uiCountry][uiChess]->SetChessOffset(uiChess);
-                    }
-            }
+        for (size_t i = 1; i < COUNTRY_CHESS_COUNT; i++){
+            mChess[Wei_Country][i] = new Ma(Wei_Country, (Territory)GET_TERRITORY_INDEX(Wei_Country, player));
+            mChess[Wei_Country][i]->SetChessOffset(i);
         }
+        for (size_t i = 1; i < COUNTRY_CHESS_COUNT; i++){
+            mChess[Shu_Country][i] = new ChaoJiBing(Shu_Country, (Territory)GET_TERRITORY_INDEX(Shu_Country, player));
+            mChess[Shu_Country][i]->SetChessOffset(i);
+        }
+        for (size_t i = 1; i < COUNTRY_CHESS_COUNT; i++){
+            mChess[Wu_Country][i] = new Pao(Wu_Country, (Territory)GET_TERRITORY_INDEX(Wu_Country, player));
+            mChess[Wu_Country][i]->SetChessOffset(i);
+        }
+        for (size_t uiChess = HAN_PAO_CHESS_OFFSET; uiChess < HAN_PAO_CHESS_OFFSET + HAN_PAO_CHESS_COUNT; uiChess++){
+            mChess[Han_Country][uiChess] = new Pao((Country)Han_Country, (Territory)GET_TERRITORY_INDEX(Han_Country, player));
+            mChess[Han_Country][uiChess]->SetChessOffset(uiChess);
+        }
+        for (uint32_t uiChess = HAN_CHE_CHESS_OFFSET; uiChess < HAN_CHE_CHESS_OFFSET + HAN_CHE_CHESS_COUNT; ++uiChess){
+            mChess[Han_Country][uiChess] = new Che((Country)Han_Country, (Territory)GET_TERRITORY_INDEX(Han_Country, player));
+            mChess[Han_Country][uiChess]->SetChessOffset(uiChess);
+        }
+        
+        // for (uint32_t uiCountry = 0; uiCountry < MAX_COUNTRY_INDEX; ++uiCountry){
+        //     if(uiCountry != Han_Country){
+        //         CrerateCountryChess((Country)uiCountry, mChess[uiCountry]);
+        //     }
+        //     else{
+        //             for (size_t uiChess = HAN_PAO_CHESS_OFFSET; uiChess < HAN_PAO_CHESS_OFFSET + HAN_PAO_CHESS_COUNT; uiChess++){
+        //                 mChess[uiCountry][uiChess] = new Pao((Country)uiCountry, (Territory)GET_TERRITORY_INDEX(uiCountry, player));
+        //                 mChess[uiCountry][uiChess]->SetChessOffset(uiChess);
+        //             }
+        //             for (uint32_t uiChess = HAN_CHE_CHESS_OFFSET; uiChess < HAN_CHE_CHESS_OFFSET + HAN_CHE_CHESS_COUNT; ++uiChess){
+        //                 mChess[uiCountry][uiChess] = new Che((Country)uiCountry, (Territory)GET_TERRITORY_INDEX(uiCountry, player));
+        //                 mChess[uiCountry][uiChess]->SetChessOffset(uiChess);
+        //             }
+        //     }
+        // }
     }
     /*
         上魏下蜀，左汉右吴

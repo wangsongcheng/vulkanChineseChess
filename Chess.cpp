@@ -487,3 +487,60 @@ void Shi::Select(const void *pBoard, std::vector<glm::vec2>&legal_moves) const{
     InPalaceMove(pBoard, legal_moves);
     RemoveInvalidChess(pBoard, legal_moves);
 }
+
+glm::vec2 ChaoJiBing::GetBingBack() const{
+    glm::vec2 back = glm::vec2(0);
+    if(mTerritory == Wu_Territory){
+        back.x = 1;
+    }
+    else if(mTerritory == Wei_Territory){
+        back.y = -1;
+    }
+    else if(mTerritory == Shu_Territory){
+        back.y = 1;
+    }
+    else if(mTerritory == Han_Territory){
+        back.x = -1;
+    }
+    return back;
+}
+
+bool ChaoJiBing::IsAbroad(uint32_t row, uint32_t column) const{
+    return mTerritory != GetTerritoryIndex(row, column);
+}
+
+ChaoJiBing::ChaoJiBing(/* args */){
+}
+
+ChaoJiBing::ChaoJiBing(Country country, Territory territory):Chess(country, territory, Bing_Chess, FONT_INDEX_BING, true){
+}
+
+ChaoJiBing::ChaoJiBing(Country country, Territory territory, uint32_t row, uint32_t column):Chess(country, territory, Bing_Chess, FONT_INDEX_BING, row, column, true){
+}
+
+ChaoJiBing::~ChaoJiBing(){
+}
+void ChaoJiBing::Select(const void *pBoard, std::vector<glm::vec2>&legal_moves)const{
+    const Chessboard *board = (const Chessboard *)pBoard;
+    const glm::vec2 direction[] = { glm::vec2(1, 0), glm::vec2(1, 1), glm::vec2(-1, 0), glm::vec2(-1, 1), glm::vec2(0, 1), glm::vec2(-1, -1), glm::vec2(0, -1), glm::vec2(1, -1) };
+    const uint32_t stepCount = 1;
+    for(uint32_t i = 0; i < sizeof(direction) / sizeof(glm::vec2); ++i){
+        uint32_t stepIndex = 0;
+        const glm::vec2 currentPos = glm::vec2(mColumn, mRow);
+        glm::vec2 pos = currentPos + direction[i];
+        while(!board->IsBoundary(pos.y, pos.x) && stepIndex++ < stepCount){
+            const Chess *pc = board->GetChess(pos.y, pos.x);
+            if(pc){
+                if(pc->GetCountry() != GetCountry()){
+                    legal_moves.push_back(pos);
+                }
+                break;
+            }
+            else{
+                legal_moves.push_back(pos);
+            }
+            pos += direction[i];
+        }
+    }
+    RemoveInvalidChess(pBoard, legal_moves);
+}

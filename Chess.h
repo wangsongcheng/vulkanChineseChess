@@ -180,4 +180,14 @@ class Shi:public Chess{
     ~Shi();
     virtual void Select(const void *pBoard, std::vector<glm::vec2>&legal_moves)const;
 };
+class ChaoJiBing:public Chess{
+    glm::vec2 GetBingBack()const;
+    bool IsAbroad(uint32_t row, uint32_t column)const;
+public:
+    ChaoJiBing();
+    ChaoJiBing(Country country, Territory territory);
+    ChaoJiBing(Country country, Territory territory, uint32_t row, uint32_t column);
+    ~ChaoJiBing();
+    virtual void Select(const void *pBoard, std::vector<glm::vec2>&legal_moves)const;
+};
 #endif

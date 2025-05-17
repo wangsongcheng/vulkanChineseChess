@@ -1102,11 +1102,6 @@ bool ShowOnlineModeMainInterface(bool *mainInterface){
 }
 bool ShowSinglePlayerModeMainInterface(bool *mainInterface){
     bool ret = false;
-    const char *countryName[MAX_COUNTRY_INDEX];
-    countryName[Wu_Country] = "吴";
-    countryName[Wei_Country] = "魏";
-    countryName[Shu_Country] = "蜀";
-    countryName[Han_Country] = "汉";
     const Country player = g_Game.GetPlayer();
     if(ImGui::Begin("单人模式")){
         if(ImGui::Button("新游戏")){
@@ -1187,8 +1182,9 @@ bool ShowReplayInof(bool *mainInterface){
             for (auto it = pBoard->RecordBegin(); it != pBoard->RecordEnd(); ++it) {
                 if (it->chess.GetCountry() == Wu_Country) {
                     if (ImGui::Selectable(it->step)) {
+                        const char *str = strstr(it->step, "_") ;
                         g_Game.SetCurrentCountry(g_Game.GetNextCountry(Wu_Country));
-                        stepNumber = atoi(strstr(it->step, "_") + 1);
+                        if(str)stepNumber = atoi(str + 1);
                         break;
                     }
                 }
@@ -1198,8 +1194,9 @@ bool ShowReplayInof(bool *mainInterface){
             for (auto it = pBoard->RecordBegin(); it != pBoard->RecordEnd(); ++it){
                 if(it->chess.GetCountry() == Wei_Country){
                     if(ImGui::Selectable(it->step)){
+                        const char *str = strstr(it->step, "_") ;
                         g_Game.SetCurrentCountry(g_Game.GetNextCountry(Wei_Country));
-                        stepNumber = atoi(strstr(it->step, "_") + 1);
+                        if(str)stepNumber = atoi(str + 1);
                         break;
                     }
                 }
@@ -1210,8 +1207,9 @@ bool ShowReplayInof(bool *mainInterface){
                 for (auto it = pBoard->RecordBegin(); it != pBoard->RecordEnd(); ++it) {
                     if (it->chess.GetCountry() == Han_Country) {
                         if (ImGui::Selectable(it->step)) {
+                            const char *str = strstr(it->step, "_") ;
                             g_Game.SetCurrentCountry(g_Game.GetNextCountry(Han_Country));
-                            stepNumber = atoi(strstr(it->step, "_") + 1);
+                            if(str)stepNumber = atoi(str + 1);
                             break;
                         }
                     }
@@ -1222,8 +1220,9 @@ bool ShowReplayInof(bool *mainInterface){
             for (auto it = pBoard->RecordBegin(); it != pBoard->RecordEnd(); ++it){
                 if(it->chess.GetCountry() == Shu_Country){
                     if(ImGui::Selectable(it->step)){
+                        const char *str = strstr(it->step, "_") ;
                         g_Game.SetCurrentCountry(g_Game.GetNextCountry(Shu_Country));
-                        stepNumber = atoi(strstr(it->step, "_") + 1);
+                        if(str)stepNumber = atoi(str + 1);
                         break;
                     }
                 }
@@ -1337,6 +1336,7 @@ void keybutton(GLFWwindow *window, int key, int scancode, int action, int mods){
                 if(g_Game.IsOnline()){
                     //联机模式需要所有人类投票决定
                 }
+                // //为了测试
                 // else if(g_Game.GetCurrentCountry() == g_Game.GetPlayer() || !g_ImGuiInput.enableAi){
                 //     auto pBoard = g_Game.GetChessboard();
                 //     const uint32_t step = 1;

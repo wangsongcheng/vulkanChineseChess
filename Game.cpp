@@ -105,7 +105,7 @@ ChessMove Game::GetSaveStep(const Chessboard *pBoard, Chess *pChess, uint32_t ds
     pChess->SetPos(dstRow, dstColumn);
     const Chess *pc = Check(&check);
     move.is_check = pc;
-    areKingsFacing(move.facing[0].country, move.facing[1].country);
+    move.is_facing = areKingsFacing(pBoard, move.facing[0].country, move.facing[1].country);
     pChess->SetPos(pos.y, pos.x);
     if(move.is_facing){
         for (uint32_t i = 0; i < move.facing.size(); ++i){
@@ -265,14 +265,17 @@ Game::Game(/* args */){
 
 Game::~Game(){
 }
-bool Game::areKingsFacing(Country&sCountry, Country&dCountry){
+bool Game::areKingsFacing(Country&srcCountry, Country&dstCountry){
+    return areKingsFacing(&mChessboard, srcCountry, dstCountry);
+}
+bool Game::areKingsFacing(const Chessboard *pBoard, Country &sCountry, Country &dCountry){
     bool facing = false;
     for (uint32_t srcCountry = 0; srcCountry < mMaxCountryCount; srcCountry++){
-        for (uint32_t dstountry = 0; dstountry < mMaxCountryCount; dstountry++){
-            if(srcCountry != dstountry && (Invald_Country == mNotAlliance || dstountry != GET_ALLIANCE_COUNTRY(srcCountry, mNotAlliance))){
-                if(mChessboard.areKingsFacing((Country)srcCountry, (Country)dstountry)){
+        for (uint32_t dstCountry = 0; dstCountry < mMaxCountryCount; dstCountry++){
+            if(srcCountry != dstCountry && (Invald_Country == mNotAlliance || dstCountry != GET_ALLIANCE_COUNTRY(srcCountry, mNotAlliance))){
+                if(pBoard->areKingsFacing((Country)srcCountry, (Country)dstCountry)){
                     facing = true;
-                    dCountry = (Country)dstountry;
+                    dCountry = (Country)dstCountry;
                     sCountry = (Country)srcCountry;
                     srcCountry = mMaxCountryCount;
                     break;
@@ -377,8 +380,8 @@ void Game::PlayChess(Chess *pChess, uint32_t dstRow, uint32_t dstColumn, bool sk
     // const char county[][MAX_BYTE] = { "蜀", "吴", "魏", "汉" };
     const uint32_t dynamicOffsets = ROW_COLUMN_TO_INDEX(pChess->GetCountry(), pChess->GetChessOffset(), DRAW_CHESS_COUNT);
     const glm::vec2 start = glm::vec2(CHESS_COLUMN_TO_X(pChess->GetColumn()), CHESS_ROW_TO_Y(pChess->GetRow())), end = glm::vec2(CHESS_COLUMN_TO_X(dstColumn), CHESS_ROW_TO_Y(dstRow));
-    Chess chess = *pChess;
-    ChessMove move = GetSaveStep(&mChessboard, &chess, dstRow, dstColumn);
+    // Chess chess = *pChess;
+    ChessMove move = GetSaveStep(&mChessboard, pChess, dstRow, dstColumn);
     if(!skipAnim){
         mMutex.lock();
         MoveChess(start, end, pChess->GetFontIndex(), pChess->GetCountry(), dynamicOffsets);
@@ -398,7 +401,7 @@ void Game::PlayChess(Chess *pChess, uint32_t dstRow, uint32_t dstColumn, bool sk
         }
     }
     if(areKingsFacing(srcCountry, dstCountry)){
-        // printf("两将见面了\n");
+        printf("两将见面了\n");
         mChessboard.DestroyCountry(srcCountry);
         mChessboard.DestroyCountry(dstCountry);
     }
@@ -416,14 +419,15 @@ void Game::PlayChess(Chess *pChess, uint32_t dstRow, uint32_t dstColumn, bool sk
     if(pCheck){
         Country country = pCheck->GetCountry();
         //如果因为自己下的棋而被将，则不触发被将先走
-        if(mCurrent != country){
+        if(mCurrent != country && country != GetNextCountry(pChess->GetCountry())){
+            //吴将魏蜀
             const uint32_t skip_count = GET_SKIP_COUNTRY_COUNT(srcCountry, pCheck->GetCountry(), mMaxCountryCount);
             for (size_t i = 0; i < skip_count; i++){
                 Chess c;
                 srcCountry = GetNextCountry(srcCountry);
                 c.SetCountry(srcCountry);
                 mChessboard.SaveStep(GetSaveStep(&mChessboard, &c, 0, 0));
-            }
+            } 
             mCurrent = country;
         }
         else{
