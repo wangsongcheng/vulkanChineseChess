@@ -747,12 +747,9 @@ Chess *Ai::GetSelect(Country country, glm::vec2&pos){
         mGame->RemoveInvalidTarget(canplays);
         pos = RandTarget(pSelect, canplays);
     }
-    // //调试用
-    // if(!pBoard->GetChess(country, pSelect->GetRow(), pSelect->GetColumn())){
-    //     printf("......\n");
-    // }
     printf("--------势力%d结束的思考下棋-------\n", country);
-    return pBoard->GetChess(country, pSelect->GetRow(), pSelect->GetColumn());
+    pCountryChess = pBoard->GetChess(country);
+    return pCountryChess[pSelect->GetChessOffset()];
 }
 void Ai::WaitThread(){
 #ifdef WIN32
@@ -761,7 +758,6 @@ void Ai::WaitThread(){
 #ifdef __linux
     pthread_join(pthreadId, nullptr);
 #endif
-
 }
 void Ai::CreatePthread(){
     if(!mEnd)return;

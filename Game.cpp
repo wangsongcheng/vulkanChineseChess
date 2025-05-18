@@ -392,9 +392,9 @@ void Game::PlayChess(Chess *pChess, uint32_t dstRow, uint32_t dstColumn, bool sk
     Country srcCountry = mChessboard.PlayChess(pChess, dstRow, dstColumn), dstCountry;
     if(!state.isControllable && srcCountry != Invald_Country){
         if(srcCountry == Han_Country){
-            move.notAlliance = mNotAlliance;
+            move.notAlliance = pChess->GetCountry();
             //另外两个结盟
-            mNotAlliance = pChess->GetCountry();
+            mNotAlliance = move.notAlliance;
         }
         else{
             mNotAlliance = Invald_Country;
@@ -418,7 +418,7 @@ void Game::PlayChess(Chess *pChess, uint32_t dstRow, uint32_t dstColumn, bool sk
     const Chess *pCheck = Check(&srcCountry);
     if(pCheck){
         Country country = pCheck->GetCountry();
-        //如果因为自己下的棋而被将，则不触发被将先走
+        //如果因为自己下的棋而被将，则不触发被将先走//调用GetNextCountry主要是为了不误判论空
         if(mCurrent != country && country != GetNextCountry(pChess->GetCountry())){
             //吴将魏蜀
             const uint32_t skip_count = GET_SKIP_COUNTRY_COUNT(srcCountry, pCheck->GetCountry(), mMaxCountryCount);
@@ -427,7 +427,7 @@ void Game::PlayChess(Chess *pChess, uint32_t dstRow, uint32_t dstColumn, bool sk
                 srcCountry = GetNextCountry(srcCountry);
                 c.SetCountry(srcCountry);
                 mChessboard.SaveStep(GetSaveStep(&mChessboard, &c, 0, 0));
-            } 
+            }
             mCurrent = country;
         }
         else{

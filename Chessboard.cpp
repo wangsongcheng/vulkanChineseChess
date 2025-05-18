@@ -552,6 +552,9 @@ Country Chessboard::PlayChess(Chess *pChess, uint32_t dstRow, uint32_t dstColumn
         if(IsDeath(targetCountry)){
             DestroyCountry(targetCountry);
         }
+        else{
+            targetCountry = Invald_Country;
+        }
     }
     pChess->SetPos(dstRow, dstColumn);
     return targetCountry;

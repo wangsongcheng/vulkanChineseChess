@@ -799,6 +799,7 @@ void *ReplayFun(void *userData){
         Chess *pStart = pBoard->GetChess(it.chess.GetRow(), it.chess.GetColumn());
         if(!pBoard->IsBoundary(it.chess.GetRow(), it.chess.GetColumn())){
             g_Game.PlayChess(pStart, it.captured.GetRow(), it.captured.GetColumn(), g_ImGuiInput.skipReplay);
+            g_Ai.SyncBoard(pStart, it.captured.GetRow(), it.captured.GetColumn());
             // auto move = g_Game.GetSaveStep(pBoard, pStart, it.captured.GetRow(), it.captured.GetColumn());
             // pStart->SetPos(it.captured.GetRow(), it.captured.GetColumn());
             // pBoard->SaveStep(move);
