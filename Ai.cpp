@@ -42,17 +42,10 @@ void *AiPlayChess(void *userData){
     printf("function %s start\n", __FUNCTION__);
     while(!pAi->GameOver() && !pAi->IsEnd()){
         pAi->Wait();
-        // if(pAi->IsPause()){
-        //     printf("function %s pause\n", __FUNCTION__);
-        //    pAi->Wait();
-        // }
+        pAi->SetPlay(true);
         if(!pAi->IsEnd())aiPlay(pAi);
-        // if(!pAi->IsOnline()){
-        //     pAi->NextCountry();
-        //     // printf("current country:%d\n", pAi->GetCurrentCountry());
-        //     // pAi->EnableNextCountry(false);
-        //     pAi->EnableNextCountry(true);
-        // }
+
+        pAi->SetPlay(false);
     }
     printf("function %s end\n", __FUNCTION__);
     return nullptr;
@@ -397,7 +390,7 @@ glm::vec2 Ai::RandTarget(const Chess *pSelect, const std::vector<glm::vec2> &can
     }
     if(mChessboard.IsBoundary(pos.y, pos.x)){
         can = canplays;
-        while(can.empty()){
+        while(!can.empty()){
             auto target = can.begin() + rand() % can.size();
             SyncBoard(pSelect, target->y, target->x);
             if(Check(country, jiang) || Invald_Country != areKingsFacing(country)){
@@ -418,6 +411,7 @@ glm::vec2 Ai::RandTarget(const Chess *pSelect, const std::vector<glm::vec2> &can
     return pos;
 }
 void Ai::SyncBoard(const Chess *pChess, uint32_t dstRow, uint32_t dstColumn){
+    printf("in function %s:country:%d, chess:%d, offset:%d, dstRow:%d, dsColumn:%d\n", __FUNCTION__, pChess->GetCountry(), pChess->GetChess(), pChess->GetChessOffset(), dstRow, dstColumn);
     Chess *pSelect = mChessboard.GetChess(pChess->GetCountry())[pChess->GetChessOffset()];
     mChessboard.SaveStep(mGame->GetSaveStep(&mChessboard, pSelect, dstRow, dstColumn));
     mChessboard.PlayChess(pSelect, dstRow, dstColumn);
@@ -571,7 +565,7 @@ Chess *Ai::GetNextDefender(const Chess *pCheck, const Chess **pTarget, glm::vec2
                 mGame->RemoveInvalidTarget(canplays);
                 for (auto&it:canplays){
                     SyncBoard(pChess, it.y, it.x);
-                    pDefender = GetNowDefender(pCheck, pTarget);
+                    if(!mChessboard.IsDeath(country))pDefender = GetNowDefender(pCheck, pTarget);
                     UndoStep();
                     if(pDefender && pDefender->GetChessOffset() != pChess->GetChessOffset()){
                         pos = it;
@@ -686,7 +680,12 @@ Chess *Ai::GetResolveCheck_Che(const Chess *pCheck, const Chess *pTarget, glm::v
         targetcanplays.clear();
         pSelect->Select(&mChessboard, targetcanplays);
         mGame->RemoveInvalidTarget(targetcanplays);
-        pos = RandTarget(pSelect, targetcanplays);
+        if(targetcanplays.empty()){
+            pSelect = nullptr;
+        }
+        else{
+            pos = RandTarget(pSelect, targetcanplays);
+        }
     }
     return pSelect;
 }

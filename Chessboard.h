@@ -67,7 +67,7 @@ public:
     Chess *GetChess(Country country, uint32_t row, uint32_t column)const;
 
     bool IsBoundary(int32_t row, int32_t column)const;
-    void ImportRecord(const std::vector<ChessMove>&record);
+    // void ImportRecord(const std::vector<ChessMove>&record);
     void InitializeChess(Country player, bool isControllable = false);
 
     Territory IsInPalace(uint32_t row, uint32_t column)const;

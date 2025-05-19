@@ -52,7 +52,7 @@ enum Territory{
 #define MAX_BYTE 0xff
 #endif
 //定义该宏启用襄樊战役
-#define ENABLE_BATTLE_FAN_GUANYU
+// #define ENABLE_BATTLE_FAN_GUANYU
 
 #define CHESSBOARD_LINE_WIDTH 1
 

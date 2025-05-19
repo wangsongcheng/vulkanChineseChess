@@ -342,6 +342,7 @@ Country Game::GetNextCountry(Country country) const{
     return country;
 }
 void Game::InitinalizeGame(Country playerCountry, Country currentCountry){
+    mStepNumber = 0;
     state.isGameStart = true;
     if(state.isControllable){
         mMaxCountryCount = MAX_COUNTRY_INDEX;
@@ -531,19 +532,18 @@ void Game::EndGame(){
     }
     UpdateChessUniform(vulkan.device.device);
 }
-void Game::SetStepNumber(uint32_t number){
-    mStepNumber = 0;
-    auto record = mChessboard.GetRecord();
-    InitinalizeGame(player.country);
-    uint32_t n = 0;
-    for (auto it = record.begin(); it != record.end() && n <= number; ++it, ++n){
-        Chess *pStart = mChessboard.GetChess(it->chess.GetRow(), it->chess.GetColumn());
-        if(!mChessboard.IsBoundary(it->chess.GetRow(), it->chess.GetColumn())){
-            PlayChess(pStart, it->captured.GetRow(), it->captured.GetColumn(), true);
-        }
-    }
-    mChessboard.ImportRecord(record);
-}
+// void Game::SetStepNumber(uint32_t number){
+//     mStepNumber = 0;
+//     auto record = mChessboard.GetRecord();
+//     InitinalizeGame(player.country);
+//     uint32_t n = 0;
+//     for (auto it = record.begin(); it != record.end() && n <= number; ++it, ++n){
+//         Chess *pStart = mChessboard.GetChess(it->chess.GetRow(), it->chess.GetColumn());
+//         if(!mChessboard.IsBoundary(it->chess.GetRow(), it->chess.GetColumn())){
+//             PlayChess(pStart, it->captured.GetRow(), it->captured.GetColumn(), true);
+//         }
+//     }
+// }
 void Game::Setup(VulkanDevice device, VkDescriptorSetLayout layout, VkQueue graphics, VulkanPool pool){
     vulkan.device = device;
     vulkan.chess.Setup(device, layout, graphics, pool);

@@ -80,7 +80,7 @@ public:
     void DrawWireframe(VkCommandBuffer command, VkPipelineLayout layout);
 
     void EndGame();
-    void SetStepNumber(uint32_t number);
+    // void SetStepNumber(uint32_t number);
     void Setup(VulkanDevice device, VkDescriptorSetLayout setLayout, VkQueue graphics, VulkanPool pool);
 
     void UpdateUniform(VkDevice device, uint32_t windowWidth);

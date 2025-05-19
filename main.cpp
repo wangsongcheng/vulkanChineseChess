@@ -709,12 +709,18 @@ bool ShowOpenFolderUI(const char *const *items, int items_count, std::string&res
     ShowFileInfomation(items, fileTypeIndex, subDir, currentDir, selectedFile);
 
     static char fileName[1000] = "/";
-    if((selectedFile == "" || selectedFile.c_str() != currentDir) && !strchr(selectedFile.c_str(), '.'))
-        selectedFile = currentDir;
+    // if((selectedFile == "" || selectedFile.c_str() != currentDir) && !strchr(selectedFile.c_str(), '.'))
+    //     selectedFile = currentDir;
     memset(fileName, 0, sizeof(fileName));
     memcpy(fileName, selectedFile.c_str(), sizeof(char) * selectedFile.size());
-    if(ImGui::InputText("选择保存的文件或文件夹", fileName, 999)){
-        selectedFile = fileName;
+    if(ImGui::BeginTable("保存文件", 2)){
+        ImGui::TableNextColumn();
+        ImGui::Text("%s", currentDir.c_str());
+        ImGui::TableNextColumn();
+        if(ImGui::InputText(" ", fileName, 999)){
+            selectedFile = fileName;
+        }
+        ImGui::EndTable();
     }
     
     ShowFileType(items, items_count, &fileTypeIndex, subDir, currentDir);
@@ -728,7 +734,10 @@ bool ShowOpenFolderUI(const char *const *items, int items_count, std::string&res
     }
     else if(buttonID == IMGUI_BUTTON_OK){
         if(selectedFile != ""){
-            result = selectedFile;
+            result = currentDir + "/" + selectedFile;
+            if(!strchr(selectedFile.c_str(), '.')){
+                result += (items[fileTypeIndex] + 1);
+            }
             memset(fileName, 0, sizeof(fileName));
             selectedFile = "";
             ImGui::End();
@@ -791,23 +800,32 @@ void ShowPlayerCountryCombo(uint32_t comboIndex, const char *country){
         }
     }
 }
+struct ReplayInfo{
+    uint32_t number;
+    std::vector<ChessMove>record;
+};
 void *ReplayFun(void *userData){
     g_Game.EnableReplay();
-    std::vector<ChessMove>record = *(std::vector<ChessMove> *)userData;
+    uint32_t number = 0;
+    auto replay = *(ReplayInfo *)userData;
     auto pBoard = g_Game.GetChessboard();
-    for (auto&it:record){
-        Chess *pStart = pBoard->GetChess(it.chess.GetRow(), it.chess.GetColumn());
-        if(!pBoard->IsBoundary(it.chess.GetRow(), it.chess.GetColumn())){
-            g_Game.PlayChess(pStart, it.captured.GetRow(), it.captured.GetColumn(), g_ImGuiInput.skipReplay);
-            g_Ai.SyncBoard(pStart, it.captured.GetRow(), it.captured.GetColumn());
+    for (auto it = replay.record.begin(); it != replay.record.end() && number <= replay.number; ++number){
+        Chess *pStart = pBoard->GetChess(it->chess.GetRow(), it->chess.GetColumn());
+        if(!pBoard->IsBoundary(it->chess.GetRow(), it->chess.GetColumn())){
+            g_Game.PlayChess(pStart, it->captured.GetRow(), it->captured.GetColumn(), g_ImGuiInput.skipReplay);
+            g_Ai.SyncBoard(pStart, it->captured.GetRow(), it->captured.GetColumn());
             // auto move = g_Game.GetSaveStep(pBoard, pStart, it.captured.GetRow(), it.captured.GetColumn());
             // pStart->SetPos(it.captured.GetRow(), it.captured.GetColumn());
             // pBoard->SaveStep(move);
         }
+        it = replay.record.erase(it);
     }
     g_Game.UpdateUniform(g_VulkanDevice.device, g_WindowWidth);
     g_ImGuiInput.skipReplay = false;
     g_Game.EndReplay();
+    for (auto it = replay.record.begin(); it != replay.record.end(); ++it){
+        pBoard->SaveStep(*it);
+    }
     return nullptr;
 }
 void ReadChessFromFile(FILE *fp, Chess&chess){
@@ -835,8 +853,8 @@ void LoadReplay(const std::string &file){
     Country player;
     ChessMove move;
     uint32_t recordCount;
-    static std::vector<ChessMove>record;
-    record.clear();
+    static ReplayInfo record;
+    record.record.clear();
     fread(&player, sizeof(player), 1, fp);
     fread(&recordCount, sizeof(recordCount), 1, fp);
     for (size_t i = 0; i < recordCount; i++){
@@ -862,10 +880,11 @@ void LoadReplay(const std::string &file){
                 }
             } 
         }
-        record.push_back(move);
+        record.record.push_back(move);
     }
     fclose(fp);
     NewGame(player);
+    record.number = record.record.size() - 1;
     CreateThread(ReplayFun, &record);
 }
 void WriteChessToFile(FILE *fp, const Chess&chess){
@@ -938,44 +957,31 @@ void ShowGameWidget(uint32_t player){
         ResetCountryItem(g_CountryItems[0]);
     }
     if(g_Game.IsGameStart()){
-        if(g_Game.IsReplay()){
-            if(ImGui::Button("跳过推演")){
-                g_ImGuiInput.skipReplay = true;
-            }
-        }
-        else{
-            if(ImGui::BeginTable("检查框列表", 2)){
-                ImGui::TableNextColumn();
-                if(ImGui::Checkbox("启用AI", &g_ImGuiInput.enableAi)){
-                    if(g_ImGuiInput.enableAi){
-                        if(!g_Ai.IsEnd()){
-                            g_Ai.End();
-                            g_Ai.WaitThread();
-                        }
-                        g_Ai.CreatePthread();
-                    }
-                    else{
+        if(ImGui::BeginTable("检查框列表", 2)){
+            ImGui::TableNextColumn();
+            if(ImGui::Checkbox("启用AI", &g_ImGuiInput.enableAi)){
+                if(g_ImGuiInput.enableAi){
+                    if(!g_Ai.IsEnd()){
                         g_Ai.End();
+                        g_Ai.WaitThread();
                     }
+                    g_Ai.CreatePthread();
                 }
-                ImGui::TableNextColumn();
-                if(ImGui::Checkbox("托管", &g_ImGuiInput.enableAutoPlay)){
-                    if(g_ImGuiInput.enableAutoPlay && currentCountry == player){
-                        g_Ai.Enable();
-                    }
+                else{
+                    g_Ai.End();
                 }
-                ImGui::EndTable();
             }
-            if(ImGui::Button("保存对局")){
-                g_ImGuiInput.interface.bOpenFolder = true;
-                g_OpenFileFunCall = SaveReplay;
-                g_FileTypeItem.push_back("*.*");
-                g_FileTypeItem.push_back(REPLAY_FILE_TYP);
+            ImGui::TableNextColumn();
+            if(ImGui::Checkbox("托管", &g_ImGuiInput.enableAutoPlay)){
+                if(g_ImGuiInput.enableAutoPlay && currentCountry == player){
+                    g_Ai.Enable();
+                }
             }
+            ImGui::EndTable();
         }
     }
-    if(ImGui::Button("详细步骤")){
-        g_ImGuiInput.interface.bReplayInfo = true;
+    else{
+        
     }
     if(g_Game.IsOnline()){
         if(ImGui::Button("返回主菜单")){
@@ -1105,11 +1111,32 @@ bool ShowSinglePlayerModeMainInterface(bool *mainInterface){
     bool ret = false;
     const Country player = g_Game.GetPlayer();
     if(ImGui::Begin("单人模式")){
+        ShowGameWidget(player);
+        ShowPlayerCountryCombo();
+        if(g_Game.IsReplay()){
+            if(ImGui::Checkbox("跳过", &g_ImGuiInput.skipReplay)){
+                g_ImGuiInput.skipReplay = true;
+            }
+        }
         if(ImGui::Button("新游戏")){
             NewGame();
         }
-        ShowGameWidget(player);
-        ShowPlayerCountryCombo();
+        if(g_Game.IsGameStart()){
+            if(ImGui::BeginTable("回放按钮", 2)){
+                ImGui::TableNextColumn();
+                if(ImGui::Button("保存对局")){
+                    g_ImGuiInput.interface.bOpenFolder = true;
+                    g_OpenFileFunCall = SaveReplay;
+                    g_FileTypeItem.push_back("*.*");
+                    g_FileTypeItem.push_back(REPLAY_FILE_TYP);
+                }
+                ImGui::TableNextColumn();
+                if(ImGui::Button("详细步骤")){
+                    g_ImGuiInput.interface.bReplayInfo = true;
+                }
+                ImGui::EndTable();
+            }    
+        }
         if(ImGui::Button("返回")){
             *mainInterface = true;
             ret = true;
@@ -1253,9 +1280,14 @@ bool ShowReplayInof(bool *mainInterface){
             bshow = false;
             *mainInterface = true;
         }
-        if(stepNumber != -1){            
-            g_Game.SetStepNumber(stepNumber);
-            g_Game.UpdateUniform(g_VulkanDevice.device, g_WindowWidth);
+        if(stepNumber != -1){
+            g_ImGuiInput.skipReplay = true;
+            ReplayInfo r;
+            r.record = g_Game.GetChessboard()->GetRecord();
+            r.number = stepNumber;
+            g_Game.InitinalizeGame(g_Game.GetPlayer(), g_Game.GetCurrentCountry());
+            g_Ai.InitializeChessboard();
+            pthread_join(CreateThread(ReplayFun, &r), nullptr);
         }
     }
     ImGui::End();

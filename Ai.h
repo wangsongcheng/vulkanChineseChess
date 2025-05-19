@@ -12,6 +12,9 @@
 #include "OnLine.h"
 #include "Chessboard.h"
 class Ai{
+    struct{
+        bool play;
+    }state;
 #ifdef __linux
     pthread_t pthreadId;
     sem_t mAiSemaphore;
@@ -77,8 +80,9 @@ public:
     inline void End(){
         const bool end = mEnd;
         mEnd = true;
-        mChessboard.DestroyCountry();
-        if(!end){
+        //直接调用会导致暂停ai后, 棋子被销毁但未创建的问题
+        // mChessboard.DestroyCountry();//为什么调用?
+        if(!end && !state.play){
             Enable();
         }
     }
@@ -106,6 +110,7 @@ public:
         mChessboard.InitializeChess(mGame->GetPlayer(), mGame->IsControllable());
     }
     inline void UndoStep(uint32_t step = 1){
+        printf("in function %s\n", __FUNCTION__);
         mChessboard.UndoStep(step);
     }
     inline auto GetChess(uint32_t row, uint32_t column){
@@ -134,6 +139,9 @@ public:
     }
     inline void UnSelectChess()const{
         mGame->UnSelectChess();
+    }
+    inline void SetPlay(bool play){
+        state.play = play;
     }
     inline void SelectChess(const Chess *pChess)const{
         mGame->SelectChess(pChess);
