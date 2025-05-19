@@ -1,10 +1,11 @@
 #ifndef AI_INCLUDE_H
 #define AI_INCLUDE_H
 #include <array>
+#include <thread>
 #ifdef WIN32
 #include <Windows.h>
 #else
-#include <pthread.h>
+// #include <pthread.h>
 #include <semaphore.h>
 #endif
 #include "Chess.h"
@@ -15,13 +16,14 @@ class Ai{
     struct{
         bool play;
     }state;
+    std::thread mThread;
 #ifdef __linux
-    pthread_t pthreadId;
+    // pthread_t pthreadId;
     sem_t mAiSemaphore;
     // pthread_t mPthreadId = 0;
 #endif
 #ifdef WIN32
-    DWORD  pthreadId;
+    // DWORD  pthreadId;
     // HANDLE mHandle;
     HANDLE mAiSemaphore;
 #endif
@@ -72,7 +74,7 @@ public:
 
     void Wait();
 
-    void WaitThread();
+    void Join();
     // const Chess *GetTarget(const Chess *pSelect, uint32_t *row, uint32_t *column)const;
     
     void SyncBoard(const Chess *pChess, uint32_t dstRow, uint32_t dstColumn);

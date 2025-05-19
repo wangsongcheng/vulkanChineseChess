@@ -25,8 +25,7 @@ void aiPlay(Ai *pAi){
         pAi->EnableNextCountry(g_ImGuiInput.enableAutoPlay);
     }
 }
-void *AiPlayChess(void *userData){
-    Ai *pAi = (Ai *)userData;
+void AiPlayChess(Ai *pAi){
     if(pAi->IsOnline()){
         // auto aiClientIndex = pAi->GetAiClientIndex();
         for (auto&it:g_Players){
@@ -48,7 +47,6 @@ void *AiPlayChess(void *userData){
         pAi->SetPlay(false);
     }
     printf("function %s end\n", __FUNCTION__);
-    return nullptr;
 }
 /*
 编写象棋游戏的AI涉及多个关键步骤，包括棋盘表示、走法生成、评估函数和搜索算法。以下是一个分步指南和示例代码片段：
@@ -750,21 +748,24 @@ Chess *Ai::GetSelect(Country country, glm::vec2&pos){
     pCountryChess = pBoard->GetChess(country);
     return pCountryChess[pSelect->GetChessOffset()];
 }
-void Ai::WaitThread(){
-#ifdef WIN32
-    printf("in function %s:windows no wait thread\n", __FUNCTION__);
-#endif
-#ifdef __linux
-    pthread_join(pthreadId, nullptr);
-#endif
+void Ai::Join(){
+    mThread.join();
+// #ifdef WIN32
+//     printf("in function %s:windows no wait thread\n", __FUNCTION__);
+// #endif
+// #ifdef __linux
+//     pthread_join(pthreadId, nullptr);
+// #endif
 }
 void Ai::CreatePthread(){
     if(!mEnd)return;
     mEnd = false;
-#ifdef WIN32
-    CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)AiPlayChess, this, 0, &pthreadId);
-#endif
-#ifdef __linux
-    pthread_create(&pthreadId, nullptr, AiPlayChess, this);
-#endif
+    mThread = std::thread(AiPlayChess, this);
+    mThread.detach();
+// #ifdef WIN32
+//     CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)AiPlayChess, this, 0, &pthreadId);
+// #endif
+// #ifdef __linux
+//     pthread_create(&pthreadId, nullptr, AiPlayChess, this);
+// #endif
 }

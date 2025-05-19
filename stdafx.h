@@ -1,7 +1,11 @@
 #ifndef STDAFX_H
 #define STDAFX_H
 #include <array>
+#ifndef WIN32
 #include <unistd.h>
+#else
+#undef interface
+#endif
 #include "glm/glm.hpp"
 #include "glm/gtc/matrix_transform.hpp"
 

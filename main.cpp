@@ -62,7 +62,7 @@ void NewGame(Country playerCountry = Invald_Country, Country currentCountry = In
     // g_Game.EndGame();
     if(g_ImGuiInput.enableAi){
         g_Ai.End();
-        g_Ai.WaitThread();
+        g_Ai.Join();
     }
     g_Game.NewGame(playerCountry, currentCountry);
     g_Ai.InitializeChessboard();
@@ -164,23 +164,22 @@ void SendPlayersInfoation(){
         }
     }
 }
-auto CreateThread(void *(*__start_routine)(void *), void *__arg){
-    #ifdef WIN32
-    DWORD  threadId;
-    HANDLE pthreadId;
-    pthreadId = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)__start_routine, __arg, 0, &threadId);
-#endif
-#ifdef __linux
-    pthread_t pthreadId;
-    pthread_create(&pthreadId, nullptr, __start_routine, __arg);
-#endif
-    return pthreadId;
-}
+// auto CreateThread(void *(*__start_routine)(void *), void *__arg){
+//     #ifdef WIN32
+//     DWORD  threadId;
+//     HANDLE pthreadId;
+//     pthreadId = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)__start_routine, __arg, 0, &threadId);
+// #endif
+// #ifdef __linux
+//     pthread_t pthreadId;
+//     pthread_create(&pthreadId, nullptr, __start_routine, __arg);
+// #endif
+//     return pthreadId;
+// }
 //不知道为什么，玩家离开事件中，发送游戏结束事件，该函数一直收不到
 //但process_client函数能收到, 我怀疑是直接绕过该函数发到process_client函数, 但为什么呢?
-void *process_server(void *userData){
+void process_server(uint32_t socketindex){
     GameMessage message;
-    uint32_t socketindex = *(SOCKET *)userData;
     printf("function %s start, socketindex is %d\n", __FUNCTION__, socketindex);
     do{
         g_OnLine.RecvFromClient(socketindex, &message, sizeof(message));
@@ -190,9 +189,8 @@ void *process_server(void *userData){
         g_OnLine.SendToAllClient(&message, sizeof(message));
     } while (message.event != GAME_OVER_GAME_EVENT && (message.event != PLAYER_EXIT_GAME_EVENT || socketindex != message.clientIndex));
     printf("function %s end, socketindex is %d\n", __FUNCTION__, socketindex);
-    return nullptr;
 }
-void *server_start(void *userData){
+void server_start(){
     GameMessage message;
     static uint32_t socketIndex[] = { 0, 1, 2, 3 };
     for (uint32_t i = 0; i < g_Game.GetCountryCount(); ++i){
@@ -211,7 +209,10 @@ void *server_start(void *userData){
             for (uint32_t uiClientIndex = 0; uiClientIndex < i; ++uiClientIndex){
                 g_OnLine.SendClientInfoation(uiClientIndex, &g_Players[uiClientIndex]);
             }
-            if(message.event != AI_JOIN_GAME_GAME_EVENT)CreateThread(process_server, &socketIndex[i]);
+            if(message.event != AI_JOIN_GAME_GAME_EVENT){
+                std::thread thread(process_server, socketIndex[i]);
+                thread.detach();
+            }
         }
     }
     if(g_Game.IsControllable()){
@@ -224,7 +225,6 @@ void *server_start(void *userData){
     //游戏开始, 发消息告诉所有客户端游戏开始
     message.event = GAME_START_GAME_EVENT;
     g_OnLine.SendToAllClient(&message, sizeof(message));
-    return nullptr;
 }
 void InitJiangPos(){
     const Chessboard *pBoard = g_Game.GetChessboard();
@@ -301,7 +301,7 @@ void PlayerChangeCountry(uint32_t clientIndex, const char *country){
         }
     }
 }
-void *process_client(void *userData){
+void process_client(){
     GameMessage message;
     do{
         g_OnLine.ClientRecvFrom(&message, sizeof(GameMessage));
@@ -416,7 +416,6 @@ void *process_client(void *userData){
         }
     }while(message.event != GAME_OVER_GAME_EVENT);
     printf("function %s end\n", __FUNCTION__);
-    return nullptr;
 }
 void splicingDirectory(const std::vector<std::string>&subDir, std::string&path){
     std::string newPath;
@@ -756,15 +755,16 @@ bool ShowOpenFolderUI(const char *const *items, int items_count, std::string&res
 }
 void CreateClient(const char *serverIp){
     if(g_OnLine.CreateClient(serverIp)){
-        CreateThread(process_client, nullptr);
+        std::thread thread(process_client);
+        thread.detach();
         g_OnLine.JoinsGame();
     }
 }
 void CreateServer(){
     static const uint32_t countryCount = g_Game.GetCountryCount();
     if(g_OnLine.CeateServer(countryCount)){
-        //必须用静态变量, 局部变量在函数结束后就销毁, 会导致传餐错误
-        CreateThread(server_start, nullptr);
+        std::thread threrad(server_start);
+        threrad.detach();
         CreateClient(g_OnLine.GetLocalIp().c_str());
     }
 }
@@ -800,16 +800,11 @@ void ShowPlayerCountryCombo(uint32_t comboIndex, const char *country){
         }
     }
 }
-struct ReplayInfo{
-    uint32_t number;
-    std::vector<ChessMove>record;
-};
-void *ReplayFun(void *userData){
+void ReplayFun(std::vector<ChessMove>record, uint32_t number){
     g_Game.EnableReplay();
-    uint32_t number = 0;
-    auto replay = *(ReplayInfo *)userData;
+    uint32_t n = 0;
     auto pBoard = g_Game.GetChessboard();
-    for (auto it = replay.record.begin(); it != replay.record.end() && number <= replay.number; ++number){
+    for (auto it = record.begin(); it != record.end() && n <= number; ++n){
         Chess *pStart = pBoard->GetChess(it->chess.GetRow(), it->chess.GetColumn());
         if(!pBoard->IsBoundary(it->chess.GetRow(), it->chess.GetColumn())){
             g_Game.PlayChess(pStart, it->captured.GetRow(), it->captured.GetColumn(), g_ImGuiInput.skipReplay);
@@ -818,15 +813,14 @@ void *ReplayFun(void *userData){
             // pStart->SetPos(it.captured.GetRow(), it.captured.GetColumn());
             // pBoard->SaveStep(move);
         }
-        it = replay.record.erase(it);
+        it = record.erase(it);
     }
     g_Game.UpdateUniform(g_VulkanDevice.device, g_WindowWidth);
     g_ImGuiInput.skipReplay = false;
     g_Game.EndReplay();
-    for (auto it = replay.record.begin(); it != replay.record.end(); ++it){
+    for (auto it = record.begin(); it != record.end(); ++it){
         pBoard->SaveStep(*it);
     }
-    return nullptr;
 }
 void ReadChessFromFile(FILE *fp, Chess&chess){
     Chess::Type c;
@@ -853,8 +847,9 @@ void LoadReplay(const std::string &file){
     Country player;
     ChessMove move;
     uint32_t recordCount;
-    static ReplayInfo record;
-    record.record.clear();
+    static uint32_t number;
+    static std::vector<ChessMove>record;
+    record.clear();
     fread(&player, sizeof(player), 1, fp);
     fread(&recordCount, sizeof(recordCount), 1, fp);
     for (size_t i = 0; i < recordCount; i++){
@@ -880,12 +875,13 @@ void LoadReplay(const std::string &file){
                 }
             } 
         }
-        record.record.push_back(move);
+        record.push_back(move);
     }
     fclose(fp);
     NewGame(player);
-    record.number = record.record.size() - 1;
-    CreateThread(ReplayFun, &record);
+    number = record.size() - 1;
+    std::thread thread(ReplayFun, record, number);
+    thread.detach();
 }
 void WriteChessToFile(FILE *fp, const Chess&chess){
     Chess::Type c = chess.GetChess();
@@ -963,7 +959,7 @@ void ShowGameWidget(uint32_t player){
                 if(g_ImGuiInput.enableAi){
                     if(!g_Ai.IsEnd()){
                         g_Ai.End();
-                        g_Ai.WaitThread();
+                        g_Ai.Join();
                     }
                     g_Ai.CreatePthread();
                 }
@@ -1282,12 +1278,11 @@ bool ShowReplayInof(bool *mainInterface){
         }
         if(stepNumber != -1){
             g_ImGuiInput.skipReplay = true;
-            ReplayInfo r;
-            r.record = g_Game.GetChessboard()->GetRecord();
-            r.number = stepNumber;
+            auto record = g_Game.GetChessboard()->GetRecord();
             g_Game.InitinalizeGame(g_Game.GetPlayer(), g_Game.GetCurrentCountry());
             g_Ai.InitializeChessboard();
-            pthread_join(CreateThread(ReplayFun, &r), nullptr);
+            std::thread thread(ReplayFun, record, stepNumber);
+            thread.join();
         }
     }
     ImGui::End();
@@ -1384,8 +1379,7 @@ void keybutton(GLFWwindow *window, int key, int scancode, int action, int mods){
         }
     }
 }
-void *PlayChessFun(void *userData){
-    glm::vec4 info = *(glm::vec4 *)userData;
+void PlayChessFun(const glm::vec4&info){
     auto pBoard = g_Game.GetChessboard();
     Chess *pStart = pBoard->GetChess(info.y, info.x);
     g_Game.PlayChess(pStart, info.w, info.z);
@@ -1397,7 +1391,6 @@ void *PlayChessFun(void *userData){
         }
         g_Ai.EnableNextCountry(g_ImGuiInput.enableAutoPlay);
     }
-    return nullptr;
 }
 const Chess *g_Select;
 bool SelectChess(const glm::vec2 &mousePos){
@@ -1429,7 +1422,8 @@ bool SelectChess(const glm::vec2 &mousePos){
         else{
             g_Game.UnSelectChess();
             //得另开线程才看到棋子移动效果
-            CreateThread(PlayChessFun, &info);
+            std::thread thread(PlayChessFun, info);
+            thread.detach();
         }
         g_Select = nullptr;
     }
