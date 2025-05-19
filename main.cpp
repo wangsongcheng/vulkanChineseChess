@@ -1,6 +1,4 @@
 #include <array>
-#include <thread>
-#include <chrono>
 #include <iostream>
 #ifdef __linux__
 #include <dirent.h>
@@ -539,13 +537,24 @@ bool ShowHomeDirectory(std::string&currentDir){
     }
     return false;
 }
-void ShowFolderDirectory(const std::string&currentDir, std::vector<std::string>&subDir){
+void ShowFolderDirectory(std::string&currentDir, std::vector<std::string>&subDir){
     getSubdirectory(currentDir, subDir);
     if(ImGui::BeginTable("各个文件路径名", subDir.size())){
-        for (size_t i = 0; i < subDir.size(); ++i){
-            ImGui::TableSetupColumn(subDir[i].c_str());
+        for (auto&it:subDir){
+            ImGui::TableNextColumn();
+            if(ImGui::Selectable(it.c_str())){
+                while(subDir.back() != it){
+                    subDir.pop_back();
+                }
+                currentDir = "";
+                for (auto&t:subDir){
+                    currentDir += t;
+                }
+                break;
+            }
+            // ImGui::TableSetupColumn(subDir[i].c_str());
         }
-        ImGui::TableHeadersRow();
+        // ImGui::TableHeadersRow();
         ImGui::EndTable();
     }
 }
@@ -566,7 +575,6 @@ bool ShowFolderAndFile(const char *const *items, int fileTypeIndex, std::string&
 #ifdef WIN32
                 if (ImGui::Selectable((folder[i] + '\\').c_str())) {
 #endif // WIN32
-
                     subDir.push_back(folder[i]);
                     splicingDirectory(subDir, currentDir);
 
@@ -587,7 +595,7 @@ bool ShowFolderAndFile(const char *const *items, int fileTypeIndex, std::string&
                         std::string s = file[i].substr(pos);
                         if(s == items[fileTypeIndex] + 1){
                             if(ImGui::Selectable(file[i].c_str())){
-                                selectedFile = currentDir + '/' + file[i];
+                                selectedFile = file[i];
                             }
                         }
                     }
@@ -596,11 +604,11 @@ bool ShowFolderAndFile(const char *const *items, int fileTypeIndex, std::string&
             else{
                 for (size_t i = 0; i < file.size(); ++i){
                     if(ImGui::Selectable(file[i].c_str())){
-#ifdef __linux                        
-                        selectedFile = currentDir + '/' + file[i];
+#ifdef __linux                      
+                        selectedFile = file[i];
 #endif
 #ifdef WIN32
-                        selectedFile = currentDir + '\\' + file[i];
+                        selectedFile = file[i];
 #endif
                     }
                 }
@@ -656,44 +664,48 @@ void ShowFileType(const char *const *items, int32_t items_count, int32_t *fileTy
     }
 }
 bool ShowOpenFileUI(const char *const *items, int items_count, std::string&result){
-    // bool continueShow = true;
+    bool continueShow = true;
     if(!ImGui::Begin("打开"/*, nullptr, ImGuiWindowFlags_NoResize*/)){
         ImGui::End();
         return true;
     }
     static int fileTypeIndex = items_count - 1;
     std::vector<std::string> subDir;
-    static std::string selectedFile;
-    static std::string currentDir = GetCurrentDirectory();
+    std::string selectedFile;
+    static std::string currentDir = GetCurrentDirectory(), file;
 
-    ShowFileInfomation(items, fileTypeIndex, subDir, currentDir, selectedFile);
-    
+    ShowFileInfomation(items, fileTypeIndex, subDir, currentDir, file);
+#ifdef __linux
+    if(currentDir[currentDir.length() - 1] == '/')
+        selectedFile = currentDir + file;
+    else
+        selectedFile = currentDir + '/' + file;
+#else
+    if(currentDir[currentDir.length() - 1] == '\\')
+        selectedFile = currentDir + file;
+    else
+        selectedFile = currentDir + '\\' + file;
+#endif
     ImGui::Text(selectedFile.c_str());
 
     ShowFileType(items, items_count, &fileTypeIndex, subDir, currentDir);
 
     IMGUI_BUTTON_IDENTIFIER buttonID = ShowImguiGetFileButton("打开");
     if(buttonID == IMGUI_BUTTON_CANCEL){
-        selectedFile = "";
+        result = "";
         ImGui::End();
         return false;
     }
     else if(buttonID == IMGUI_BUTTON_OK){
-        if(selectedFile != ""){
+        FILE *fp = fopen(selectedFile.c_str(), "rb");
+        if(fp){
             result = selectedFile;
-            selectedFile = "";
-            ImGui::End();
-            return false;
-        }
-        else{
-            result = currentDir;
-            selectedFile = "";
-            ImGui::End();
-            return false;
+            continueShow = false;
+            fclose(fp);
         }
     }
     ImGui::End();
-    return true;
+    return continueShow;
 }
 bool ShowOpenFolderUI(const char *const *items, int items_count, std::string&result){
     if(!ImGui::Begin("打开"/*, nullptr, ImGuiWindowFlags_NoResize*/)){
@@ -702,50 +714,53 @@ bool ShowOpenFolderUI(const char *const *items, int items_count, std::string&res
     }
     static int fileTypeIndex = items_count - 1;
     std::vector<std::string> subDir;
-    static std::string selectedFile;
-    static std::string currentDir = GetCurrentDirectory();
+    static std::string currentDir = GetCurrentDirectory(), fileName;
 
-    ShowFileInfomation(items, fileTypeIndex, subDir, currentDir, selectedFile);
+    ShowFileInfomation(items, fileTypeIndex, subDir, currentDir, fileName);
 
-    static char fileName[1000] = "/";
-    // if((selectedFile == "" || selectedFile.c_str() != currentDir) && !strchr(selectedFile.c_str(), '.'))
-    //     selectedFile = currentDir;
-    memset(fileName, 0, sizeof(fileName));
-    memcpy(fileName, selectedFile.c_str(), sizeof(char) * selectedFile.size());
+    static char file[1000];
     if(ImGui::BeginTable("保存文件", 2)){
         ImGui::TableNextColumn();
-        ImGui::Text("%s", currentDir.c_str());
+        ImGui::Text(currentDir.c_str());
         ImGui::TableNextColumn();
-        if(ImGui::InputText(" ", fileName, 999)){
-            selectedFile = fileName;
-        }
+        ImGui::InputText(" ", file, sizeof(file) - 1);
         ImGui::EndTable();
     }
-    
+
     ShowFileType(items, items_count, &fileTypeIndex, subDir, currentDir);
 
     IMGUI_BUTTON_IDENTIFIER buttonID = ShowImguiGetFileButton("保存");
     if(buttonID == IMGUI_BUTTON_CANCEL){
-        memset(fileName, 0, sizeof(fileName));
-        selectedFile = "";
+        memset(file, 0, sizeof(file));
+        result = "";
         ImGui::End();
         return false;
     }
     else if(buttonID == IMGUI_BUTTON_OK){
-        if(selectedFile != ""){
-            result = currentDir + "/" + selectedFile;
-            if(!strchr(selectedFile.c_str(), '.')){
-                result += (items[fileTypeIndex] + 1);
+        if(strcmp(file, "")){
+            if(!strchr(file, '.')){
+                strcat(file, items[fileTypeIndex]);
             }
-            memset(fileName, 0, sizeof(fileName));
+            std::string selectedFile;
+#ifdef __linux
+            if(currentDir[currentDir.length() - 1] == '/')
+                selectedFile = currentDir + file;
+            else
+                selectedFile = currentDir + '/' + file;
+#else
+            if(currentDir[currentDir.length() - 1] == '\\')
+                selectedFile = currentDir + file;
+            else
+                selectedFile = currentDir + '\\' + file;
+#endif
+            memset(file, 0, sizeof(file));
             selectedFile = "";
             ImGui::End();
             return false;
         }
         else{
             result = currentDir;
-            memset(fileName, 0, sizeof(fileName));
-            selectedFile = "";
+            memset(file, 0, sizeof(file));
             ImGui::End();
             return false;
         }

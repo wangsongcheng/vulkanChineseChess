@@ -11,7 +11,7 @@ typedef struct {
     //保存被销毁的棋子信息
     std::vector<Chess>chess;
 }Rercord;
-typedef struct {
+struct ChessMove{
     Chess chess;
     Rercord death;//如果国家灭亡，则不需要恢复captured, 直接按这里的棋子恢复
     Chess captured;
@@ -22,7 +22,7 @@ typedef struct {
     Country notAlliance = Invald_Country;
     std::array<Rercord, 2>facing;//因为见面被灭亡后，棋子应该记这里
     bool is_facing, is_death, is_check;
-} ChessMove;
+};
 class Chessboard{
     uint32_t mCountryCount;
     std::vector<ChessMove>mRecord;

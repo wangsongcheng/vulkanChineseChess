@@ -760,7 +760,7 @@ void Ai::Join(){
 void Ai::CreatePthread(){
     if(!mEnd)return;
     mEnd = false;
-    mThread = std::thread(AiPlayChess, this);
+    mThread = std::move(std::thread(AiPlayChess, this));
     mThread.detach();
 // #ifdef WIN32
 //     CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)AiPlayChess, this, 0, &pthreadId);

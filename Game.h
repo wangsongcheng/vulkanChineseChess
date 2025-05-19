@@ -2,6 +2,8 @@
 #define GAME_H
 #include <map>
 #include <mutex>
+#include <thread>
+#include <chrono>
 #include "Chessboard.h"
 #include "VulkanChess.h"
 #include "VulkanWireframe.h"

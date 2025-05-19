@@ -7,31 +7,20 @@ uint32_t Chess::GetTerritoryIndex()const{
     return GetTerritoryIndex(mRow, mColumn);
 }
 Territory Chess::GetTerritoryIndex(uint32_t row, uint32_t column)const{
-    if(row > CHESSBOARD_BING_GRID_DENSITY - 1 && row < CHESSBOARD_ROW - CHESSBOARD_BING_GRID_DENSITY + 1){
-        //汉和吴的地盘
-        if(column <= CHESSBOARD_BING_GRID_DENSITY){
-            return Han_Territory;
-        }
-        else if(column >= CHESSBOARD_COLUMN - CHESSBOARD_BING_GRID_DENSITY){
-            return Wu_Territory;
-        }
-        else{
-            return Center_Territory;
-        }
+    //如果只是想优化if的判断条件, 那还是省省吧。之前的判断条件，在row = CHESSBOARD_BING_GRID_DENSITY的时候，会直接进入判断吴、汉地盘的条件
+    if(row >= CHESSBOARD_BING_GRID_DENSITY && row <= CHESSBOARD_ROW - CHESSBOARD_BING_GRID_DENSITY && column <= CHESSBOARD_BING_GRID_DENSITY){
+        return Han_Territory;
     }
-        else if(column > CHESSBOARD_BING_GRID_DENSITY - 1 && column < CHESSBOARD_COLUMN - CHESSBOARD_BING_GRID_DENSITY + 1){
-        //魏和蜀的地盘
-        if(row <= CHESSBOARD_BING_GRID_DENSITY){
-            return Wei_Territory;
-        }
-        else if(row >= CHESSBOARD_ROW - CHESSBOARD_BING_GRID_DENSITY){
-            return Shu_Territory;
-        }
-        else{
-            return Center_Territory;
-        }
+    else if(row >= CHESSBOARD_BING_GRID_DENSITY && row <= CHESSBOARD_ROW - CHESSBOARD_BING_GRID_DENSITY && column >= CHESSBOARD_COLUMN - CHESSBOARD_BING_GRID_DENSITY){
+        return Wu_Territory;
     }
-    return Invald_Territory;
+    else if(row <= CHESSBOARD_BING_GRID_DENSITY && column >= CHESSBOARD_BING_GRID_DENSITY && column <= CHESSBOARD_ROW - CHESSBOARD_BING_GRID_DENSITY){
+        return Wei_Territory;
+    }
+    else if(row >= CHESSBOARD_ROW - CHESSBOARD_BING_GRID_DENSITY){
+        return Shu_Territory;
+    }
+    return Center_Territory;
 }
 void Chess::RemoveInvalidChess(const void *pBoard, std::vector<glm::vec2> &legal_moves) const{
     const Chessboard *board = (const Chessboard *)pBoard;

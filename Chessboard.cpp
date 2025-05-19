@@ -425,7 +425,7 @@ void Chessboard::InitializeChess(Country player, bool isControllable){
     mChess[Shu_Country][JIANG_CHESS_OFFSET] = new Shu(mTerritory[Shu_Country]);
     mChess[Han_Country][JIANG_CHESS_OFFSET] = new Han(mTerritory[Han_Country]);
     //因为需要要到表达式外的变量才需要[&]
-    auto CrerateCountryChess = [&](Country country, std::array<Chess *, DRAW_CHESS_COUNT>&pChess){
+    auto CrerateCountryChess = [this](Country country, std::array<Chess *, DRAW_CHESS_COUNT>&pChess){
         for (uint32_t uiChess = 1; uiChess < COUNTRY_CHESS_COUNT; ++uiChess){
             if(uiChess >= MA_CHESS_OFFSET && uiChess < MA_CHESS_OFFSET + MA_CHESS_COUNT){
                 pChess[uiChess] = new Ma(country, mTerritory[country]);

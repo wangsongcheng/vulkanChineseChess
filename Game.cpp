@@ -120,6 +120,7 @@ ChessMove Game::GetSaveStep(const Chessboard *pBoard, Chess *pChess, uint32_t ds
     char step[MAX_BYTE];
     uint32_t srcNumber, dstNumber;
     Territory srcTerritory = pChess->GetTerritory();
+    const int32_t absRow = pChess->GetRow() - dstRow, absColumn = pChess->GetColumn() - dstColumn;
     if(srcTerritory == Han_Territory){
         srcNumber = MAX_CHESSBOARD_LINE - pChess->GetRow();
         if(dstColumn < pChess->GetColumn()){
@@ -135,7 +136,7 @@ ChessMove Game::GetSaveStep(const Chessboard *pBoard, Chess *pChess, uint32_t ds
             dstNumber = MAX_CHESSBOARD_LINE - dstRow;
         }
         else{
-            dstNumber = strcmp(step, "平")?abs(pChess->GetColumn() - dstColumn):MAX_CHESSBOARD_LINE - dstRow;
+            dstNumber = strcmp(step, "平")?abs(absColumn):MAX_CHESSBOARD_LINE - dstRow;
         }
     }
     else if(srcTerritory == Wu_Territory){
@@ -153,7 +154,7 @@ ChessMove Game::GetSaveStep(const Chessboard *pBoard, Chess *pChess, uint32_t ds
             dstNumber =  dstRow + 1;
         }
         else{
-            dstNumber = strcmp(step, "平")?abs(pChess->GetColumn() - dstColumn):dstRow + 1;
+            dstNumber = strcmp(step, "平")?abs(absColumn):dstRow + 1;
         }
     }
     else if(srcTerritory == Shu_Territory){
@@ -171,7 +172,7 @@ ChessMove Game::GetSaveStep(const Chessboard *pBoard, Chess *pChess, uint32_t ds
             dstNumber = MAX_CHESSBOARD_LINE - dstColumn;
         }
         else{
-            dstNumber = strcmp(step, "平")?abs(pChess->GetRow() - dstRow):MAX_CHESSBOARD_LINE - dstColumn;
+            dstNumber = strcmp(step, "平")?abs(absRow):MAX_CHESSBOARD_LINE - dstColumn;
         }
     }
     else{
@@ -189,7 +190,7 @@ ChessMove Game::GetSaveStep(const Chessboard *pBoard, Chess *pChess, uint32_t ds
             dstNumber =  dstColumn;
         }
         else{
-            dstNumber = strcmp(step, "平")?abs(pChess->GetRow() - dstRow):dstColumn + 1;
+            dstNumber = strcmp(step, "平")?abs(absRow):dstColumn + 1;
         }
     }
     //修改或取消number的显示，要注意imgui那边已经用了strstr
@@ -370,11 +371,7 @@ void Game::MoveChess(const glm::vec2&start, const glm::vec2&end, uint32_t fontIn
         const glm::vec2 pos = lerp(start, end, t);
         // vulkan.chess.UpdateUniform(vulkan.device.device, fontIndex, pos, dynamicOffsets);
         vulkan.chess.UpdateUniform(vulkan.device.device, fontIndex, country, pos, CHESS_WIDTH * 1.2, CHESS_HEIGHT * 1.2, dynamicOffsets);
-#ifdef WIN32
-        Sleep(1);
-#else
-        usleep(10000);
-#endif
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
 }
 void Game::PlayChess(Chess *pChess, uint32_t dstRow, uint32_t dstColumn, bool skipAnim){
