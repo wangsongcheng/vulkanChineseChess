@@ -1703,11 +1703,7 @@ void CleanupVulkan(){
     g_VulkanDevice.Cleanup();
 }
 #ifdef _WIN32
-int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
-#else
-int main()
-#endif
-{
+int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow){
     // srandom(time(nullptr));
     if (GLFW_FALSE == glfwInit()) {
         printf("initialize glfw error");
@@ -1747,3 +1743,45 @@ int main()
     CleanupVulkan();
     return 0;
 }
+#else
+int main(){
+    // srandom(time(nullptr));
+    if (GLFW_FALSE == glfwInit()) {
+        printf("initialize glfw error");
+        return 1;
+    }
+    glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
+    GLFWwindow* window = glfwCreateWindow(g_WindowWidth, g_WindowHeight, "demo", NULL, NULL);
+    // Setup Vulkan
+    if (!glfwVulkanSupported()){
+        printf("GLFW: Vulkan Not Supported\n");
+        return 1;
+    }
+    SetupVulkan(window);
+    Setup(window);
+
+    const double targetFrameTime = 1.0 / 60.0; // 目标帧时间（例如60 FPS）
+    auto previousTime = std::chrono::high_resolution_clock::now();
+    while (!glfwWindowShouldClose(window)) {
+        auto currentTime = std::chrono::high_resolution_clock::now();
+        double elapsedTime = std::chrono::duration<double>(currentTime - previousTime).count();
+
+        if (elapsedTime < targetFrameTime) {
+            double sleepTime = (targetFrameTime - elapsedTime) * 1000;
+            std::this_thread::sleep_for(std::chrono::milliseconds((int)sleepTime));
+        }
+
+        previousTime = std::chrono::high_resolution_clock::now();
+
+        display(window);
+
+        glfwPollEvents();
+    }
+	glfwTerminate();
+
+    vkDeviceWaitIdle(g_VulkanDevice.device);
+    Cleanup(g_VulkanDevice.device);
+    CleanupVulkan();
+    return 0;
+}
+#endif
