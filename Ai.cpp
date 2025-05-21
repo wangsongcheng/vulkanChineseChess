@@ -2,7 +2,7 @@
 extern ImGuiInput g_ImGuiInput;
 extern std::array<Player, MAX_COUNTRY_INDEX>g_Players;
 void aiPlay(Ai *pAi){
-    glm::vec2 dst;
+    glm::vec2 dst = glm::vec2(0);
     Chess *pSelect = pAi->GetSelect(pAi->GetCurrentCountry(), dst);
     const Chess *pTarget = pAi->GetChess(dst.y, dst.x);
     if(pAi->IsOnline()){
@@ -554,25 +554,26 @@ Chess *Ai::GetNextDefender(const Chess *pCheck, const Chess **pTarget, glm::vec2
     //需要将所有棋子，所有能走的地方都走一遍, 然后调用GetNowDefender返回现在能包含的棋子
     auto pCountryChess = mChessboard.GetChess(country);
     for (uint32_t uiChess = 0; uiChess < DRAW_CHESS_COUNT; ++uiChess){
-        if(pCountryChess[uiChess]){
-            //假如问题出在这里的话，那么说明pChess被改了，需要用下边的方式重新找。
-            auto pChess = mChessboard.GetChess(country, pCountryChess[uiChess]->GetRow(), pCountryChess[uiChess]->GetColumn());
-            if(pChess && uiChess != (*pTarget)->GetChessOffset()){
-                std::vector<glm::vec2>canplays;
-                pChess->Select(&mChessboard, canplays);
-                mGame->RemoveInvalidTarget(canplays);
-                for (auto&it:canplays){
-                    SyncBoard(pChess, it.y, it.x);
-                    if(!mChessboard.IsDeath(country))pDefender = GetNowDefender(pCheck, pTarget);
-                    UndoStep();
-                    if(pDefender && pDefender->GetChessOffset() != pChess->GetChessOffset()){
-                        pos = it;
-                        pDefender = pChess;
-                        uiChess = DRAW_CHESS_COUNT;
-                        break;
-                    }
+        //假如问题出在这里的话，那么说明pChess被改了，需要用下边的方式重新找。
+        auto pChess = pCountryChess[uiChess];
+        if(pChess && uiChess != (*pTarget)->GetChessOffset()){
+            std::vector<glm::vec2>canplays;
+            pChess->Select(&mChessboard, canplays);
+            mGame->RemoveInvalidTarget(canplays);
+            for (auto&it:canplays){
+                Chess chess = *pChess;
+                SyncBoard(pChess, it.y, it.x);
+                if(!mChessboard.IsDeath(country))pDefender = GetNowDefender(pCheck, pTarget);
+                UndoStep();
+                pCountryChess = mChessboard.GetChess(country);
+                pChess = pCountryChess[uiChess];
+                if(pDefender && pDefender->GetChessOffset() != pChess->GetChessOffset()){
+                    pos = it;
+                    pDefender = pCountryChess[chess.GetChessOffset()];
+                    uiChess = DRAW_CHESS_COUNT;
+                    break;
                 }
-            }    
+            }
         }
     }
     return pDefender;
@@ -715,8 +716,7 @@ Chess *Ai::GetSelect(Country country, glm::vec2&pos){
                     pSelect = nullptr;
                 }
                 else{
-                    pos.y = pTarget->GetRow();
-                    pos.x = pTarget->GetColumn();
+                    pos = target;
                 }
                 UndoStep();
             }

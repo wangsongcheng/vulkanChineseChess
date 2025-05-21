@@ -723,6 +723,7 @@ bool ShowOpenFolderUI(const char *const *items, int items_count, std::string&res
         ImGui::TableNextColumn();
         ImGui::Text(currentDir.c_str());
         ImGui::TableNextColumn();
+        if(fileName != "")strcpy(file, fileName.c_str());
         ImGui::InputText(" ", file, sizeof(file) - 1);
         ImGui::EndTable();
     }
@@ -1222,7 +1223,7 @@ bool ShowReplayInof(bool *mainInterface){
                 if (it->chess.GetCountry() == Wu_Country) {
                     if (ImGui::Selectable(it->step)) {
                         const char *str = strstr(it->step, "_") ;
-                        g_Game.SetCurrentCountry(g_Game.GetNextCountry(Wu_Country));
+                        // g_Game.SetCurrentCountry(g_Game.GetNextCountry(Wu_Country));
                         if(str)stepNumber = atoi(str + 1);
                         break;
                     }
@@ -1234,7 +1235,7 @@ bool ShowReplayInof(bool *mainInterface){
                 if(it->chess.GetCountry() == Wei_Country){
                     if(ImGui::Selectable(it->step)){
                         const char *str = strstr(it->step, "_") ;
-                        g_Game.SetCurrentCountry(g_Game.GetNextCountry(Wei_Country));
+                        // g_Game.SetCurrentCountry(g_Game.GetNextCountry(Wei_Country));
                         if(str)stepNumber = atoi(str + 1);
                         break;
                     }
@@ -1247,7 +1248,7 @@ bool ShowReplayInof(bool *mainInterface){
                     if (it->chess.GetCountry() == Han_Country) {
                         if (ImGui::Selectable(it->step)) {
                             const char *str = strstr(it->step, "_") ;
-                            g_Game.SetCurrentCountry(g_Game.GetNextCountry(Han_Country));
+                            // g_Game.SetCurrentCountry(g_Game.GetNextCountry(Han_Country));
                             if(str)stepNumber = atoi(str + 1);
                             break;
                         }
@@ -1260,7 +1261,7 @@ bool ShowReplayInof(bool *mainInterface){
                 if(it->chess.GetCountry() == Shu_Country){
                     if(ImGui::Selectable(it->step)){
                         const char *str = strstr(it->step, "_") ;
-                        g_Game.SetCurrentCountry(g_Game.GetNextCountry(Shu_Country));
+                        // g_Game.SetCurrentCountry(g_Game.GetNextCountry(Shu_Country));
                         if(str)stepNumber = atoi(str + 1);
                         break;
                     }
@@ -1294,7 +1295,7 @@ bool ShowReplayInof(bool *mainInterface){
         if(stepNumber != -1){
             g_ImGuiInput.skipReplay = true;
             auto record = g_Game.GetChessboard()->GetRecord();
-            g_Game.InitinalizeGame(g_Game.GetPlayer(), g_Game.GetCurrentCountry());
+            g_Game.InitinalizeGame(g_Game.GetPlayer());
             g_Ai.InitializeChessboard();
             std::thread thread(ReplayFun, record, stepNumber);
             thread.join();
@@ -1701,7 +1702,12 @@ void CleanupVulkan(){
 
     g_VulkanDevice.Cleanup();
 }
-int main(){
+#ifdef _WIN32
+int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
+#else
+int main()
+#endif
+{
     // srandom(time(nullptr));
     if (GLFW_FALSE == glfwInit()) {
         printf("initialize glfw error");
